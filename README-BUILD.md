@@ -21,6 +21,6 @@ cd android && ./gradlew assembleRelease     # ou ouvrez le dossier android dans 
 ```
 
 ## Connexion
-Comptes de démonstration : Marc Mwepu (admin), Sarah Kalenga (gestion), Joseph Ilunga (caisse).
+Comptes de démonstration : Georges (admin), Didier (gestion), Mylet (caisse).
 PIN par défaut de la démo (premier lancement uniquement) : admin **9999**, gestion **5555**, caisse **1234**.
 L'écran de connexion ne les affiche plus ; l'application **oblige à le changer à la première connexion**.
