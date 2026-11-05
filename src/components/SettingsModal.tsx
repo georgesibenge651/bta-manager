@@ -27,6 +27,7 @@ interface SettingsModalProps {
   onExportDatabase: () => void;
   onImportDatabase: (jsonStr: string) => boolean;
   onResetDatabase: () => void;
+  onClearDatabase?: () => void;
   currentUserRole: UserRole;
 }
 
@@ -41,6 +42,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onExportDatabase,
   onImportDatabase,
   onResetDatabase,
+  onClearDatabase,
   currentUserRole,
 }) => {
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'CURRENCY' | 'USERS' | 'BACKUP'>('GENERAL');
@@ -618,6 +620,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   >
                     Réinitialiser Démo
                   </button>
+                  {onClearDatabase && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          confirm('Tout effacer (produits, clients, ventes, achats, dettes...) et repartir à zéro ? Pensez à exporter une sauvegarde avant.') &&
+                          confirm('Dernière confirmation : cette action est définitive.')
+                        ) {
+                          onClearDatabase();
+                          alert('Toutes les données ont été effacées. Vous pouvez commencer vos enregistrements.');
+                          onClose();
+                        }
+                      }}
+                      className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold hover:bg-black"
+                    >
+                      Tout effacer (démarrer à zéro)
+                    </button>
+                  )}
                 </div>
               )}
             </div>

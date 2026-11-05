@@ -1338,6 +1338,25 @@ class AppRepository {
     return false;
   }
 
+  /** Deletes ALL products, customers, suppliers, sales, purchases, stock, expenses and debts. Accounts, PINs, settings and categories are kept. */
+  public clearAllBusinessData() {
+    this.requireAdmin();
+    this.state = {
+      ...this.state,
+      products: [],
+      customers: [],
+      suppliers: [],
+      sales: [],
+      purchases: [],
+      stockMovements: [],
+      expenses: [],
+      debts: [],
+      offlineQueue: [],
+      syncInfo: { ...this.state.syncInfo, pendingCount: 0 },
+    };
+    this.persist();
+  }
+
   /** Erases business data (demo seed). Accounts and PINs are kept. */
   public resetToDefaultSeed() {
     this.requireAdmin();
