@@ -5,3 +5,5 @@
 *.jks
 *.keystore
 keystore.properties
+node_modules/
+dist/

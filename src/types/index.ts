@@ -18,7 +18,7 @@ export interface User {
   pinSalt?: string; // Cryptographic salt
 }
 
-export type UnitOfMeasure = 'pcs' | 'kg' | 'm' | 'sac' | 'carton' | 'litre' | 'paquet';
+export type UnitOfMeasure = 'pcs' | 'kg' | 'm' | 'sac' | 'carton' | 'litre' | 'paquet' | 'bidon' | 'bouteille' | 'seau';
 
 export interface ProductVariant {
   name: string; // e.g., 'Taille', 'Couleur', 'Modèle'

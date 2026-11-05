@@ -107,7 +107,99 @@ class AppRepository {
 
   private async initAsyncStorage() {
     if (typeof window === 'undefined') return;
+
+    const MIGRATION_KEY = 'bta_initial_inventory_migration_v1';
+    const MIGRATION_VERSION = '1';
+
     try {
+      const prefMarker = await Preferences.get({ key: MIGRATION_KEY });
+      const localMarker = localStorage.getItem(MIGRATION_KEY);
+
+      if (
+        localMarker !== MIGRATION_VERSION &&
+        prefMarker.value !== MIGRATION_VERSION
+      ) {
+        // Lire les sauvegardes existantes uniquement pour préserver les comptes
+        // et les paramètres, jamais pour restaurer les anciennes données commerciales.
+        const indexedData = await localforage.getItem<AppDatabaseState>(STORAGE_KEY);
+        const prefData = await Preferences.get({ key: STORAGE_KEY });
+
+        let saved: AppDatabaseState | null = null;
+
+        try {
+          if (prefData.value) {
+            saved = JSON.parse(prefData.value) as AppDatabaseState;
+          }
+        } catch {
+          saved = null;
+        }
+
+        if (
+          indexedData &&
+          (!saved || (indexedData.savedAt || 0) > (saved.savedAt || 0))
+        ) {
+          saved = indexedData;
+        }
+
+        let usersToKeep = saved?.users?.length
+          ? saved.users
+          : this.state.users?.length
+            ? this.state.users
+            : INITIAL_USERS;
+
+        usersToKeep = this.ensureUserPins(usersToKeep);
+
+        const oldCurrentId =
+          this.state.currentUser?.id || saved?.currentUser?.id;
+
+        const currentUser =
+          usersToKeep.find((u) => u.id === oldCurrentId) || usersToKeep[0];
+
+        const cleanState: AppDatabaseState = {
+          ...this.getDefaultState(),
+          settings: saved?.settings || this.state.settings,
+          users: usersToKeep,
+          currentUser,
+          categories: INITIAL_CATEGORIES,
+          products: INITIAL_PRODUCTS,
+          customers: [],
+          suppliers: [],
+          sales: [],
+          purchases: [],
+          stockMovements: [],
+          expenses: [],
+          debts: [],
+          offlineQueue: [],
+          syncInfo: {
+            ...this.state.syncInfo,
+            pendingCount: 0,
+          },
+          savedAt: Date.now(),
+        };
+
+        this.state = cleanState;
+
+        // Écrire d'abord les trois stockages propres.
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanState));
+        await localforage.setItem(STORAGE_KEY, cleanState);
+        await Preferences.set({
+          key: STORAGE_KEY,
+          value: JSON.stringify(cleanState),
+        });
+
+        // Marquer la migration seulement après la sauvegarde des données propres.
+        localStorage.setItem(MIGRATION_KEY, MIGRATION_VERSION);
+        await Preferences.set({
+          key: MIGRATION_KEY,
+          value: MIGRATION_VERSION,
+        });
+
+        this.notify();
+        console.info('BTA inventory migration completed successfully.');
+        return;
+      }
+
+      // Migration déjà effectuée : comportement normal de restauration.
       const localSavedAt = this.state.savedAt || 0;
       let best: AppDatabaseState | null = null;
       let bestAt = localSavedAt;
@@ -118,7 +210,6 @@ class AppRepository {
         bestAt = indexedData.savedAt || 0;
       }
 
-      // Capacitor native Preferences (fallback if the WebView storage was wiped)
       const prefData = await Preferences.get({ key: STORAGE_KEY });
       if (prefData.value) {
         const parsed = JSON.parse(prefData.value) as AppDatabaseState;
@@ -129,16 +220,18 @@ class AppRepository {
       }
 
       if (best) {
-        // Never let a hydrated copy log out / replace the current session user
         const merged = { ...this.getDefaultState(), ...best };
         merged.users = this.ensureUserPins(merged.users || INITIAL_USERS);
         merged.currentUser =
-          merged.users.find((u) => u.id === (this.sessionUserId || best!.currentUser?.id)) || merged.users[0];
+          merged.users.find((u) =>
+            u.id === (this.sessionUserId || best!.currentUser?.id)
+          ) || merged.users[0];
+
         this.state = merged;
         this.notify();
       }
     } catch (e) {
-      console.warn('Async storage hydration warning:', e);
+      console.error('BTA storage initialization/migration error:', e);
     }
   }
 
