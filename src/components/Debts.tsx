@@ -1,0 +1,309 @@
+import React, { useState } from 'react';
+import { CreditCard, DollarSign, Calendar, History, ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
+import { DebtRecord, PaymentMethod } from '../types';
+import { formatUSD, formatCDF, formatDateLubumbashi } from '../utils/currency';
+
+interface DebtsProps {
+  debts: DebtRecord[];
+  exchangeRate: number;
+  onRecordDebtPayment: (
+    debtId: string,
+    amountUSD: number,
+    method: PaymentMethod,
+    notes?: string
+  ) => { success: boolean; error?: string; updatedDebt?: DebtRecord; receiptNumber?: string };
+  onOpenDebtReceipt: (debt: DebtRecord, amountUSD: number, receiptNum: string) => void;
+}
+
+export const Debts: React.FC<DebtsProps> = ({
+  debts,
+  exchangeRate,
+  onRecordDebtPayment,
+  onOpenDebtReceipt,
+}) => {
+  const [activeTab, setActiveTab] = useState<'CUSTOMER' | 'SUPPLIER'>('CUSTOMER');
+  const [selectedDebt, setSelectedDebt] = useState<DebtRecord | null>(null);
+
+  // Payment form state
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentAmountUSD, setPaymentAmountUSD] = useState<number>(0);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const filteredDebts = debts.filter((d) => d.type === activeTab);
+  const totalRemainingUSD = filteredDebts.reduce((sum, d) => sum + d.remainingBalanceUSD, 0);
+
+  const handleOpenPayment = (debt: DebtRecord) => {
+    setSelectedDebt(debt);
+    setPaymentAmountUSD(debt.remainingBalanceUSD);
+    setPaymentMethod('CASH');
+    setPaymentNotes('');
+    setErrorMessage('');
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleExecutePayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDebt) return;
+    setErrorMessage('');
+
+    const res = onRecordDebtPayment(
+      selectedDebt.id,
+      paymentAmountUSD,
+      paymentMethod,
+      paymentNotes.trim() || undefined
+    );
+
+    if (!res.success) {
+      setErrorMessage(res.error || 'Erreur lors du règlement');
+      return;
+    }
+
+    setIsPaymentModalOpen(false);
+    if (res.updatedDebt && res.receiptNumber) {
+      onOpenDebtReceipt(res.updatedDebt, paymentAmountUSD, res.receiptNumber);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-sky-600" />
+            Module Indépendant des Dettes & Créances
+          </h3>
+          <p className="text-xs text-slate-500">
+            Suivi des créances clients et dettes fournisseurs sans perte d'historique
+          </p>
+        </div>
+
+        {/* Tab switcher */}
+        <div className="flex bg-slate-100 p-1 rounded-2xl text-xs font-bold">
+          <button
+            onClick={() => setActiveTab('CUSTOMER')}
+            className={`px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 ${
+              activeTab === 'CUSTOMER' ? 'bg-[#0F2444] text-white shadow-xs' : 'text-slate-600'
+            }`}
+          >
+            <ArrowDownRight className="w-4 h-4 text-emerald-400" />
+            Créances Clients
+          </button>
+          <button
+            onClick={() => setActiveTab('SUPPLIER')}
+            className={`px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 ${
+              activeTab === 'SUPPLIER' ? 'bg-[#0F2444] text-white shadow-xs' : 'text-slate-600'
+            }`}
+          >
+            <ArrowUpRight className="w-4 h-4 text-amber-400" />
+            Dettes Fournisseurs
+          </button>
+        </div>
+      </div>
+
+      {/* Summary KPI Banner */}
+      <div className="bg-gradient-to-r from-slate-900 to-[#0F2444] rounded-3xl p-4 sm:p-5 text-white flex justify-between items-center shadow-md">
+        <div>
+          <span className="text-xs text-slate-300 font-semibold uppercase">
+            Total {activeTab === 'CUSTOMER' ? 'Créances à Encaisser' : 'Dettes à Régler'}
+          </span>
+          <p className="text-2xl font-black text-white mt-1">{formatUSD(totalRemainingUSD)}</p>
+          <p className="text-xs text-sky-300 font-bold">
+            {formatCDF(totalRemainingUSD * exchangeRate)}
+          </p>
+        </div>
+        <div className="text-right text-xs text-slate-300">
+          <p className="font-bold text-white">{filteredDebts.length} dossiers enregistrés</p>
+          <p className="text-[10px] text-slate-400">Taux: 1$ = {exchangeRate} FC</p>
+        </div>
+      </div>
+
+      {/* Debts List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {filteredDebts.map((debt) => {
+          const isCleared = debt.remainingBalanceUSD <= 0.01;
+
+          return (
+            <div
+              key={debt.id}
+              className="bg-white rounded-3xl border border-slate-200 p-4 space-y-3 shadow-xs hover:shadow-md transition flex flex-col justify-between"
+            >
+              <div className="space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900">{debt.partyName}</h4>
+                    <p className="text-[11px] text-slate-500 font-mono">
+                      Ref: {debt.referenceInvoice} • Tél: {debt.partyPhone}
+                    </p>
+                  </div>
+                  <span
+                    className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                      isCleared ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    {isCleared ? 'Entièrement Soldé' : 'En Cours'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-2xl text-xs text-slate-600 text-center">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Initial</span>
+                    <strong className="text-slate-800">{formatUSD(debt.initialAmountUSD)}</strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Déjà Payé</span>
+                    <strong className="text-emerald-700">{formatUSD(debt.paidAmountUSD)}</strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Solde Dû</span>
+                    <strong className={isCleared ? 'text-emerald-700' : 'text-amber-800'}>
+                      {formatUSD(debt.remainingBalanceUSD)}
+                    </strong>
+                  </div>
+                </div>
+
+                {/* Repayment History preview */}
+                {debt.history.length > 0 && (
+                  <div className="space-y-1 text-xs pt-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">
+                      Historique des versements ({debt.history.length}) :
+                    </span>
+                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                      {debt.history.map((h) => (
+                        <div
+                          key={h.id}
+                          className="flex justify-between items-center text-[11px] bg-slate-50 px-2 py-1 rounded-lg"
+                        >
+                          <span className="text-slate-600 truncate">
+                            {formatDateLubumbashi(h.date)} ({h.receiptNumber})
+                          </span>
+                          <span className="font-bold text-emerald-700 shrink-0">
+                            +{formatUSD(h.amountUSD)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  Échéance: {new Date(debt.dueDate).toLocaleDateString('fr-FR')}
+                </span>
+
+                {!isCleared && (
+                  <button
+                    onClick={() => handleOpenPayment(debt)}
+                    className="px-3 py-1.5 text-xs font-bold bg-[#0F2444] hover:bg-sky-900 text-white rounded-xl shadow-xs transition"
+                  >
+                    Enregistrer Versement
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Payment Settlement Modal */}
+      {isPaymentModalOpen && selectedDebt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-200">
+            <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-base">Enregistrer Règlement Financier</h3>
+                <p className="text-xs text-sky-300">{selectedDebt.partyName}</p>
+              </div>
+              <button
+                onClick={() => setIsPaymentModalOpen(false)}
+                className="p-1.5 rounded-full hover:bg-white/10 text-slate-300 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleExecutePayment} className="p-4 sm:p-6 space-y-4">
+              {errorMessage && (
+                <div className="p-2.5 bg-red-50 border border-red-200 text-red-800 rounded-xl text-xs">
+                  {errorMessage}
+                </div>
+              )}
+
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex justify-between text-xs">
+                <div>
+                  <span className="text-slate-500">Reste à solder :</span>
+                  <p className="text-base font-black text-slate-900">
+                    {formatUSD(selectedDebt.remainingBalanceUSD)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-slate-500">En Francs :</span>
+                  <p className="text-xs font-bold text-sky-800">
+                    {formatCDF(selectedDebt.remainingBalanceUSD * exchangeRate)}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Montant Versé (USD) *</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0.1"
+                  max={selectedDebt.remainingBalanceUSD}
+                  required
+                  value={paymentAmountUSD}
+                  onChange={(e) => setPaymentAmountUSD(parseFloat(e.target.value) || 0)}
+                  className="w-full text-base font-black p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Moyen de Paiement</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+                >
+                  <option value="CASH">Espèces (Cash)</option>
+                  <option value="MOBILE_MONEY">Mobile Money (M-Pesa, Airtel...)</option>
+                  <option value="BANK_TRANSFER">Virement Bancaire</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Notes / Référence</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Réf reçu bancaire ou versement guichet..."
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setIsPaymentModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md"
+                >
+                  Valider & Générer Reçu
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

@@ -1,0 +1,6 @@
+{
+  "name": "BTA Business Transform Africa",
+  "description": "Application professionnelle de gestion commerciale mobile pour commerces, quincailleries et distributeurs en Afrique avec gestion multidevise USD/CDF, caisse POS, stocks et synchronisation hors-ligne.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
