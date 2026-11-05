@@ -28,6 +28,8 @@ interface SettingsModalProps {
   onImportDatabase: (jsonStr: string) => boolean;
   onResetDatabase: () => void;
   onClearDatabase?: () => void;
+  onDeleteUser?: (userId: string) => void;
+  onUpdateUserProfile?: (userId: string, profile: { name: string; email: string; phone: string }) => void;
   currentUserRole: UserRole;
 }
 
@@ -43,6 +45,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onImportDatabase,
   onResetDatabase,
   onClearDatabase,
+  onDeleteUser,
+  onUpdateUserProfile,
   currentUserRole,
 }) => {
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'CURRENCY' | 'USERS' | 'BACKUP'>('GENERAL');
@@ -529,6 +533,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-300 transition"
                           >
                             {changingPinUserId === u.id ? 'Annuler' : 'Changer PIN'}
+                          </button>
+                        )}
+                        {(currentUserRole === 'ADMIN' || currentUserRole === 'ADMINISTRATEUR') && onUpdateUserProfile && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const name = prompt('Nom complet :', u.name);
+                              if (name === null) return;
+                              const email = prompt('E-mail :', u.email);
+                              if (email === null) return;
+                              const phone = prompt('Téléphone :', u.phone);
+                              if (phone === null) return;
+                              onUpdateUserProfile(u.id, { name, email, phone });
+                            }}
+                            className="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-800 text-[10px] font-bold rounded-lg border border-sky-200 transition"
+                          >
+                            Modifier
+                          </button>
+                        )}
+                        {(currentUserRole === 'ADMIN' || currentUserRole === 'ADMINISTRATEUR') && onDeleteUser && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Supprimer définitivement le compte « ${u.name} » ?`)) onDeleteUser(u.id);
+                            }}
+                            className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 text-[10px] font-bold rounded-lg border border-red-200 transition"
+                          >
+                            Supprimer
                           </button>
                         )}
                       </div>

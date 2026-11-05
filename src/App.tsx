@@ -539,6 +539,8 @@ export default function App() {
         onImportDatabase={(json) => guard(() => appRepository.importDatabaseJson(json)) ?? false}
         onResetDatabase={() => { guard(() => appRepository.resetToDefaultSeed()); }}
         onClearDatabase={() => { guard(() => appRepository.clearAllBusinessData()); }}
+        onDeleteUser={(id) => { guard(() => appRepository.deleteUser(id)); }}
+        onUpdateUserProfile={(id, p) => { guard(() => appRepository.updateUserProfile(id, p)); }}
         currentUserRole={dbState.currentUser.role}
       />
 

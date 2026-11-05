@@ -574,6 +574,28 @@ class AppRepository {
     this.persist();
   }
 
+  /** Admin: edit name / e-mail / phone of an account. */
+  public updateUserProfile(userId: string, profile: { name: string; email: string; phone: string }) {
+    this.requireAdmin();
+    const user = this.getUserById(userId);
+    if (!user) throw new Error('Utilisateur introuvable.');
+    const name = (profile.name || '').trim();
+    if (!name) throw new Error('Le nom est obligatoire.');
+    this.updateUser({ ...user, name, email: (profile.email || '').trim(), phone: (profile.phone || '').trim() });
+  }
+
+  /** Admin: delete an account. You cannot delete yourself, nor the last administrator. */
+  public deleteUser(userId: string) {
+    this.requireAdmin();
+    if (userId === this.sessionUserId) throw new Error('Vous ne pouvez pas supprimer le compte avec lequel vous êtes connecté.');
+    const target = this.getUserById(userId);
+    if (!target) throw new Error('Utilisateur introuvable.');
+    const remainingAdmins = this.state.users.filter((u) => u.id !== userId && ADMIN_ROLES.includes(u.role) && u.active !== false);
+    if (remainingAdmins.length === 0) throw new Error('Il doit rester au moins un administrateur.');
+    this.state.users = this.state.users.filter((u) => u.id !== userId);
+    this.persist();
+  }
+
   public updateSettings(settings: CompanySettings) {
     this.requireAdmin();
     if (!isNum(settings.exchangeRate) || settings.exchangeRate < 100 || settings.exchangeRate > 100000) {
