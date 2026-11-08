@@ -1,0 +1,92 @@
+rules_version = '2';
+
+// BTA Manager — multi-entreprises / multi-établissements.
+// Principe : AUCUNE écriture depuis l'application. Toutes les écritures passent par les
+// Cloud Functions (Admin SDK), qui vérifient l'appartenance et les permissions.
+// Les clients ne peuvent que LIRE ce que leur affectation autorise.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    function member(t) {
+      return get(/databases/$(database)/documents/tenants/$(t)/members/$(request.auth.uid)).data;
+    }
+    function isActiveMember(t) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/tenants/$(t)/members/$(request.auth.uid))
+        && member(t).active == true;
+    }
+    function isOwner(t) { return isActiveMember(t) && member(t).role == 'OWNER'; }
+
+    // Le propriétaire voit tout ; les autres doivent avoir l'affectation ET la permission.
+    function canBranch(t, b, perm) {
+      return isOwner(t)
+        || (isActiveMember(t)
+            && exists(/databases/$(database)/documents/tenants/$(t)/members/$(request.auth.uid)/branchAccess/$(b))
+            && perm in get(/databases/$(database)/documents/tenants/$(t)/members/$(request.auth.uid)/branchAccess/$(b)).data.permissions);
+    }
+    // Données partagées par l'entreprise : il suffit d'avoir la permission dans au moins un établissement
+    // — vérifié côté fonctions ; ici, simple appartenance active.
+    function canTenant(t) { return isActiveMember(t); }
+
+    match /tenants/{t} {
+      allow read: if canTenant(t);
+      allow write: if false;
+
+      match /settings/{doc}  { allow read: if canTenant(t); allow write: if false; }
+
+      match /members/{uid} {
+        allow read: if signedIn() && (request.auth.uid == uid || isOwner(t));
+        allow write: if false;
+        match /branchAccess/{b} {
+          allow read: if signedIn() && (request.auth.uid == uid || isOwner(t));
+          allow write: if false;
+        }
+      }
+
+      match /migrations/{d}   { allow read: if isOwner(t); allow write: if false; }
+      match /invitations/{i}  { allow read: if isOwner(t); allow write: if false; }
+      match /auditLogs/{l}    { allow read: if isOwner(t); allow write: if false; }
+      // Tombstones are delivered only by the authenticated pullChanges callable.
+      match /tombstones/{d} { allow read, write: if false; }
+      match /tombstoneHeads/{d} { allow read, write: if false; }
+
+      // Catalogue et tiers partagés entre établissements de l'entreprise
+      match /categories/{d}  { allow read: if canTenant(t); allow write: if false; }
+      match /products/{d}    { allow read: if canTenant(t); allow write: if false; }
+      match /customers/{d}   { allow read: if canTenant(t); allow write: if false; }
+      match /suppliers/{d}   { allow read: if canTenant(t); allow write: if false; }
+
+      match /branches/{b} {
+        allow read: if canBranch(t, b, 'stock.read') || canBranch(t, b, 'sales.read');
+        allow write: if false;
+
+        match /stock/{d}             { allow read: if canBranch(t, b, 'stock.read');     allow write: if false; }
+        match /stockMovements/{d}    { allow read: if canBranch(t, b, 'stock.read');     allow write: if false; }
+        match /sales/{d}             { allow read: if canBranch(t, b, 'sales.read');     allow write: if false; }
+        match /purchases/{d}         { allow read: if canBranch(t, b, 'purchases.read'); allow write: if false; }
+        match /expenses/{d}          { allow read: if canBranch(t, b, 'expenses.read');  allow write: if false; }
+        match /debts/{d}             { allow read: if canBranch(t, b, 'debts.read');     allow write: if false; }
+        match /debtPayments/{d}      { allow read: if canBranch(t, b, 'debts.read');     allow write: if false; }
+        match /reservations/{d}      { allow read: if canBranch(t, b, 'sales.read');     allow write: if false; }
+        match /reservationPayments/{d}      { allow read: if canBranch(t, b, 'sales.read'); allow write: if false; }
+        match /reservationCancellations/{d} { allow read: if canBranch(t, b, 'sales.read'); allow write: if false; }
+        match /reservationDeliveries/{d}    { allow read: if canBranch(t, b, 'sales.read'); allow write: if false; }
+        match /stockDamages/{d}      { allow read: if canBranch(t, b, 'stock.read');     allow write: if false; }
+        match /freeIssues/{d}        { allow read: if canBranch(t, b, 'stock.read');     allow write: if false; }
+        match /operations/{d}        { allow read: if false;                              allow write: if false; }
+      }
+    }
+
+    // Index des entreprises de l'utilisateur
+    match /userMemberships/{uid}/tenants/{t} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /creationRequests/{d} { allow read, write: if false; }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

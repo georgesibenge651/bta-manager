@@ -182,7 +182,7 @@ Le dossier \`android/\` contient l'architecture et les fichiers sources prêts p
 - \`dao/ProductDao.kt\` : Room DAO avec requêtes asynchrones Coroutines Flow.
 - \`sync/SyncWorker.kt\` : WorkManager pour la synchronisation Cloud Firestore hors-ligne.
 - \`screens/SalesScreen.kt\` : Écran de vente POS natif en Jetpack Compose Material 3.
-- \`firestore.rules\` : Règles de sécurité Firestore avec isolation et contrôle de rôles (ADMIN, GESTIONNAIRE, CAISSIER).
+- \`firestore.rules\` : Règles de sécurité Firestore avec isolation et contrôle de rôles (ADMIN, GESTIONNAIRE).
 
 ---
 

@@ -7,3 +7,22 @@
 keystore.properties
 node_modules/
 dist/
+
+# Android build files
+android/.gradle/
+android/build/
+android/app/build/
+
+# Firebase local files
+.firebase/
+firebase-debug.log
+
+# Local backups
+backups/
+*.backup
+*.backup-*
+*.before-update
+
+# Fichiers locaux à ne pas publier
+.restore-point-*.tar.gz
+firestore-debug.log

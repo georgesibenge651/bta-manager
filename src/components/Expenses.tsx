@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Receipt, Plus, Filter, Calendar, X, DollarSign } from 'lucide-react';
+import { Receipt, Plus, Filter, Calendar, X, DollarSign, Search } from 'lucide-react';
 import { Expense, ExpenseCategory, UserRole } from '../types';
 import { formatUSD, formatCDF, usdToCdf, formatDateLubumbashi } from '../utils/currency';
 
@@ -25,17 +25,21 @@ export const Expenses: React.FC<ExpensesProps> = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<ExpenseCategory>('TRANSPORT');
   const [amountUSD, setAmountUSD] = useState<number>(0);
 
-  const canAdd = true;
+  const canAdd = userRole === 'ADMIN' || userRole === 'GESTIONNAIRE';
 
-  const filteredExpenses = expenses.filter(
-    (e) => selectedCategory === 'ALL' || e.category === selectedCategory
-  );
+  const normalizedSearch = searchTerm.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const filteredExpenses = expenses.filter((e) => {
+    const matchesCategory = selectedCategory === 'ALL' || e.category === selectedCategory;
+    const matchesSearch = !normalizedSearch || [e.title, e.description, e.category, e.receiptNumber, e.createdBy, e.date, e.amountUSD].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(normalizedSearch);
+    return matchesCategory && matchesSearch;
+  });
 
   const totalExpensesUSD = filteredExpenses.reduce((sum, e) => sum + e.amountUSD, 0);
 
@@ -142,6 +146,13 @@ export const Expenses: React.FC<ExpensesProps> = ({
         )}
       </div>
 
+      {/* Search */}
+      <div className="relative bg-white rounded-2xl border border-slate-200 p-3">
+        <Search className="w-4 h-4 absolute left-6 top-5 text-slate-400" />
+        <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher par libellé, reçu, catégorie, agent ou montant..." className="w-full pl-8 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-500" />
+        {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-6 top-5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
+      </div>
+
       {/* Expenses List */}
       <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm space-y-2">
         <div className="divide-y divide-slate-100">
@@ -171,6 +182,7 @@ export const Expenses: React.FC<ExpensesProps> = ({
               </div>
             </div>
           ))}
+          {filteredExpenses.length === 0 && <p className="py-8 text-center text-xs text-slate-400">Aucune dépense correspondante.</p>}
         </div>
       </div>
 

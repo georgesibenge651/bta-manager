@@ -1,0 +1,21 @@
+BTA Manager — Phase 2 : réservations opérationnelles
+
+Fichiers inclus :
+- src/App.tsx
+- src/components/NewOperations.tsx
+
+Fonctionnalités :
+- Création d'une réservation avec client et plusieurs produits.
+- Politique de réservation du stock : blocage immédiat ou au moment de la livraison.
+- Avance initiale avec mode de paiement.
+- Enregistrement d'avances supplémentaires.
+- Enregistrement de livraisons partielles et mise à jour du stock via le dépôt existant.
+
+Installation :
+1. Faire une sauvegarde du projet.
+2. Depuis ~/bta, extraire cette archive avec :
+   unzip -o ~/storage/downloads/bta-reservations-phase2.zip -d .
+3. Vérifier avec npm run build.
+
+Important :
+Cette phase ne génère pas encore de facture de vente pour les livraisons et ne réalise pas l'affectation manuelle des avances à une facture. Ces éléments nécessitent une phase comptable dédiée.

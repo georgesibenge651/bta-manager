@@ -1,0 +1,38 @@
+BTA MANAGER — PHASE 1 : RACCORDEMENT DU COMPTE ADMINISTRATEUR
+
+Contenu :
+- src/components/LockScreen.tsx : ajoute un formulaire de connexion Firebase dans l'écran PIN.
+- src/db/storage.ts : ajoute l'association explicite de l'UID au profil local ADMIN.
+
+Installation dans Termux :
+1. Faites une copie de sécurité :
+   cd ~/bta
+   cp src/components/LockScreen.tsx src/components/LockScreen.tsx.backup
+   cp src/db/storage.ts src/db/storage.ts.backup
+
+2. Placez le ZIP dans Download puis :
+   cp ~/storage/shared/Download/bta-phase1-raccordement-firebase.zip ~/
+   cd ~/bta
+   unzip -o ~/bta-phase1-raccordement-firebase.zip
+
+3. Vérifiez :
+   npm run lint
+   npm run build
+
+4. Si les deux commandes réussissent :
+   npx cap sync android
+
+Utilisation :
+- Ouvrir l'écran de verrouillage.
+- Choisir le profil local administrateur.
+- Appuyer sur « Associer mon compte Firebase ».
+- Saisir georgesibenge651@gmail.com et le mot de passe Firebase dans l'application.
+- Appuyer sur « Vérifier et associer le compte ».
+- Ensuite, continuer à utiliser le PIN local habituel.
+
+IMPORTANT :
+- Ne communiquez jamais votre mot de passe dans le chat.
+- Cette phase associe seulement le compte Firebase au profil local.
+- Elle n'active PAS encore la synchronisation Firestore.
+- Elle ne change pas les règles Firestore ni les données commerciales.
+- Ne déployez pas l'application en multi-utilisateur avant la phase suivante de création des membres d'entreprise et des règles de sécurité.

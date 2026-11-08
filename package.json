@@ -12,9 +12,16 @@
     "lint": "tsc --noEmit",
     "cap:build": "vite build && npx cap sync android",
     "cap:sync": "npx cap sync android",
-    "cap:open": "npx cap open android"
+    "cap:open": "npx cap open android",
+    "test:unit": "tsx --test src/db/syncEngine.test.ts",
+    "test:functions": "npm --prefix functions run build && node --test functions/lib/syncPlan.test.js functions/lib/permissions.test.js",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-bta \"node --test tests/rules.test.mjs\"",
+    "test": "npm run test:unit && npm run test:functions && npm run test:rules"
   },
   "dependencies": {
+    "@capacitor-firebase/app": "^8.6.0",
+    "@capacitor-firebase/authentication": "^8.6.0",
+    "@capacitor-firebase/firestore": "^8.5.2",
     "@capacitor/android": "^8.6.0",
     "@capacitor/app": "^8.1.2",
     "@capacitor/cli": "^8.6.0",
@@ -30,6 +37,7 @@
     "canvas-confetti": "^1.9.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
+    "firebase": "^12.19.0",
     "jszip": "^3.10.2",
     "localforage": "^1.10.0",
     "lucide-react": "^0.546.0",
@@ -47,9 +55,13 @@
     "esbuild": "^0.28.2",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
-    "typescript": "^7.0.2"
+    "typescript": "^5.9.3",
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase-tools": "^14.0.0"
   },
   "allowScripts": {
-    "esbuild@0.28.2": true
+    "esbuild@0.28.2": true,
+    "@firebase/util@1.15.3": true,
+    "protobufjs@7.6.6": true
   }
 }

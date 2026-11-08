@@ -19,6 +19,9 @@ import {
   DollarSign,
   Download,
   Smartphone,
+  ClipboardList,
+  AlertTriangle,
+  Gift,
 } from 'lucide-react';
 import { User, CompanySettings, SyncStatusInfo } from '../types';
 
@@ -108,6 +111,32 @@ export const MenuHub: React.FC<MenuHubProps> = ({
       ],
     },
     {
+      title: 'Réservations & Opérations de Stock',
+      items: [
+        {
+          id: 'reservations',
+          title: 'Réservations & Livraisons clients',
+          subtitle: 'Réservations, avances, livraisons et annulations',
+          icon: ClipboardList,
+          color: 'bg-sky-500/10 text-sky-700',
+        },
+        {
+          id: 'dommages',
+          title: 'Dommages & Pertes de marchandises',
+          subtitle: 'Marchandises récupérables, invendables et retours fournisseur',
+          icon: AlertTriangle,
+          color: 'bg-amber-500/10 text-amber-700',
+        },
+        {
+          id: 'sorties-gratuites',
+          title: 'Sorties gratuites de stock',
+          subtitle: 'Dons, échantillons et distributions sans vente',
+          icon: Gift,
+          color: 'bg-emerald-500/10 text-emerald-700',
+        },
+      ],
+    },
+    {
       title: 'Contrôle & Traçabilité des Stocks',
       items: [
         {
@@ -134,14 +163,16 @@ export const MenuHub: React.FC<MenuHubProps> = ({
               },
             ]
           : []),
-        {
-          id: 'settings',
-          title: 'Paramètres & Taux de Change',
-          subtitle: `1$ = ${settings.exchangeRate} FC • ${settings.timezone}`,
-          icon: Settings,
-          color: 'bg-slate-500/10 text-slate-700',
-          onClick: onOpenSettings,
-        },
+...(currentUser.role === 'ADMIN'
+  ? [{
+      id: 'settings',
+      title: 'Paramètres & Taux de Change',
+      subtitle: `1$ = ${settings.exchangeRate} FC • ${settings.timezone}`,
+      icon: Settings,
+      color: 'bg-slate-500/10 text-slate-700',
+      onClick: onOpenSettings,
+    }]
+  : []),
         ...(onOpenKotlinModal
           ? [
               {
@@ -187,6 +218,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           </div>
         </div>
 
+        {currentUser.role === "ADMIN" && (
         <button
           onClick={onOpenSettings}
           className="p-2 bg-white/10 hover:bg-white/20 rounded-2xl transition"
@@ -194,6 +226,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
         >
           <Settings className="w-5 h-5 text-white" />
         </button>
+        )}
       </div>
 
       {/* Sync Status Banner */}
@@ -224,9 +257,11 @@ export const MenuHub: React.FC<MenuHubProps> = ({
               </span>
             </h4>
             <p className="text-[11px] text-slate-500">
-              {syncInfo.pendingCount > 0
-                ? `${syncInfo.pendingCount} opération(s) en attente dans la file WorkManager`
-                : 'Toutes les données sont synchronisées sans conflit'}
+              {syncInfo.syncProgress
+                ? `Téléchargement ${syncInfo.syncProgress.collection} · ${syncInfo.syncProgress.recovered} document(s) reçus`
+                : syncInfo.pendingCount > 0
+                ? `${syncInfo.pendingCount} opération(s) en attente de confirmation serveur`
+                : syncInfo.errorMessage || (syncInfo.status === 'SYNCED' ? 'Synchronisation terminée' : 'Synchronisation non confirmée')}
             </p>
           </div>
         </div>

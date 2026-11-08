@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { CreditCard, DollarSign, Calendar, History, ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
+import { CreditCard, DollarSign, Calendar, History, ArrowDownRight, ArrowUpRight, X, Search } from 'lucide-react';
 import { DebtRecord, PaymentMethod } from '../types';
 import { formatUSD, formatCDF, formatDateLubumbashi } from '../utils/currency';
 
 interface DebtsProps {
   debts: DebtRecord[];
   exchangeRate: number;
+  canPay?: boolean;
   onRecordDebtPayment: (
     debtId: string,
     amountUSD: number,
@@ -18,6 +19,7 @@ interface DebtsProps {
 export const Debts: React.FC<DebtsProps> = ({
   debts,
   exchangeRate,
+  canPay = true,
   onRecordDebtPayment,
   onOpenDebtReceipt,
 }) => {
@@ -30,8 +32,10 @@ export const Debts: React.FC<DebtsProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [paymentNotes, setPaymentNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredDebts = debts.filter((d) => d.type === activeTab);
+  const normalizedSearch = searchTerm.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const filteredDebts = debts.filter((d) => d.type === activeTab && (!normalizedSearch || [d.partyName, d.partyPhone, d.referenceInvoice, d.dueDate, d.remainingBalanceUSD].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(normalizedSearch)));
   const totalRemainingUSD = filteredDebts.reduce((sum, d) => sum + d.remainingBalanceUSD, 0);
 
   const handleOpenPayment = (debt: DebtRecord) => {
@@ -119,6 +123,13 @@ export const Debts: React.FC<DebtsProps> = ({
         </div>
       </div>
 
+      {/* Search */}
+      <div className="relative bg-white rounded-2xl border border-slate-200 p-3">
+        <Search className="w-4 h-4 absolute left-6 top-5 text-slate-400" />
+        <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher par nom, téléphone, facture, échéance ou montant..." className="w-full pl-8 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500" />
+        {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-6 top-5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
+      </div>
+
       {/* Debts List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {filteredDebts.map((debt) => {
@@ -194,7 +205,7 @@ export const Debts: React.FC<DebtsProps> = ({
                   Échéance: {new Date(debt.dueDate).toLocaleDateString('fr-FR')}
                 </span>
 
-                {!isCleared && (
+                {!isCleared && canPay && (
                   <button
                     onClick={() => handleOpenPayment(debt)}
                     className="px-3 py-1.5 text-xs font-bold bg-[#0F2444] hover:bg-sky-900 text-white rounded-xl shadow-xs transition"

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "49695534362",
+    "project_id": "bta-manager-fab3f",
+    "storage_bucket": "bta-manager-fab3f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:49695534362:android:49e843f2b259b10c3090a3",
+        "android_client_info": {
+          "package_name": "com.businessafrica.bta.manager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIdEueLUZxHUR_Gs384zjTwddvdKL9xo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

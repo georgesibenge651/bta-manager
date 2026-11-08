@@ -15,6 +15,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { CompanySettings, User, UserRole } from '../types';
+import { CompanyPanel } from './CompanyPanel';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ interface SettingsModalProps {
   onAddUser: (user: Omit<User, 'id'>, initialPin?: string) => void;
   onChangeUserPin?: (userId: string, newPin: string) => boolean;
   onExportDatabase: () => void;
-  onImportDatabase: (jsonStr: string) => boolean;
+  onImportDatabase: (jsonStr: string) => boolean | Promise<boolean>;
   onResetDatabase: () => void;
   onClearDatabase?: () => void;
   onDeleteUser?: (userId: string) => void;
@@ -49,7 +50,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateUserProfile,
   currentUserRole,
 }) => {
-  const [activeTab, setActiveTab] = useState<'GENERAL' | 'CURRENCY' | 'USERS' | 'BACKUP'>('GENERAL');
+  const [activeTab, setActiveTab] = useState<'GENERAL' | 'CURRENCY' | 'USERS' | 'COMPANY' | 'BACKUP'>('GENERAL');
   const [formData, setFormData] = useState<CompanySettings>(settings);
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -57,14 +58,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPhone, setNewUserPhone] = useState('');
-  const [newUserRole, setNewUserRole] = useState<UserRole>('CAISSIER');
+  const [newUserRole, setNewUserRole] = useState<UserRole>('GESTIONNAIRE');
   const [newUserPin, setNewUserPin] = useState('');
 
   // Change PIN state
   const [changingPinUserId, setChangingPinUserId] = useState<string | null>(null);
   const [targetNewPin, setTargetNewPin] = useState('');
 
-  if (!isOpen) return null;
+  if (!isOpen || currentUserRole !== "ADMIN") return null;
 
   const handleSaveGeneral = (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,18 +131,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const content = event.target?.result as string;
       if (content) {
         let ok = false;
         try {
-          ok = onImportDatabase(content);
+          const parsed = JSON.parse(content);
+          const data = parsed?.payload ?? parsed;
+          const summary = ['products', 'customers', 'suppliers', 'sales', 'purchases', 'debts']
+            .map((key) => `${key}: ${Array.isArray(data?.[key]) ? data[key].length : 'invalide'}`).join('\n');
+          if (!window.confirm(`La restauration remplacera les données commerciales locales. Une copie de sécurité sera conservée sur cet appareil.\n\n${summary}\n\nContinuer ?`)) return;
+          ok = await onImportDatabase(content);
         } catch (err) {
           alert(err instanceof Error ? err.message : 'Import refusé.');
           return;
         }
         if (ok) {
-          alert('Sauvegarde restaurée avec succès !');
+          alert('Sauvegarde restaurée. Une copie de récupération locale a été conservée.');
           onClose();
         } else {
           alert('Format de fichier de sauvegarde invalide.');
@@ -193,6 +199,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             Utilisateurs & Rôles ({users.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('COMPANY')}
+            className={`px-3 py-2 rounded-xl transition shrink-0 ${
+              activeTab === 'COMPANY' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Entreprise & Établissements
           </button>
           <button
             onClick={() => setActiveTab('BACKUP')}
@@ -474,9 +488,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onChange={(e) => setNewUserRole(e.target.value as UserRole)}
                       className="w-full p-2 bg-white border border-slate-300 rounded-xl font-bold text-xs"
                     >
-                      <option value="CAISSIER">CAISSIER (Ventes, Encaissements)</option>
                       <option value="GESTIONNAIRE">GESTIONNAIRE (Stocks, Achats, Clients)</option>
-                      <option value="ADMIN">ADMINISTRATEUR (Accès total)</option>
+                      <option value="ADMIN">ADMIN (Accès total)</option>
                     </select>
                     <p className="text-[10px] text-slate-400 mt-1">
                       Le code PIN (4 à 8 chiffres, non trivial) est obligatoire ; il est stocké sous forme hashée avec un sel unique.
@@ -510,16 +523,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <div className="flex items-center gap-2">
                         <span
                           className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                            u.role === 'ADMIN' || u.role === 'ADMINISTRATEUR'
+                            u.role === 'ADMIN'
                               ? 'bg-red-100 text-red-800'
-                              : u.role === 'GESTIONNAIRE' || u.role === 'MANAGER'
+                              : u.role === 'GESTIONNAIRE'
                               ? 'bg-amber-100 text-amber-800'
                               : 'bg-emerald-100 text-emerald-800'
                           }`}
                         >
                           {u.role}
                         </span>
-                        {(currentUserRole === 'ADMIN' || currentUserRole === 'ADMINISTRATEUR') && (
+                        {(currentUserRole === 'ADMIN') && (
                           <button
                             type="button"
                             onClick={() => {
@@ -535,7 +548,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             {changingPinUserId === u.id ? 'Annuler' : 'Changer PIN'}
                           </button>
                         )}
-                        {(currentUserRole === 'ADMIN' || currentUserRole === 'ADMINISTRATEUR') && onUpdateUserProfile && (
+                        {(currentUserRole === 'ADMIN') && onUpdateUserProfile && (
                           <button
                             type="button"
                             onClick={() => {
@@ -552,7 +565,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             Modifier
                           </button>
                         )}
-                        {(currentUserRole === 'ADMIN' || currentUserRole === 'ADMINISTRATEUR') && onDeleteUser && (
+                        {(currentUserRole === 'ADMIN') && onDeleteUser && (
                           <button
                             type="button"
                             onClick={() => {
@@ -591,6 +604,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
           )}
+
+          {activeTab === 'COMPANY' && <CompanyPanel />}
 
           {activeTab === 'BACKUP' && (
             <div className="space-y-4 text-xs">

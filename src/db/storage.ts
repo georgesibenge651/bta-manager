@@ -17,6 +17,16 @@ import {
   User,
   SyncStatusInfo,
   PaymentMethod,
+  Reservation,
+  ReservationItem,
+  ReservationStockPolicy,
+  ReservationPayment,
+ReservationCancellation,
+  ReservationDelivery,
+  StockDamage,
+  StockDamageStatus,
+  FreeIssue,
+  UserRole,
 } from '../types';
 import {
   INITIAL_SETTINGS,
@@ -34,8 +44,11 @@ import {
 import { generateReferenceNumber, generateUUID, usdToCdf } from '../utils/currency';
 import { generateSalt, hashPinSync, verifyPinSync, isSeedDefaultPin, isWeakPin } from '../utils/security';
 import { API_BASE, API_KEY, SYNC_ENABLED } from '../utils/config';
+import { Baseline, Effects, PULL_ORDER, applyPulled, diffState, makeBaseline, splitEffects, trackedIds } from './syncEngine';
+import { isTransient, pullAll, pushOps, PullCursor } from './cloudSync';
 import localforage from 'localforage';
 import { Preferences } from '@capacitor/preferences';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
 // Configure localforage for Android IndexedDB / SQLite leveldb persistence
 if (typeof window !== 'undefined') {
@@ -59,8 +72,24 @@ interface AppDatabaseState {
   stockMovements: StockMovement[];
   expenses: Expense[];
   debts: DebtRecord[];
+  reservations: Reservation[];
+  reservationCancellations: ReservationCancellation[];
+  reservationPayments: ReservationPayment[];
+  reservationDeliveries: ReservationDelivery[];
+  stockDamages: StockDamage[];
+  freeIssues: FreeIssue[];
   offlineQueue: Array<{ id: string; type: string; payload: unknown; timestamp: string }>;
   syncInfo: SyncStatusInfo;
+  /** Synchronisation entreprise (Firestore) : présent seulement une fois la migration/jonction faite. */
+  cloud?: {
+    tenantId: string;
+    branchId: string;
+    lastPull: number;
+    baseline: Baseline;
+    rejections: Array<{ at: string; reason: string }>;
+    pullCursor?: PullCursor;
+    failedOps?: Array<{ id: string; timestamp: string; payload: unknown; reason: string; at: string }>;
+  };
   savedAt?: number;
 }
 
@@ -69,8 +98,52 @@ const LOCKOUT_KEY = 'bta_login_lockout_v1';
 const MAX_PIN_ATTEMPTS = 5;
 const LOCKOUT_BASE_MS = 30_000;
 
-const ADMIN_ROLES = ['ADMIN', 'ADMINISTRATEUR'];
-const MANAGER_ROLES = [...ADMIN_ROLES, 'GESTIONNAIRE', 'MANAGER'];
+function backupChecksum(value: string): string {
+  let crc = 0xffffffff;
+  for (let i = 0; i < value.length; i++) {
+    crc ^= value.charCodeAt(i);
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return ((crc ^ 0xffffffff) >>> 0).toString(16).padStart(8, '0');
+}
+
+function validateBackupData(data: Partial<AppDatabaseState>): data is Partial<AppDatabaseState> & { settings: CompanySettings } {
+  if (!data || typeof data !== 'object' || !data.settings || typeof data.settings !== 'object' ||
+    !isNum(data.settings.exchangeRate) || data.settings.exchangeRate < 100 || data.settings.exchangeRate > 100000) return false;
+  const required = ['categories', 'products', 'customers', 'suppliers', 'sales', 'purchases', 'stockMovements', 'expenses', 'debts'] as const;
+  const optional = ['reservations', 'reservationCancellations', 'reservationPayments', 'reservationDeliveries', 'stockDamages', 'freeIssues'] as const;
+  for (const key of required) if (!Array.isArray(data[key])) return false;
+  for (const key of optional) if (data[key] !== undefined && !Array.isArray(data[key])) return false;
+  const arrays = [...required, ...optional] as const;
+  for (const collection of arrays) {
+    const docs = (data[collection] ?? []) as unknown as Array<Record<string, unknown>>;
+    const ids = new Set<string>();
+    for (const doc of docs) {
+      if (!doc || typeof doc !== 'object' || typeof doc.id !== 'string' || !doc.id.trim() || ids.has(doc.id)) return false;
+      ids.add(doc.id);
+      if (collection === 'sales' && (!Array.isArray(doc.items) || !isNum(doc.totalUSD))) return false;
+      if (collection === 'purchases' && (!Array.isArray(doc.items) || !isNum(doc.totalUSD))) return false;
+      if (collection === 'products' && (!isNum(doc.currentStock) || !isNum(doc.sellPriceUSD))) return false;
+      if (collection === 'debts' && (!isNum(doc.initialAmountUSD) || !isNum(doc.remainingBalanceUSD) || !Array.isArray(doc.history))) return false;
+      const stack: Array<{ value: unknown; key: string }> = [{ value: doc, key: '' }];
+      while (stack.length) {
+        const { value, key } = stack.pop()!;
+        if (typeof value === 'number' && (!Number.isFinite(value) || (/USD|CDF|amount|balance|quantity|price|rate|stock/i.test(key) && Math.abs(value) > 1e12))) return false;
+        if (Array.isArray(value)) value.forEach((v) => stack.push({ value: v, key }));
+        else if (value && typeof value === 'object') {
+          for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+            if (/(date|at)$/i.test(k) && typeof v === 'string' && v && !Number.isFinite(Date.parse(v))) return false;
+            stack.push({ value: v, key: k });
+          }
+        }
+      }
+    }
+  }
+  return true;
+}
+
+const ADMIN_ROLES: UserRole[] = ["ADMIN"];
+const MANAGER_ROLES: UserRole[] = ["ADMIN", "GESTIONNAIRE"];
 
 /** Rounds to cents to avoid floating point drift in money amounts. */
 const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -83,6 +156,8 @@ class AppRepository {
   private sessionUserId: string | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private isSyncing = false;
+  /** Incrémenté à chaque changement local capturé : permet d'abandonner une lecture serveur périmée. */
+  private rev = 0;
 
   constructor() {
     this.state = this.loadFromStorage();
@@ -155,27 +230,25 @@ class AppRepository {
         const currentUser =
           usersToKeep.find((u) => u.id === oldCurrentId) || usersToKeep[0];
 
-        const cleanState: AppDatabaseState = {
-          ...this.getDefaultState(),
-          settings: saved?.settings || this.state.settings,
-          users: usersToKeep,
-          currentUser,
-          categories: INITIAL_CATEGORIES,
-          products: INITIAL_PRODUCTS,
-          customers: [],
-          suppliers: [],
-          sales: [],
-          purchases: [],
-          stockMovements: [],
-          expenses: [],
-          debts: [],
-          offlineQueue: [],
-          syncInfo: {
-            ...this.state.syncInfo,
-            pendingCount: 0,
-          },
-          savedAt: Date.now(),
-        };
+       const baseState =
+  saved && (saved.savedAt || 0) > (this.state.savedAt || 0)
+    ? saved
+    : this.state;
+
+const cleanState: AppDatabaseState = {
+  ...this.getDefaultState(),
+  ...baseState,
+  settings: baseState.settings || this.state.settings || INITIAL_SETTINGS,
+  users: usersToKeep,
+  currentUser:
+    usersToKeep.find((u) => u.id === oldCurrentId) || usersToKeep[0],
+  offlineQueue: baseState.offlineQueue || [],
+  syncInfo: {
+    ...baseState.syncInfo,
+    pendingCount: (baseState.offlineQueue || []).length,
+  },
+  savedAt: Date.now(),
+};
 
         this.state = cleanState;
 
@@ -236,18 +309,9 @@ class AppRepository {
   }
 
   private ensureUserPins(users: User[]): User[] {
-    return users.map((u) => {
-      if (!u.pinHash || !u.pinSalt) {
-        const seed = INITIAL_USERS.find((x) => x.id === u.id);
-        if (seed && seed.pinHash && seed.pinSalt) return { ...u, pinHash: seed.pinHash, pinSalt: seed.pinSalt };
-        // No usable PIN stored: generate a random one the admin must reset (no known default).
-        const salt = generateSalt(16);
-        const rnd = new Uint32Array(1);
-        crypto.getRandomValues(rnd);
-        return { ...u, pinSalt: salt, pinHash: hashPinSync(String(100000 + (rnd[0] % 900000)), salt) };
-      }
-      return u;
-    });
+    // Missing credentials stay unset so first-run setup can create a reachable administrator;
+    // silently inventing an unknown PIN would lock every local account out.
+    return users;
   }
 
   private loadFromStorage(): AppDatabaseState {
@@ -295,6 +359,12 @@ class AppRepository {
       stockMovements: INITIAL_STOCK_MOVEMENTS,
       expenses: INITIAL_EXPENSES,
       debts: INITIAL_DEBTS,
+reservations: [],
+reservationCancellations: [],
+reservationPayments: [],
+reservationDeliveries: [],
+stockDamages: [],
+freeIssues: [],
       offlineQueue: [],
       syncInfo: {
         status: typeof navigator !== 'undefined' && navigator.onLine ? 'ONLINE' : 'OFFLINE',
@@ -304,7 +374,23 @@ class AppRepository {
     };
   }
 
+  /** Transforme les changements locaux depuis la dernière base de référence en opérations en file. */
+  private captureChanges() {
+    const cloud = this.state.cloud;
+    if (!cloud) return;
+    const { effects, baseline } = diffState(this.state as unknown as Record<string, unknown>, cloud.baseline);
+    if (!effects) return;
+    cloud.baseline = baseline;
+    const now = new Date().toISOString();
+    for (const part of splitEffects(effects)) {
+      this.state.offlineQueue.push({ id: generateUUID(), type: 'EFFECTS', payload: part, timestamp: now });
+    }
+    this.state.syncInfo.pendingCount = this.state.offlineQueue.length;
+    this.rev++;
+  }
+
   private persist() {
+    this.captureChanges();
     this.state.savedAt = Date.now();
     if (typeof window !== 'undefined') {
       // Layer 1: synchronous localStorage (immediate, small safety net)
@@ -331,6 +417,16 @@ class AppRepository {
     Preferences.set({ key: STORAGE_KEY, value: JSON.stringify(snapshot) }).catch(() => {
       // Ignored outside the native shell
     });
+  }
+
+  private async flushDurableAndWait() {
+    if (this.persistTimer) clearTimeout(this.persistTimer);
+    this.persistTimer = null;
+    const snapshot = JSON.parse(JSON.stringify(this.state)) as AppDatabaseState;
+    await Promise.all([
+      localforage.setItem(STORAGE_KEY, snapshot),
+      Preferences.set({ key: STORAGE_KEY, value: JSON.stringify(snapshot) }),
+    ]);
   }
 
   public subscribe(listener: () => void) {
@@ -378,7 +474,216 @@ class AppRepository {
     this.state.offlineQueue = this.state.offlineQueue.filter((q) => !confirmedQueueIds.has(q.id));
   }
 
+  // ---------- Synchronisation entreprise (Firestore) ----------
+
+  public isCloudEnabled(): boolean {
+    return !!this.state.cloud;
+  }
+
+  public getCloudContext() {
+    const c = this.state.cloud;
+    return c ? { tenantId: c.tenantId, branchId: c.branchId } : null;
+  }
+
+  /** Switches the single active local workspace only after every local operation is resolved. */
+  public switchCloudContext(tenantId: string, branchId: string) {
+    this.requireLoggedIn();
+    const current = this.state.cloud;
+    if (!current) throw new Error('Cet appareil n’est pas synchronisé avec une entreprise.');
+    if (current.tenantId === tenantId && current.branchId === branchId) return;
+    if (this.isSyncing || this.state.offlineQueue.length || current.rejections.length) {
+      throw new Error('Résolvez ou synchronisez les opérations locales avant de changer d’établissement.');
+    }
+    if (diffState(this.state as unknown as Record<string, unknown>, current.baseline).effects) {
+      throw new Error('Des changements locaux ne sont pas encore confirmés par le serveur.');
+    }
+    if (this.state.syncInfo.status === 'OFFLINE' || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+      throw new Error('Une connexion est requise pour charger le nouvel établissement sans perdre les données locales.');
+    }
+    this.state = {
+      ...this.state,
+      settings: INITIAL_SETTINGS,
+      categories: [], products: [], customers: [], suppliers: [], sales: [], purchases: [],
+      stockMovements: [], expenses: [], debts: [], reservations: [], reservationCancellations: [],
+      reservationPayments: [], reservationDeliveries: [], stockDamages: [], freeIssues: [],
+      offlineQueue: [],
+      cloud: { tenantId, branchId, lastPull: 0, baseline: makeBaseline({
+        settings: INITIAL_SETTINGS, categories: [], products: [], customers: [], suppliers: [], sales: [], purchases: [],
+        stockMovements: [], expenses: [], debts: [], reservations: [], reservationCancellations: [],
+        reservationPayments: [], reservationDeliveries: [], stockDamages: [], freeIssues: [],
+      }), rejections: [], failedOps: [] },
+      syncInfo: { ...this.state.syncInfo, pendingCount: 0, errorMessage: undefined },
+    };
+    this.persist();
+    void this.triggerSync();
+  }
+
+  public getSyncRejections() {
+    return (this.state.cloud?.failedOps ?? []).map(({ id, reason, at }) => ({ id, reason, at }));
+  }
+
+  public retryRejectedOperation(id: string) {
+    this.requireLoggedIn();
+    const cloud = this.state.cloud;
+    const failed = cloud?.failedOps?.find((x) => x.id === id);
+    if (!cloud || !failed) throw new Error('Opération refusée introuvable.');
+    cloud.failedOps = cloud.failedOps!.filter((x) => x.id !== id);
+    cloud.rejections = cloud.rejections.filter((x) => x.at !== failed.at || x.reason !== failed.reason);
+    this.state.offlineQueue.push({ id: generateUUID(), timestamp: new Date().toISOString(), type: 'EFFECTS', payload: failed.payload });
+    this.state.syncInfo.pendingCount = this.state.offlineQueue.length;
+    this.persist();
+    if (this.state.syncInfo.status !== 'OFFLINE') void this.triggerSync();
+  }
+
+  /** À appeler une fois la migration terminée : l'état actuel devient la référence. */
+  public enableCloudSync(tenantId: string, branchId: string) {
+    this.requireAdmin();
+    this.state.offlineQueue = [];
+    this.state.cloud = { tenantId, branchId, lastPull: 0, baseline: makeBaseline(this.state as unknown as Record<string, unknown>), rejections: [], failedOps: [] };
+    this.state.syncInfo.pendingCount = 0;
+    this.persist();
+    void this.triggerSync();
+  }
+
+  /**
+   * Nouvel appareil d'une entreprise existante : efface les données commerciales locales (démo),
+   * puis télécharge celles de l'entreprise. Les comptes/PIN locaux sont conservés.
+   */
+  public joinCloudAsNewDevice(tenantId: string, branchId: string) {
+    this.requireAdmin();
+    if (this.state.cloud) throw new Error('Cet appareil est déjà connecté à une entreprise.');
+    this.state = {
+      ...this.state,
+      categories: [], products: [], customers: [], suppliers: [], sales: [], purchases: [],
+      stockMovements: [], expenses: [], debts: [], reservations: [], reservationCancellations: [],
+      reservationPayments: [], reservationDeliveries: [], stockDamages: [], freeIssues: [],
+      offlineQueue: [],
+    };
+    this.state.cloud = { tenantId, branchId, lastPull: 0, baseline: makeBaseline(this.state as unknown as Record<string, unknown>), rejections: [], failedOps: [] };
+    this.persist();
+    void this.triggerSync();
+  }
+
+  private markEffectsSynced(effects: Effects, status: 'SYNCED' | 'ERROR') {
+    const ids = trackedIds(effects);
+    for (const key of ['sales', 'purchases', 'expenses'] as const) {
+      const set = new Set(ids[key]);
+      if (set.size === 0) continue;
+      (this.state[key] as Array<{ id: string; syncStatus: 'SYNCED' | 'PENDING' | 'ERROR' }>).forEach((r) => {
+        if (set.has(r.id)) r.syncStatus = status;
+      });
+    }
+  }
+
+  private async cloudSync(): Promise<boolean> {
+    if (this.state.syncInfo.status === 'OFFLINE') return false;
+    if (this.isSyncing) return false;
+    this.isSyncing = true;
+    this.state.syncInfo.status = 'SYNCING';
+    this.notify();
+    try {
+      const authState = await FirebaseAuthentication.getCurrentUser();
+      const firebaseUid = authState.user?.uid;
+      if (!firebaseUid || firebaseUid !== this.state.currentUser.firebaseUid) {
+        throw new Error('Le profil local n’est pas associé au compte Firebase actuellement connecté. Les opérations restent en attente.');
+      }
+      const ctx = { tenantId: this.state.cloud!.tenantId, branchId: this.state.cloud!.branchId };
+
+      // 1) Envoi : tant qu'il reste des opérations, par lots de 10, dans l'ordre.
+      while (this.state.offlineQueue.length > 0) {
+        const batch = this.state.offlineQueue.slice(0, 10);
+        const results = await pushOps(ctx, batch.map((q) => ({
+          opId: q.id, createdAt: Date.parse(q.timestamp) || Date.now(), effects: q.payload as Effects,
+        })));
+        const answered = new Set<string>();
+        for (const r of results) {
+          const item = batch.find((q) => q.id === r.opId);
+          if (!item) continue;
+          answered.add(r.opId);
+          const eff = item.payload as Effects;
+          if (r.status === 'REJECTED') {
+            const rejectedAt = new Date().toISOString();
+            this.markEffectsSynced(eff, 'ERROR');
+            this.state.cloud!.failedOps ??= [];
+            this.state.cloud!.failedOps.push({
+              id: item.id, timestamp: item.timestamp, payload: item.payload,
+              reason: r.reason || 'Opération refusée par le serveur.', at: rejectedAt,
+            });
+            this.state.cloud!.rejections = [
+              { at: rejectedAt, reason: r.reason || 'Opération refusée par le serveur.' },
+              ...this.state.cloud!.rejections,
+            ].slice(0, 50);
+          } else {
+            this.markEffectsSynced(eff, 'SYNCED');
+          }
+        }
+        if (answered.size === 0) throw new Error('Réponse du serveur incomplète.');
+        this.state.offlineQueue = this.state.offlineQueue.filter((q) => !answered.has(q.id));
+        this.state.syncInfo.pendingCount = this.state.offlineQueue.length;
+        this.persist();
+      }
+
+      // 2) Lecture : seulement si rien n'est en attente (le local gagne tant qu'il n'est pas envoyé).
+      const cloud = this.state.cloud!;
+      const rev = this.rev;
+      cloud.pullCursor ??= {
+        since: Math.max(0, cloud.lastPull - 60_000), // recouvrement contre dérive d'horloge et égalités de version
+        collectionIndex: 0, serverTime: 0, recovered: 0,
+      };
+      this.persist();
+      await this.flushDurableAndWait();
+      const completed = await pullAll(ctx, cloud.pullCursor, async (collection, docs, cursor) => {
+        if (rev !== this.rev || this.state.offlineQueue.length > 0) {
+          throw new Error('Une saisie locale est arrivée pendant la lecture ; reprise après son envoi.');
+        }
+        if (docs.length) applyPulled(this.state as unknown as Record<string, unknown>, cloud.baseline, collection, docs);
+        cloud.pullCursor = cursor;
+        this.state.syncInfo.syncProgress = { collection, recovered: cursor.recovered, phase: 'PULL' };
+        this.persist();
+        // Acknowledged progress survives an abrupt native process exit.
+        await this.flushDurableAndWait();
+      });
+      cloud.lastPull = completed.serverTime || Date.now();
+      cloud.pullCursor = undefined;
+      this.state.syncInfo.syncProgress = undefined;
+      this.persist();
+
+      const rejected = this.state.cloud!.rejections.length > 0;
+      this.state.syncInfo = {
+        status: 'SYNCED',
+        lastSyncTime: new Date().toISOString(),
+        pendingCount: this.state.offlineQueue.length,
+        ...(rejected ? { errorMessage: 'Certaines opérations ont été refusées par le serveur.' } : {}),
+      };
+      this.persist();
+      this.scheduleBackToOnline(2500);
+      if (this.state.offlineQueue.length > 0) void this.cloudSync();
+      return true;
+    } catch (err: unknown) {
+      this.state.syncInfo = {
+        status: 'ERROR',
+        lastSyncTime: this.state.syncInfo.lastSyncTime,
+        pendingCount: this.state.offlineQueue.length,
+        errorMessage: isTransient(err) ? 'Connexion instable : réessai automatique.' : (err instanceof Error ? err.message : 'Échec de synchronisation'),
+        ...(this.state.cloud?.pullCursor ? { syncProgress: {
+          collection: PULL_ORDER[Math.min(this.state.cloud.pullCursor.collectionIndex, PULL_ORDER.length - 1)] ?? 'lecture',
+          recovered: this.state.cloud.pullCursor.recovered, phase: 'PULL' as const,
+      } } : {}),
+      };
+      this.persist();
+      if (this.state.cloud && isTransient(err) && this.state.syncInfo.status === 'ERROR' &&
+        (this.state.offlineQueue.length > 0 || this.state.cloud.pullCursor) &&
+        (typeof navigator === 'undefined' || navigator.onLine)) {
+        setTimeout(() => { void this.triggerSync(); }, 15000);
+      }
+      return false;
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
   public async triggerSync(): Promise<boolean> {
+    if (this.state.cloud) return this.cloudSync();
     // Standalone mode (no server configured): everything is stored on the device, nothing to push.
     if (!SYNC_ENABLED) {
       this.state.syncInfo = {
@@ -472,6 +777,7 @@ class AppRepository {
 
   /** Queues a record for the server (only when a server is configured). */
   private enqueue(type: string, payload: { id: string }) {
+    if (this.state.cloud) return; // le mode entreprise déduit les opérations par comparaison (captureChanges)
     if (!SYNC_ENABLED) return;
     this.state.offlineQueue.push({
       id: generateUUID(),
@@ -484,12 +790,12 @@ class AppRepository {
 
   private syncStatusForNewRecord(): 'SYNCED' | 'PENDING' {
     // Local-only mode: nothing to wait for. Server mode: pending until the server confirms.
-    return SYNC_ENABLED ? 'PENDING' : 'SYNCED';
+    return SYNC_ENABLED || this.state.cloud ? 'PENDING' : 'SYNCED';
   }
 
   private afterWrite() {
     this.persist();
-    if (SYNC_ENABLED && this.state.syncInfo.status !== 'OFFLINE') {
+    if ((SYNC_ENABLED || this.state.cloud) && this.state.syncInfo.status !== 'OFFLINE') {
       void this.triggerSync();
     }
   }
@@ -595,10 +901,9 @@ class AppRepository {
     return !!this.sessionUserId && isSeedDefaultPin(u.pinHash, u.pinSalt);
   }
 
-  private currentRole(): string {
-    return this.sessionUserId ? this.state.currentUser.role : '';
-  }
-
+ private currentRole(): UserRole | null {
+  return this.sessionUserId ? this.state.currentUser.role : null;
+}
   private requireAdmin() {
     if (!ADMIN_ROLES.includes(this.currentRole())) throw new Error('Action réservée à l’administrateur.');
   }
@@ -615,8 +920,45 @@ class AppRepository {
     return this.state.users;
   }
 
+  public isBootstrapRequired(): boolean {
+    return !this.state.users.some((u) => u.role === 'ADMIN' && !!u.pinHash && !!u.pinSalt);
+  }
+
+  /** First-run bootstrap: available only while no local administrator credential exists. */
+  public initializeFirstAdminPin(userId: string, pin: string) {
+    if (!this.isBootstrapRequired()) throw new Error('Le compte administrateur est déjà initialisé.');
+    if (isWeakPin(pin)) throw new Error('Choisissez un PIN de 4 à 8 chiffres qui ne soit pas trivial.');
+    let admin = this.getUserById(userId);
+    if (!admin) throw new Error('Profil administrateur introuvable.');
+    if (admin.role !== 'ADMIN' || admin.active === false) throw new Error('Un profil administrateur actif est requis.');
+    const salt = generateSalt(16);
+    this.updateUser({ ...admin, pinSalt: salt, pinHash: hashPinSync(pin.trim(), salt) });
+  }
+
   public getUserById(id: string): User | undefined {
     return this.state.users.find((u) => u.id === id);
+  }
+
+  /**
+   * First-device bootstrap: explicitly bind a Firebase-authenticated UID
+   * to the existing local administrator. This does not grant Firestore access
+   * by itself; server-side company membership and security rules are still required.
+   */
+  public linkFirebaseUid(userId: string, firebaseUid: string, currentPin: string): void {
+    const user = this.getUserById(userId);
+    if (!user) throw new Error('Utilisateur local introuvable.');
+    if (!firebaseUid.trim()) throw new Error('Identifiant Firebase manquant.');
+    if (!verifyPinSync(currentPin, user.pinHash, user.pinSalt)) {
+      throw new Error('Le PIN local est incorrect.');
+    }
+
+    const alreadyUsed = this.state.users.find(
+      (candidate) => candidate.id !== userId && candidate.firebaseUid === firebaseUid
+    );
+    if (alreadyUsed) {
+      throw new Error('Ce compte Firebase est déjà associé à un autre utilisateur local.');
+    }
+    this.updateUser({ ...user, firebaseUid: firebaseUid.trim() });
   }
 
   public verifyUserPin(userId: string, candidatePin: string): boolean {
@@ -659,7 +1001,7 @@ class AppRepository {
     return newUser;
   }
 
-  public updateUser(user: User) {
+  private updateUser(user: User) {
     this.state.users = this.state.users.map((u) => (u.id === user.id ? user : u));
     if (this.state.currentUser.id === user.id) {
       this.state.currentUser = user;
@@ -729,7 +1071,7 @@ class AppRepository {
   }
 
   public deleteCategory(categoryId: string): boolean {
-    this.requireAdmin();
+    this.requireManager();
     const hasProducts = this.state.products.some((p) => p.categoryId === categoryId);
     if (hasProducts) {
       return false; // prevent deletion if attached to products
@@ -742,6 +1084,533 @@ class AppRepository {
   // Product Operations
   public getProducts(): Product[] {
     return this.state.products;
+  }
+
+  /** Quantité encore bloquée pour les réservations non annulées. */
+  public getReservedStock(productId: string): number {
+    return r2(
+      this.state.reservations
+        .filter((reservation) => reservation.status !== 'CANCELLED')
+        .flatMap((reservation) => reservation.items)
+        .filter((item) => item.productId === productId && item.stockPolicy === 'BLOCK_STOCK')
+        .reduce(
+          (total, item) =>
+            total + Math.max(0, item.quantityReserved - item.quantityDelivered),
+          0
+        )
+    );
+  }
+
+  /** Stock physique moins les quantités réservées et non encore livrées. */
+  public getAvailableStock(productId: string): number {
+    const product = this.getProductById(productId);
+    if (!product) return 0;
+    return r2(Math.max(0, product.currentStock - this.getReservedStock(productId)));
+  }
+
+
+  // Customer reservations, advance payments and partial deliveries
+  public getReservations(): Reservation[] {
+    return this.state.reservations;
+  }
+
+  public getReservationById(id: string): Reservation | undefined {
+    return this.state.reservations.find((reservation) => reservation.id === id);
+  }
+
+  public getReservationCancellations(reservationId?: string): ReservationCancellation[] {
+    return reservationId
+      ? this.state.reservationCancellations.filter((entry) => entry.reservationId === reservationId)
+      : this.state.reservationCancellations;
+  }
+
+  public getReservationPayments(reservationId?: string): ReservationPayment[] {
+    return reservationId
+      ? this.state.reservationPayments.filter((payment) => payment.reservationId === reservationId)
+      : this.state.reservationPayments;
+  }
+
+  public getReservationDeliveries(reservationId?: string): ReservationDelivery[] {
+    return reservationId
+      ? this.state.reservationDeliveries.filter((delivery) => delivery.reservationId === reservationId)
+      : this.state.reservationDeliveries;
+  }
+
+  public createReservation(input: {
+    customerId: string;
+    items: Array<{
+      productId: string;
+      quantity: number;
+      unitPriceUSD: number;
+      stockPolicy: ReservationStockPolicy;
+    }>;
+    initialPaymentUSD?: number;
+    paymentMethod?: PaymentMethod;
+    expectedDeliveryDate?: string;
+    notes?: string;
+  }): { success: boolean; reservation?: Reservation; payment?: ReservationPayment; error?: string } {
+    this.requireManager();
+    if (!Array.isArray(input.items) || input.items.length === 0) {
+      return { success: false, error: 'La réservation doit contenir au moins un produit.' };
+    }
+    const customer = this.getCustomerById(input.customerId);
+    if (!customer) return { success: false, error: 'Client introuvable.' };
+
+    const requestedBlocked = new Map<string, number>();
+    for (const item of input.items) {
+      if (!isNum(item.quantity) || item.quantity <= 0) {
+        return { success: false, error: 'Quantité réservée invalide.' };
+      }
+      if (!isNum(item.unitPriceUSD) || item.unitPriceUSD < 0) {
+        return { success: false, error: 'Prix unitaire invalide.' };
+      }
+      if (item.stockPolicy !== 'BLOCK_STOCK' && item.stockPolicy !== 'BLOCK_ON_DELIVERY') {
+        return { success: false, error: 'Politique de réservation invalide.' };
+      }
+      const product = this.getProductById(item.productId);
+      if (!product) return { success: false, error: `Produit introuvable : ${item.productId}` };
+      if (item.stockPolicy === 'BLOCK_STOCK') {
+        requestedBlocked.set(
+          item.productId,
+          r2((requestedBlocked.get(item.productId) || 0) + item.quantity)
+        );
+      }
+    }
+
+    for (const [productId, quantity] of requestedBlocked) {
+      const product = this.getProductById(productId)!;
+      const available = this.getAvailableStock(productId);
+      if (available < quantity) {
+        return {
+          success: false,
+          error: `Stock disponible insuffisant pour réserver "${product.name}". Disponible : ${available}, demandé : ${quantity}.`,
+        };
+      }
+    }
+
+    const exchangeRate = this.state.settings.exchangeRate;
+    if (!isNum(exchangeRate) || exchangeRate <= 0) {
+      return { success: false, error: 'Taux de change invalide.' };
+    }
+    const items: ReservationItem[] = input.items.map((item) => {
+      const product = this.getProductById(item.productId)!;
+      return {
+        id: generateUUID(),
+        productId: product.id,
+        productName: product.name,
+        sku: product.sku,
+        quantityReserved: r2(item.quantity),
+        quantityDelivered: 0,
+        unit: product.unit,
+        unitPriceUSD: r2(item.unitPriceUSD),
+        totalUSD: r2(item.quantity * item.unitPriceUSD),
+        stockPolicy: item.stockPolicy,
+      };
+    });
+    const totalUSD = r2(items.reduce((sum, item) => sum + item.totalUSD, 0));
+    const rawInitialPaymentUSD = input.initialPaymentUSD === undefined ? 0 : input.initialPaymentUSD;
+    if (!isNum(rawInitialPaymentUSD) || rawInitialPaymentUSD < 0 || rawInitialPaymentUSD > totalUSD) {
+      return { success: false, error: 'L’avance doit être comprise entre zéro et le total de la réservation.' };
+    }
+    const initialPaymentUSD = r2(rawInitialPaymentUSD);
+    if (initialPaymentUSD > totalUSD) {
+      return { success: false, error: 'L’avance doit être comprise entre zéro et le total de la réservation.' };
+    }
+    if (initialPaymentUSD > 0 && !input.paymentMethod) {
+      return { success: false, error: 'Le mode de paiement de l’avance est obligatoire.' };
+    }
+
+    const now = new Date().toISOString();
+    const reservationNumber = generateReferenceNumber('RES');
+    const reservation: Reservation = {
+      id: generateUUID(),
+      reservationNumber,
+      customerId: customer.id,
+      customerName: customer.name,
+      customerPhone: customer.phone,
+      items,
+      totalUSD,
+      totalCDF: usdToCdf(totalUSD, exchangeRate),
+      exchangeRate,
+      amountPaidUSD: initialPaymentUSD,
+      remainingAmountUSD: r2(totalUSD - initialPaymentUSD),
+      status: initialPaymentUSD > 0 ? 'CONFIRMED' : 'PENDING',
+      reservationDate: now,
+      expectedDeliveryDate: input.expectedDeliveryDate,
+      notes: input.notes,
+      createdBy: this.state.currentUser.id,
+      createdByName: this.state.currentUser.name,
+      createdAt: now,
+    };
+
+    let payment: ReservationPayment | undefined;
+    if (initialPaymentUSD > 0) {
+      payment = {
+        id: generateUUID(),
+        reservationId: reservation.id,
+        reservationNumber,
+        amountUSD: initialPaymentUSD,
+        amountCDF: usdToCdf(initialPaymentUSD, exchangeRate),
+        exchangeRate,
+        paymentMethod: input.paymentMethod!,
+        receiptNumber: generateReferenceNumber('REC-RES'),
+        paymentDate: now,
+        recordedBy: this.state.currentUser.name,
+      };
+      this.state.reservationPayments = [payment, ...this.state.reservationPayments];
+    }
+    this.state.reservations = [reservation, ...this.state.reservations];
+    this.persist();
+    return { success: true, reservation, payment };
+  }
+
+  public recordReservationPayment(
+    reservationId: string,
+    amountUSD: number,
+    paymentMethod: PaymentMethod,
+    notes?: string
+  ): { success: boolean; payment?: ReservationPayment; error?: string } {
+    this.requireManager();
+    const reservation = this.getReservationById(reservationId);
+    if (!reservation) return { success: false, error: 'Réservation introuvable.' };
+    if (reservation.status === 'CANCELLED' || reservation.status === 'CANCELLATION_PENDING') {
+      return { success: false, error: 'Cette réservation ne peut plus recevoir de paiement.' };
+    }
+    if (!isNum(amountUSD) || amountUSD <= 0) {
+      return { success: false, error: 'Le montant du versement doit être supérieur à zéro.' };
+    }
+    if (amountUSD > reservation.remainingAmountUSD + 0.001) {
+      return { success: false, error: 'Le versement dépasse le solde de la réservation.' };
+    }
+    const exchangeRate = this.state.settings.exchangeRate;
+    const now = new Date().toISOString();
+    const payment: ReservationPayment = {
+      id: generateUUID(),
+      reservationId,
+      reservationNumber: reservation.reservationNumber,
+      amountUSD: r2(amountUSD),
+      amountCDF: usdToCdf(r2(amountUSD), exchangeRate),
+      exchangeRate,
+      paymentMethod,
+      receiptNumber: generateReferenceNumber('REC-RES'),
+      paymentDate: now,
+      recordedBy: this.state.currentUser.name,
+      notes,
+    };
+    reservation.amountPaidUSD = r2(reservation.amountPaidUSD + amountUSD);
+    reservation.remainingAmountUSD = r2(Math.max(0, reservation.totalUSD - reservation.amountPaidUSD));
+    if (reservation.status === 'PENDING') reservation.status = 'CONFIRMED';
+    this.state.reservationPayments = [payment, ...this.state.reservationPayments];
+    this.persist();
+    return { success: true, payment };
+  }
+
+  public deliverReservation(input: {
+    reservationId: string;
+    items: Array<{ reservationItemId: string; quantity: number }>;
+    notes?: string;
+  }): { success: boolean; delivery?: ReservationDelivery; error?: string } {
+    this.requireManager();
+    const reservation = this.getReservationById(input.reservationId);
+    if (!reservation) return { success: false, error: 'Réservation introuvable.' };
+    if (reservation.status === 'CANCELLED' || reservation.status === 'CANCELLATION_PENDING' || reservation.status === 'DELIVERED') {
+      return { success: false, error: 'Cette réservation ne peut pas être livrée dans son état actuel.' };
+    }
+    if (!Array.isArray(input.items) || input.items.length === 0) {
+      return { success: false, error: 'Aucun produit sélectionné pour la livraison.' };
+    }
+
+    const requested = new Map<string, number>();
+    for (const line of input.items) {
+      if (!isNum(line.quantity) || line.quantity <= 0) {
+        return { success: false, error: 'Quantité livrée invalide.' };
+      }
+      const reservationItem = reservation.items.find((item) => item.id === line.reservationItemId);
+      if (!reservationItem) return { success: false, error: 'Ligne de réservation introuvable.' };
+      const outstanding = r2(reservationItem.quantityReserved - reservationItem.quantityDelivered);
+      const combined = r2((requested.get(line.reservationItemId) || 0) + line.quantity);
+      if (combined > outstanding) {
+        return { success: false, error: `La quantité dépasse le reste à livrer pour ${reservationItem.productName}.` };
+      }
+      requested.set(line.reservationItemId, combined);
+    }
+
+    const physicalByProduct = new Map<string, number>();
+    const unblockedByProduct = new Map<string, number>();
+    for (const [itemId, quantity] of requested) {
+      const item = reservation.items.find((entry) => entry.id === itemId)!;
+      physicalByProduct.set(item.productId, r2((physicalByProduct.get(item.productId) || 0) + quantity));
+      if (item.stockPolicy === 'BLOCK_ON_DELIVERY') {
+        unblockedByProduct.set(item.productId, r2((unblockedByProduct.get(item.productId) || 0) + quantity));
+      }
+    }
+    for (const [productId, quantity] of physicalByProduct) {
+      const product = this.getProductById(productId);
+      if (!product) return { success: false, error: `Produit introuvable : ${productId}` };
+      if (product.currentStock < quantity) {
+        return { success: false, error: `Stock physique insuffisant pour livrer ${product.name}.` };
+      }
+    }
+    for (const [productId, quantity] of unblockedByProduct) {
+      const product = this.getProductById(productId)!;
+      if (this.getAvailableStock(productId) < quantity) {
+        return { success: false, error: `Stock disponible insuffisant pour livrer ${product.name}.` };
+      }
+    }
+
+    const deliveryNumber = generateReferenceNumber('LIV-RES');
+    const now = new Date().toISOString();
+    const deliveryItems = input.items.map((line) => {
+      const item = reservation.items.find((entry) => entry.id === line.reservationItemId)!;
+      return {
+        reservationItemId: item.id,
+        productId: item.productId,
+        productName: item.productName,
+        quantityDelivered: r2(line.quantity),
+        unit: item.unit,
+      };
+    });
+
+    // Decrement physical stock once. For BLOCK_STOCK, the reserved amount is
+    // released by the same quantity, so available stock does not decrease twice.
+    for (const [itemId, quantity] of requested) {
+      const item = reservation.items.find((entry) => entry.id === itemId)!;
+      const product = this.getProductById(item.productId)!;
+      const previousStock = product.currentStock;
+      const newStock = r2(previousStock - quantity);
+      product.currentStock = newStock;
+      product.updatedAt = now;
+      item.quantityDelivered = r2(item.quantityDelivered + quantity);
+      this.addStockMovement({
+        productId: product.id,
+        productName: product.name,
+        quantity: -quantity,
+        type: 'OUT',
+        reason: `Livraison réservation ${reservation.reservationNumber}`,
+        referenceNumber: deliveryNumber,
+        previousStock,
+        newStock,
+      });
+    }
+
+    const allDelivered = reservation.items.every(
+      (item) => item.quantityDelivered >= item.quantityReserved
+    );
+    reservation.status = allDelivered ? 'DELIVERED' : 'PARTIALLY_DELIVERED';
+    const delivery: ReservationDelivery = {
+      id: generateUUID(),
+      deliveryNumber,
+      reservationId: reservation.id,
+      reservationNumber: reservation.reservationNumber,
+      customerId: reservation.customerId,
+      customerName: reservation.customerName,
+      items: deliveryItems,
+      deliveryDate: now,
+      deliveredBy: this.state.currentUser.id,
+      deliveredByName: this.state.currentUser.name,
+      notes: input.notes,
+    };
+    this.state.reservationDeliveries = [delivery, ...this.state.reservationDeliveries];
+    this.persist();
+    return { success: true, delivery };
+  }
+
+  public requestReservationCancellation(
+    reservationId: string,
+    reason: string
+  ): { success: boolean; cancellation?: ReservationCancellation; error?: string } {
+    this.requireManager();
+    const reservation = this.getReservationById(reservationId);
+    if (!reservation) return { success: false, error: 'Réservation introuvable.' };
+    if (reservation.status === 'CANCELLED' || reservation.status === 'CANCELLATION_PENDING' || reservation.status === 'DELIVERED') {
+      return { success: false, error: 'Cette réservation ne peut pas être annulée dans son état actuel.' };
+    }
+    if (reservation.items.some((item) => item.quantityDelivered > 0)) {
+      return { success: false, error: 'Annulation automatique impossible après une livraison partielle. Traitez d’abord le solde restant.' };
+    }
+    if (!reason.trim()) return { success: false, error: 'Le motif de la demande est obligatoire.' };
+    const cancellation: ReservationCancellation = {
+      id: generateUUID(),
+      reservationId: reservation.id,
+      reservationNumber: reservation.reservationNumber,
+      reason: reason.trim(),
+      requestedBy: this.state.currentUser.id,
+      requestedByName: this.state.currentUser.name,
+      requestedAt: new Date().toISOString(),
+      status: 'PENDING',
+      amountPaidUSD: reservation.amountPaidUSD,
+    };
+    reservation.status = 'CANCELLATION_PENDING';
+    this.state.reservationCancellations = [cancellation, ...this.state.reservationCancellations];
+    this.persist();
+    return { success: true, cancellation };
+  }
+
+  public decideReservationCancellation(input: {
+    cancellationId: string;
+    decision: 'REFUND_FULL' | 'REFUND_PARTIAL' | 'RETAIN_FULL' | 'RETAIN_PARTIAL';
+    amountRefundedUSD: number;
+    amountRetainedUSD: number;
+    decisionReason: string;
+  }): { success: boolean; cancellation?: ReservationCancellation; error?: string } {
+    this.requireAdmin();
+    const cancellation = this.state.reservationCancellations.find((entry) => entry.id === input.cancellationId);
+    if (!cancellation) return { success: false, error: 'Demande d’annulation introuvable.' };
+    if (cancellation.status !== 'PENDING') return { success: false, error: 'Cette demande a déjà été traitée.' };
+    const refunded = r2(input.amountRefundedUSD);
+    const retained = r2(input.amountRetainedUSD);
+    if (!isNum(refunded) || !isNum(retained) || refunded < 0 || retained < 0) {
+      return { success: false, error: 'Montants de remboursement ou de retenue invalides.' };
+    }
+    if (r2(refunded + retained) !== r2(cancellation.amountPaidUSD)) {
+      return { success: false, error: 'Le remboursement et la retenue doivent correspondre exactement aux avances reçues.' };
+    }
+    if (!input.decisionReason.trim()) return { success: false, error: 'Le motif de la décision est obligatoire.' };
+    const fullRefund = refunded === cancellation.amountPaidUSD && retained === 0;
+    const fullRetention = retained === cancellation.amountPaidUSD && refunded === 0;
+    if (input.decision === 'REFUND_FULL' && !fullRefund) return { success: false, error: 'Pour un remboursement total, remboursez toute l’avance.' };
+    if (input.decision === 'RETAIN_FULL' && !fullRetention) return { success: false, error: 'Pour une retenue totale, retenez toute l’avance.' };
+    if (input.decision === 'REFUND_PARTIAL' && (refunded <= 0 || retained <= 0)) return { success: false, error: 'Un remboursement partiel exige un remboursement et une retenue positifs.' };
+    if (input.decision === 'RETAIN_PARTIAL' && (refunded <= 0 || retained <= 0)) return { success: false, error: 'Une retenue partielle exige un remboursement et une retenue positifs.' };
+
+    cancellation.status = 'DECIDED';
+    cancellation.decision = input.decision;
+    cancellation.amountRefundedUSD = refunded;
+    cancellation.amountRetainedUSD = retained;
+    cancellation.decisionReason = input.decisionReason.trim();
+    cancellation.decidedBy = this.state.currentUser.id;
+    cancellation.decidedByName = this.state.currentUser.name;
+    cancellation.decidedAt = new Date().toISOString();
+    const reservation = this.getReservationById(cancellation.reservationId);
+    if (!reservation) return { success: false, error: 'Réservation liée introuvable.' };
+    reservation.status = 'CANCELLED';
+    this.persist();
+    return { success: true, cancellation };
+  }
+
+  public getStockDamages(): StockDamage[] {
+    return this.state.stockDamages;
+  }
+
+  public recordStockDamage(input: {
+    productId: string;
+    quantity: number;
+    status: StockDamageStatus;
+    estimatedLossUSD: number;
+    description: string;
+    supplierId?: string;
+    notes?: string;
+  }): { success: boolean; damage?: StockDamage; error?: string } {
+    this.requireManager();
+    const product = this.getProductById(input.productId);
+    if (!product) return { success: false, error: 'Produit introuvable.' };
+    if (!isNum(input.quantity) || input.quantity <= 0) return { success: false, error: 'Quantité endommagée invalide.' };
+    if (!isNum(input.estimatedLossUSD) || input.estimatedLossUSD < 0) return { success: false, error: 'Valeur de perte invalide.' };
+    if (!input.description.trim()) return { success: false, error: 'La description est obligatoire.' };
+    const removesStock = input.status === 'UNSELLABLE' || input.status === 'RETURN_TO_SUPPLIER' || input.status === 'WRITTEN_OFF';
+    if (removesStock && this.getAvailableStock(product.id) < input.quantity) {
+      return { success: false, error: 'La quantité dépasse le stock disponible non réservé.' };
+    }
+    const supplier = input.supplierId ? this.getSupplierById(input.supplierId) : undefined;
+    if (input.status === 'RETURN_TO_SUPPLIER' && !supplier) {
+      return { success: false, error: 'Sélectionnez le fournisseur pour le retour.' };
+    }
+    const now = new Date().toISOString();
+    const damageNumber = generateReferenceNumber('DOM');
+    const damage: StockDamage = {
+      id: generateUUID(),
+      damageNumber,
+      productId: product.id,
+      productName: product.name,
+      quantity: r2(input.quantity),
+      unit: product.unit,
+      status: input.status,
+      estimatedLossUSD: r2(input.estimatedLossUSD),
+      description: input.description.trim(),
+      supplierId: supplier?.id,
+      supplierName: supplier?.companyName,
+      date: now,
+      recordedBy: this.state.currentUser.id,
+      recordedByName: this.state.currentUser.name,
+      notes: input.notes,
+    };
+    if (removesStock) {
+      const previousStock = product.currentStock;
+      const newStock = r2(previousStock - input.quantity);
+      product.currentStock = newStock;
+      product.updatedAt = now;
+      this.addStockMovement({
+        productId: product.id,
+        productName: product.name,
+        quantity: -input.quantity,
+        type: input.status === 'RETURN_TO_SUPPLIER' ? 'RETURN_SUPPLIER' : 'LOSS_DAMAGE',
+        reason: `Déclaration de dommage ${damageNumber} : ${input.description}`,
+        referenceNumber: damageNumber,
+        previousStock,
+        newStock,
+      });
+    }
+    this.state.stockDamages = [damage, ...this.state.stockDamages];
+    this.persist();
+    return { success: true, damage };
+  }
+
+  public getFreeIssues(): FreeIssue[] {
+    return this.state.freeIssues;
+  }
+
+  public recordFreeIssue(input: {
+    productId: string;
+    quantity: number;
+    beneficiary: string;
+    reason: string;
+    notes?: string;
+  }): { success: boolean; issue?: FreeIssue; error?: string } {
+    this.requireManager();
+    const product = this.getProductById(input.productId);
+    if (!product) return { success: false, error: 'Produit introuvable.' };
+    if (!isNum(input.quantity) || input.quantity <= 0) return { success: false, error: 'Quantité invalide.' };
+    if (!input.beneficiary.trim() || !input.reason.trim()) {
+      return { success: false, error: 'Le bénéficiaire et le motif sont obligatoires.' };
+    }
+    const available = this.getAvailableStock(product.id);
+    if (available < input.quantity) {
+      return { success: false, error: `Stock disponible insuffisant. Disponible : ${available} ${product.unit}.` };
+    }
+    const now = new Date().toISOString();
+    const issueNumber = generateReferenceNumber('GRAT');
+    const issue: FreeIssue = {
+      id: generateUUID(),
+      issueNumber,
+      productId: product.id,
+      productName: product.name,
+      quantity: r2(input.quantity),
+      unit: product.unit,
+      estimatedValueUSD: r2(input.quantity * product.sellPriceUSD),
+      beneficiary: input.beneficiary.trim(),
+      reason: input.reason.trim(),
+      date: now,
+      issuedBy: this.state.currentUser.id,
+      issuedByName: this.state.currentUser.name,
+      notes: input.notes,
+    };
+    const previousStock = product.currentStock;
+    const newStock = r2(previousStock - input.quantity);
+    product.currentStock = newStock;
+    product.updatedAt = now;
+    this.addStockMovement({
+      productId: product.id,
+      productName: product.name,
+      quantity: -input.quantity,
+      type: 'OUT',
+      reason: `Sortie gratuite ${issueNumber} au bénéfice de ${input.beneficiary}`,
+      referenceNumber: issueNumber,
+      previousStock,
+      newStock,
+    });
+    this.state.freeIssues = [issue, ...this.state.freeIssues];
+    this.persist();
+    return { success: true, issue };
   }
 
   public getProductById(id: string): Product | undefined {
@@ -780,6 +1649,12 @@ class AppRepository {
     if (productData.id) {
       const existing = this.getProductById(productData.id);
       if (!existing) throw new Error('Produit introuvable (déjà supprimé ?).');
+      const reservedStock = this.getReservedStock(existing.id);
+      if (productData.currentStock < reservedStock) {
+        throw new Error(
+          `Stock impossible à réduire sous ${reservedStock} ${existing.unit} : cette quantité est réservée aux clients.`
+        );
+      }
       const updated: Product = {
         ...existing,
         ...productData,
@@ -836,7 +1711,7 @@ class AppRepository {
   }
 
   public deleteProduct(id: string) {
-    this.requireAdmin();
+    this.requireManager();
     this.state.products = this.state.products.filter((p) => p.id !== id);
     this.persist();
   }
@@ -877,6 +1752,11 @@ class AppRepository {
     const product = this.getProductById(data.productId);
     if (!product) throw new Error('Produit introuvable.');
     if (!isNum(data.quantity) || data.quantity === 0) throw new Error('Quantité invalide.');
+    if (data.quantity < 0 && this.getAvailableStock(product.id) < Math.abs(data.quantity)) {
+      throw new Error(
+        `Stock disponible insuffisant pour ce mouvement. Disponible : ${this.getAvailableStock(product.id)} ${product.unit}.`
+      );
+    }
     const previousStock = product.currentStock;
     const newStock = r2(previousStock + data.quantity);
     product.currentStock = newStock;
@@ -1006,10 +1886,15 @@ class AppRepository {
       if (!prod) {
         return { success: false, error: `Produit introuvable: ${productId}` };
       }
-      if (!saleInput.allowNegativeStock && prod.currentStock < qty) {
+      const availableStock = this.getAvailableStock(productId);
+      const reservedStock = this.getReservedStock(productId);
+      if (
+        availableStock < qty &&
+        (!saleInput.allowNegativeStock || reservedStock > 0)
+      ) {
         return {
           success: false,
-          error: `Stock insuffisant pour "${prod.name}" (Stock actuel: ${prod.currentStock} ${prod.unit}, demandé: ${qty}).`,
+          error: `Stock disponible insuffisant pour "${prod.name}" (Physique: ${prod.currentStock} ${prod.unit}, réservé: ${this.getReservedStock(productId)} ${prod.unit}, disponible: ${availableStock} ${prod.unit}, demandé: ${qty}).`,
         };
       }
     }
@@ -1262,6 +2147,8 @@ class AppRepository {
       status,
       date: new Date().toISOString(),
       syncStatus: this.syncStatusForNewRecord(),
+      createdById: this.state.currentUser.id,
+      createdByName: this.state.currentUser.name,
     };
 
     this.state.purchases = [purchase, ...this.state.purchases];
@@ -1356,6 +2243,7 @@ class AppRepository {
       receiptNumber: generateReferenceNumber('REC-DEP'),
       date: new Date().toISOString(),
       createdBy: this.state.currentUser.name,
+      createdById: this.state.currentUser.id,
       syncStatus: this.syncStatusForNewRecord(),
     };
 
@@ -1405,60 +2293,82 @@ class AppRepository {
   /** Backup without any PIN material (hashes stay on the device). */
   public exportDatabaseJson(): string {
     this.requireAdmin();
-    const { users, currentUser, savedAt, ...rest } = this.state;
+    const { users, currentUser, savedAt, offlineQueue, cloud, syncInfo, ...rest } = this.state;
     void currentUser;
     void savedAt;
+    void offlineQueue;
+    void cloud;
+    void syncInfo;
     const safeUsers = users.map(({ pinHash, pinSalt, ...u }) => {
       void pinHash;
       void pinSalt;
       return u;
     });
-    return JSON.stringify({ ...rest, users: safeUsers, _format: 'bta-backup-v2' }, null, 2);
+    const payload = { ...rest, users: safeUsers };
+    const serialized = JSON.stringify(payload);
+    return JSON.stringify({ format: 'bta-backup', version: 3, exportedAt: new Date().toISOString(),
+      checksum: backupChecksum(serialized), payload }, null, 2);
   }
 
   /**
    * Restores business data only. Users, PINs and the current session are NEVER replaced by a
    * backup file (otherwise a crafted file could grant admin access).
    */
-  public importDatabaseJson(jsonString: string): boolean {
+   public async importDatabaseJson(jsonString: string): Promise<boolean> {
     this.requireAdmin();
+    if (this.state.cloud) throw new Error('Import désactivé : cet appareil est synchronisé avec une entreprise.');
     try {
       if (jsonString.length > 30_000_000) return false;
-      const parsed = JSON.parse(jsonString) as Partial<AppDatabaseState>;
-      const arrays: Array<keyof AppDatabaseState> = [
-        'categories', 'products', 'customers', 'suppliers', 'sales',
-        'purchases', 'stockMovements', 'expenses', 'debts',
-      ];
-      if (!parsed || typeof parsed !== 'object' || !parsed.settings || typeof parsed.settings !== 'object') return false;
-      for (const k of arrays) {
-        if (!Array.isArray(parsed[k])) return false;
-      }
-      if (!isNum(parsed.settings.exchangeRate) || parsed.settings.exchangeRate <= 0) return false;
-      if (parsed.products!.some((p) => !p || typeof p.id !== 'string' || !isNum(p.currentStock) || !isNum(p.sellPriceUSD))) return false;
-      if (parsed.sales!.some((x) => !x || typeof x.id !== 'string' || !Array.isArray(x.items) || !isNum(x.totalUSD))) return false;
 
-      this.state = {
+      const parsed = JSON.parse(jsonString) as Record<string, any>;
+      let payload: Partial<AppDatabaseState>;
+      if (parsed?.format === 'bta-backup' && parsed.version === 3 && parsed.payload && typeof parsed.payload === 'object') {
+        if (backupChecksum(JSON.stringify(parsed.payload)) !== parsed.checksum) return false;
+        payload = parsed.payload as Partial<AppDatabaseState>;
+      } else if (parsed?._format === 'bta-backup-v2' || parsed?.settings) {
+        // Legacy unwrapped backups remain readable; the next export uses version 3.
+        payload = parsed as Partial<AppDatabaseState>;
+      } else return false;
+      for (const key of ['reservations', 'reservationCancellations', 'reservationPayments', 'reservationDeliveries', 'stockDamages', 'freeIssues'] as const) {
+        if (payload[key] === undefined) (payload as Record<string, unknown>)[key] = [];
+      }
+      if (!validateBackupData(payload)) return false;
+
+      const previous = JSON.parse(JSON.stringify(this.state)) as AppDatabaseState;
+      const backupKey = `bta_preimport_${Date.now()}_${generateUUID()}`;
+      // Do not alter live state until the complete existing state has a durable recovery copy.
+      await localforage.setItem(backupKey, previous);
+      const next: AppDatabaseState = {
         ...this.getDefaultState(),
-        ...parsed,
+        ...payload,
         users: this.state.users,
         currentUser: this.state.currentUser,
-        offlineQueue: Array.isArray(parsed.offlineQueue) ? parsed.offlineQueue : [],
-        syncInfo: this.state.syncInfo,
+        offlineQueue: [],
+        syncInfo: { ...this.state.syncInfo, pendingCount: 0, errorMessage: undefined },
       } as AppDatabaseState;
-      this.persist();
+      try {
+        this.state = next;
+        this.persist();
+        await this.flushDurableAndWait();
+      } catch (e) {
+        this.state = previous;
+        this.persist();
+        await this.flushDurableAndWait();
+        throw e;
+      }
       return true;
     } catch (e) {
       console.error('Invalid backup JSON', e);
     }
     return false;
   }
-
   /** Deletes ALL products, customers, suppliers, sales, purchases, stock, expenses and debts. Accounts, PINs, settings and categories are kept. */
   public clearAllBusinessData() {
     this.requireAdmin();
+    if (this.state.cloud) throw new Error('Action désactivée : cet appareil est synchronisé avec une entreprise.');
     this.state = {
       ...this.state,
-      products: [],
+           products: [],
       customers: [],
       suppliers: [],
       sales: [],
@@ -1466,6 +2376,12 @@ class AppRepository {
       stockMovements: [],
       expenses: [],
       debts: [],
+      reservations: [],
+reservationCancellations: [],
+ reservationPayments: [],
+      reservationDeliveries: [],
+      stockDamages: [],
+      freeIssues: [],
       offlineQueue: [],
       syncInfo: { ...this.state.syncInfo, pendingCount: 0 },
     };
@@ -1475,6 +2391,7 @@ class AppRepository {
   /** Erases business data (demo seed). Accounts and PINs are kept. */
   public resetToDefaultSeed() {
     this.requireAdmin();
+    if (this.state.cloud) throw new Error('Action désactivée : cet appareil est synchronisé avec une entreprise.');
     const keepUsers = this.state.users;
     const keepCurrent = this.state.currentUser;
     this.state = { ...this.getDefaultState(), users: keepUsers, currentUser: keepCurrent };

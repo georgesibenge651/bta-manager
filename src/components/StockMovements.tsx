@@ -10,6 +10,7 @@ import {
   Check,
   X,
   History,
+  Search,
 } from 'lucide-react';
 import { Product, StockMovement, StockMovementType, UserRole } from '../types';
 import { formatDateLubumbashi } from '../utils/currency';
@@ -46,6 +47,7 @@ export const StockMovements: React.FC<StockMovementsProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'MOVEMENTS' | 'INVENTORY'>('MOVEMENTS');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
 
   // Manual Adjustment Form
@@ -63,15 +65,13 @@ export const StockMovements: React.FC<StockMovementsProps> = ({
     return initial;
   });
 
-  const canEdit =
-    userRole === 'ADMIN' ||
-    userRole === 'ADMINISTRATEUR' ||
-    userRole === 'GESTIONNAIRE' ||
-    userRole === 'MANAGER';
+  const canEdit = userRole === 'ADMIN' || userRole === 'GESTIONNAIRE';
 
+  const normalizedSearch = searchTerm.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   const filteredMovements = stockMovements.filter((m) => {
-    if (typeFilter === 'ALL') return true;
-    return m.type === typeFilter;
+    const matchesType = typeFilter === 'ALL' || m.type === typeFilter;
+    const matchesSearch = !normalizedSearch || [m.productName, m.referenceNumber, m.reason, m.userName, m.type, m.quantity, m.date].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(normalizedSearch);
+    return matchesType && matchesSearch;
   });
 
   const handleExecuteManualMovement = (e: React.FormEvent) => {
@@ -186,7 +186,12 @@ export const StockMovements: React.FC<StockMovementsProps> = ({
       {activeTab === 'MOVEMENTS' ? (
         /* Movements Log */
         <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm space-y-3">
-          {/* Filters Bar */}
+          {/* Search and Filters Bar */}
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher produit, référence, motif ou agent..." className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500" />
+            {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
+          </div>
           <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 text-xs">
             <span className="text-slate-500 font-bold shrink-0">Filtrer par type :</span>
             <div className="flex gap-1">
@@ -242,6 +247,7 @@ export const StockMovements: React.FC<StockMovementsProps> = ({
                 </div>
               );
             })}
+            {filteredMovements.length === 0 && <p className="py-8 text-center text-xs text-slate-400">Aucun mouvement correspondant.</p>}
           </div>
         </div>
       ) : (

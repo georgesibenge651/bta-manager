@@ -10,6 +10,8 @@ import {
   Package,
   CreditCard,
   Receipt,
+  Search,
+  X,
 } from 'lucide-react';
 import { Product, Sale, Purchase, Expense, DebtRecord, CompanySettings } from '../types';
 import { formatUSD, formatCDF, usdToCdf, formatDateLubumbashi } from '../utils/currency';
@@ -33,49 +35,45 @@ export const Reports: React.FC<ReportsProps> = ({
   settings,
 }) => {
   const [period, setPeriod] = useState<'MONTH' | 'YEAR' | 'ALL'>('MONTH');
+  const [reportSearch, setReportSearch] = useState('');
+  const normalizedSearch = reportSearch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
   // Filtered transactions by period
   const filteredSales = useMemo(() => {
     const now = new Date();
     return sales.filter((s) => {
       const d = new Date(s.date);
-      if (period === 'MONTH') {
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-      }
-      if (period === 'YEAR') {
-        return d.getFullYear() === now.getFullYear();
-      }
-      return true;
+      const matchesPeriod = period === 'MONTH'
+        ? d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+        : period === 'YEAR' ? d.getFullYear() === now.getFullYear() : true;
+      const matchesSearch = !normalizedSearch || [s.invoiceNumber, s.customerName, s.cashierName, s.status, s.items.map((item) => item.productName).join(' ')].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(normalizedSearch);
+      return matchesPeriod && matchesSearch;
     });
-  }, [sales, period]);
+  }, [sales, period, normalizedSearch]);
 
   const filteredExpenses = useMemo(() => {
     const now = new Date();
     return expenses.filter((e) => {
       const d = new Date(e.date);
-      if (period === 'MONTH') {
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-      }
-      if (period === 'YEAR') {
-        return d.getFullYear() === now.getFullYear();
-      }
-      return true;
+      const matchesPeriod = period === 'MONTH'
+        ? d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+        : period === 'YEAR' ? d.getFullYear() === now.getFullYear() : true;
+      const matchesSearch = !normalizedSearch || [e.title, e.description, e.category, e.receiptNumber, e.createdBy].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(normalizedSearch);
+      return matchesPeriod && matchesSearch;
     });
-  }, [expenses, period]);
+  }, [expenses, period, normalizedSearch]);
 
   const filteredPurchases = useMemo(() => {
     const now = new Date();
     return purchases.filter((p) => {
       const d = new Date(p.date);
-      if (period === 'MONTH') {
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-      }
-      if (period === 'YEAR') {
-        return d.getFullYear() === now.getFullYear();
-      }
-      return true;
+      const matchesPeriod = period === 'MONTH'
+        ? d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+        : period === 'YEAR' ? d.getFullYear() === now.getFullYear() : true;
+      const matchesSearch = !normalizedSearch || [p.purchaseNumber, p.supplierName, p.status, p.items.map((item) => item.productName).join(' ')].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(normalizedSearch);
+      return matchesPeriod && matchesSearch;
     });
-  }, [purchases, period]);
+  }, [purchases, period, normalizedSearch]);
 
   // Financial aggregates
   const totalRevenueUSD = filteredSales.reduce((acc, s) => acc + s.totalUSD, 0);
@@ -143,7 +141,12 @@ export const Reports: React.FC<ReportsProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[180px] flex-1 sm:flex-none">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input value={reportSearch} onChange={(event) => setReportSearch(event.target.value)} placeholder="Filtrer les rapports..." className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500" />
+            {reportSearch && <button onClick={() => setReportSearch('')} className="absolute right-2.5 top-2.5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
+          </div>
           {/* Period filter */}
           <div className="flex bg-slate-100 p-1 rounded-2xl text-xs font-bold">
             <button

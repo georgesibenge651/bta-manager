@@ -32,34 +32,12 @@ export const INITIAL_SETTINGS: CompanySettings = {
 
 export const INITIAL_USERS: User[] = [
   {
-    id: 'user-admin-1',
-    name: 'Georges',
-    email: 'admin@bta-africa.com',
+    id: 'user-admin-bootstrap',
+    name: 'Administrateur principal',
+    email: '',
     role: 'ADMIN',
-    phone: '+243 81 234 5678',
+    phone: '',
     active: true,
-    pinSalt: 'salt_bta_admin_01',
-    pinHash: 'e0b97a9fd498200f6c4142ea3659889ac3616ab1c8a86293e3be2c048e02d360', // PIN: 9999
-  },
-  {
-    id: 'user-mgr-1',
-    name: 'Didier',
-    email: 'gestion@bta-africa.com',
-    role: 'GESTIONNAIRE',
-    phone: '+243 97 456 7890',
-    active: true,
-    pinSalt: 'salt_bta_mgr_02',
-    pinHash: '804f3ab4f43fb423a58dd636ba84e2147fab4c741076ea65c3c37044a8883686', // PIN: 5555
-  },
-  {
-    id: 'user-cash-1',
-    name: 'Mylet',
-    email: 'caisse@bta-africa.com',
-    role: 'CAISSIER',
-    phone: '+243 85 111 2233',
-    active: true,
-    pinSalt: 'salt_bta_cash_03',
-    pinHash: '0de2973c670ae6df148c5cfeca35a16d71263f743d195ae9c0e2ee6ad822ed7d', // PIN: 1234
   },
 ];
 

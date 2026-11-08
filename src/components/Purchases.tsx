@@ -9,6 +9,7 @@ import {
   X,
   AlertCircle,
   FileText,
+  Search,
 } from 'lucide-react';
 import { Product, Supplier, Purchase, PaymentMethod } from '../types';
 import { formatUSD, formatCDF, usdToCdf, formatDateLubumbashi } from '../utils/currency';
@@ -18,6 +19,7 @@ interface PurchasesProps {
   suppliers: Supplier[];
   purchases: Purchase[];
   exchangeRate: number;
+  canCreate?: boolean;
   onExecutePurchase: (purchaseInput: {
     supplierId: string;
     items: Array<{
@@ -37,6 +39,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
   suppliers,
   purchases,
   exchangeRate,
+  canCreate = true,
   onExecutePurchase,
 }) => {
   const [isNewPurchaseModalOpen, setIsNewPurchaseModalOpen] = useState(false);
@@ -48,9 +51,18 @@ export const Purchases: React.FC<PurchasesProps> = ({
     Array<{ productId: string; quantity: number; buyPriceUSD: number }>
   >([]);
   const [errorMessage, setErrorMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Selected supplier
   const supplier = suppliers.find((s) => s.id === selectedSupplierId);
+  const normalizedSearch = searchTerm.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const filteredPurchases = purchases.filter((purchase) =>
+    !normalizedSearch || [
+      purchase.purchaseNumber, purchase.supplierName, purchase.status,
+      purchase.items.map((item) => item.productName).join(' '),
+      purchase.date,
+    ].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(normalizedSearch)
+  );
 
   // Financial totals
   const subtotalUSD = useMemo(() => {
@@ -144,13 +156,13 @@ export const Purchases: React.FC<PurchasesProps> = ({
           </p>
         </div>
 
-        <button
+        {canCreate && <button
           onClick={handleOpenNewPurchase}
           className="px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           Nouvelle Réception Stock
-        </button>
+        </button>}
       </div>
 
       {/* List of Purchases */}
@@ -159,8 +171,13 @@ export const Purchases: React.FC<PurchasesProps> = ({
           Commandes et Bons de Réception ({purchases.length})
         </h4>
 
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+          <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher par numéro, fournisseur, produit ou statut..." className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500" />
+          {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
+        </div>
         <div className="divide-y divide-slate-100 overflow-x-auto">
-          {purchases.map((p) => (
+          {filteredPurchases.map((p) => (
             <div key={p.id} className="py-3 px-2 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-xl">
               <div className="truncate">
                 <div className="flex items-center gap-2">
@@ -187,6 +204,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
               </div>
             </div>
           ))}
+          {filteredPurchases.length === 0 && <p className="py-8 text-center text-xs text-slate-400">Aucun achat correspondant.</p>}
         </div>
       </div>
 

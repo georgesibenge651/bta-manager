@@ -34,11 +34,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
     balanceDueUSD: 0,
   });
 
-  const canEdit =
-    userRole === 'ADMIN' ||
-    userRole === 'ADMINISTRATEUR' ||
-    userRole === 'GESTIONNAIRE' ||
-    userRole === 'MANAGER';
+  const canEdit = userRole === 'ADMIN' || userRole === 'GESTIONNAIRE';
 
   const filteredSuppliers = suppliers.filter(
     (s) =>

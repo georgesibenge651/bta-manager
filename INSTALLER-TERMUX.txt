@@ -1,0 +1,28 @@
+BTA MANAGER — INSTALLATION DE LA BASE DE TRAVAIL
+
+Cette archive est une copie de travail séparée. Elle ne remplace PAS automatiquement ~/bta.
+
+1) Copier bta-base-travail-firebase.tar.gz dans le dossier home de Termux.
+2) Dans Termux :
+
+   cd ~
+   mkdir -p bta-firebase-base
+   tar -xzf bta-base-travail-firebase.tar.gz -C bta-firebase-base
+
+3) Le projet se trouvera dans :
+
+   ~/bta-firebase-base/bta
+
+4) Comparer les deux projets avant toute fusion :
+
+   diff -qr ~/bta ~/bta-firebase-base/bta | head -200
+
+5) Ne pas lancer de git add/commit/push depuis cette copie. Le dépôt actif reste ~/bta.
+   Ne pas remplacer la clé Android ni les secrets GitHub.
+
+Le document CORRECTIONS-ARCHITECTURE-STOCK-TRANSFERTS.md précise les arrangements validés :
+stock séparé par établissement, vente limitée au stock de sa branche, transferts inter-établissements
+avec départ/réception distincts, idempotence, contrôles d'accès et tests obligatoires.
+
+IMPORTANT : cette base n'est pas déclarée prête pour la production. Les exigences du document
+CORRECTIONS doivent être implémentées et testées avant activation réelle de la synchronisation.

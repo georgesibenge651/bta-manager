@@ -9,6 +9,7 @@ interface BottomNavProps {
   cartItemCount?: number;
   lowStockCount?: number;
   debtAlertCount?: number;
+  visibleTabs?: MainTab[];
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
@@ -17,6 +18,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   cartItemCount = 0,
   lowStockCount = 0,
   debtAlertCount = 0,
+  visibleTabs,
 }) => {
   const tabs = [
     {
@@ -57,7 +59,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   return (
     <nav className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 shadow-lg pb-safe">
       <div className="max-w-md mx-auto flex items-center justify-around px-2 py-1.5 sm:py-2">
-        {tabs.map((tab) => {
+        {tabs.filter((tab) => !visibleTabs || visibleTabs.includes(tab.id)).map((tab) => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
 

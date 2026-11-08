@@ -73,11 +73,7 @@ export const Customers: React.FC<CustomersProps> = ({
     notes: '',
   });
 
-  const canEdit =
-    userRole === 'ADMIN' ||
-    userRole === 'ADMINISTRATEUR' ||
-    userRole === 'GESTIONNAIRE' ||
-    userRole === 'MANAGER';
+  const canEdit = userRole === 'ADMIN' || userRole === 'GESTIONNAIRE';
 
   // Filtered customers
   const filteredCustomers = useMemo(() => {

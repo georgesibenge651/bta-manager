@@ -1,12 +1,39 @@
 import React, { useEffect, useState } from 'react';
-import { Lock, Delete, AlertCircle, ShieldCheck, User as UserIcon } from 'lucide-react';
+import { Lock, Delete, AlertCircle, ShieldCheck, User as UserIcon, Cloud, CheckCircle2 } from 'lucide-react';
 import { User } from '../types';
 import { appRepository } from '../db/storage';
+import { signInWithEmail } from '../firebase/auth';
 
 interface LockScreenProps {
   users: User[];
   companyName: string;
 }
+
+export const FirstAdminSetup: React.FC = () => {
+  const admin = appRepository.getUsers().find((u) => u.role === 'ADMIN' && u.active !== false);
+  const [pin, setPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [error, setError] = useState('');
+  const submit = () => {
+    try {
+      if (!admin) throw new Error('Aucun profil administrateur actif n’est disponible.');
+      if (pin !== confirmPin) throw new Error('Les deux codes PIN ne correspondent pas.');
+      appRepository.initializeFirstAdminPin(admin.id, pin);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Initialisation impossible.'); }
+  };
+  return (
+    <div className="min-h-screen bg-[#0B1A30] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6 space-y-4">
+        <h1 className="text-lg font-black text-slate-900">Initialisation du compte administrateur</h1>
+        <p className="text-sm text-slate-600">Créez le premier PIN sur cet appareil. Aucun PIN universel n’est fourni. Gardez l’appareil sous votre contrôle pendant cette étape.</p>
+        <input aria-label="Nouveau PIN" type="password" inputMode="numeric" autoComplete="new-password" maxLength={8} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="Nouveau PIN (4 à 8 chiffres)" className="w-full border rounded-xl p-3" />
+        <input aria-label="Confirmer le PIN" type="password" inputMode="numeric" autoComplete="new-password" maxLength={8} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))} placeholder="Confirmer le PIN" className="w-full border rounded-xl p-3" />
+        {error && <p role="alert" className="text-sm font-bold text-red-700">{error}</p>}
+        <button onClick={submit} disabled={pin.length < 4 || confirmPin.length < 4} className="w-full rounded-xl bg-sky-600 text-white p-3 font-bold disabled:opacity-50">Initialiser l’administrateur</button>
+      </div>
+    </div>
+  );
+};
 
 /**
  * Full-screen login: choose an account, then enter the PIN.
@@ -18,6 +45,13 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
   const [error, setError] = useState('');
   const [lockedUntil, setLockedUntil] = useState(0);
   const [, setTick] = useState(0);
+  const [showFirebaseLink, setShowFirebaseLink] = useState(false);
+  const [firebaseEmail, setFirebaseEmail] = useState('');
+  const [firebasePassword, setFirebasePassword] = useState('');
+  const [firebaseLocalPin, setFirebaseLocalPin] = useState('');
+  const [firebaseBusy, setFirebaseBusy] = useState(false);
+  const [firebaseMessage, setFirebaseMessage] = useState('');
+  const [firebaseError, setFirebaseError] = useState('');
 
   useEffect(() => {
     if (!lockedUntil) return;
@@ -58,8 +92,38 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
     // on success the repository notifies and App renders the application
   };
 
+  const linkFirebaseAccount = async () => {
+    if (!selected) {
+      setFirebaseError('Sélectionnez le profil local à associer au compte Firebase.');
+      return;
+    }
+    if (!firebaseEmail.trim() || !firebasePassword || !firebaseLocalPin) {
+      setFirebaseError('Saisissez les identifiants Firebase et le PIN local du profil.');
+      return;
+    }
+    if (!appRepository.verifyUserPin(selected.id, firebaseLocalPin)) {
+      setFirebaseError('Le PIN local est incorrect.');
+      return;
+    }
+
+    setFirebaseBusy(true);
+    setFirebaseError('');
+    setFirebaseMessage('');
+    try {
+      const account = await signInWithEmail(firebaseEmail, firebasePassword);
+      appRepository.linkFirebaseUid(selected.id, account.uid, firebaseLocalPin);
+      setFirebasePassword('');
+      setFirebaseLocalPin('');
+      setFirebaseMessage(`Compte Firebase associé avec succès (${account.email || firebaseEmail.trim()}).`);
+    } catch (err) {
+      setFirebaseError(err instanceof Error ? err.message : 'Impossible de relier le compte Firebase.');
+    } finally {
+      setFirebaseBusy(false);
+    }
+  };
+
   const roleLabel = (r: string) =>
-    r === 'ADMIN' || r === 'ADMINISTRATEUR' ? 'Administrateur' : r === 'GESTIONNAIRE' || r === 'MANAGER' ? 'Gestionnaire' : 'Caissier';
+    r === 'ADMIN' ? 'Administrateur' : r === 'GESTIONNAIRE' ? 'Gestionnaire' : 'Gestionnaire';
 
   return (
     <div className="min-h-screen bg-[#0B1A30] flex items-center justify-center p-4">
@@ -101,6 +165,68 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
                 Changer d'utilisateur
               </button>
             </div>
+
+            {(
+              <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 text-left space-y-2">
+                <>
+                    {selected.firebaseUid && <div className="flex items-center gap-2 text-xs font-semibold text-amber-700"><CheckCircle2 className="w-4 h-4" />Compte Firebase associé : vous pouvez le reconnecter ou remplacer l’association après vérification locale.</div>}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowFirebaseLink((value) => !value);
+                        setFirebaseError('');
+                        setFirebaseMessage('');
+                      }}
+                      className="w-full flex items-center justify-center gap-2 text-xs font-bold text-sky-800"
+                    >
+                      <Cloud className="w-4 h-4" />
+                      {showFirebaseLink ? 'Masquer le raccordement Firebase' : selected.firebaseUid ? 'Reconnecter ou remplacer le compte Firebase' : 'Associer mon compte Firebase'}
+                    </button>
+                    {showFirebaseLink && (
+                      <div className="space-y-2">
+                        <p className="text-[11px] text-slate-600">
+                          Associez le compte Firebase de cet utilisateur local. Les autorisations d’entreprise restent contrôlées par Firebase.
+                        </p>
+                        <input
+                          type="email"
+                          autoComplete="username"
+                          value={firebaseEmail}
+                          onChange={(e) => setFirebaseEmail(e.target.value)}
+                          placeholder="Adresse e-mail Firebase"
+                          className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs"
+                        />
+                        <input
+                          type="password"
+                          autoComplete="current-password"
+                          value={firebasePassword}
+                          onChange={(e) => setFirebasePassword(e.target.value)}
+                          placeholder="Mot de passe Firebase"
+                          className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs"
+                        />
+                        <input
+                          type="password"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          value={firebaseLocalPin}
+                          onChange={(e) => setFirebaseLocalPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                          placeholder="PIN local de ce profil"
+                          className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs"
+                        />
+                        {firebaseError && <p className="text-[11px] font-semibold text-red-600">{firebaseError}</p>}
+                        {firebaseMessage && <p className="text-[11px] font-semibold text-emerald-700">{firebaseMessage}</p>}
+                        <button
+                          type="button"
+                          onClick={linkFirebaseAccount}
+                          disabled={firebaseBusy || !firebaseEmail.trim() || !firebasePassword || !firebaseLocalPin}
+                          className="w-full rounded-xl bg-sky-700 px-3 py-2.5 text-xs font-bold text-white disabled:opacity-50"
+                        >
+                          {firebaseBusy ? 'Connexion en cours…' : 'Vérifier puis enregistrer l’association'}
+                        </button>
+                      </div>
+                    )}
+                  </>
+              </div>
+            )}
 
             <div className="flex justify-center gap-3 py-1">
               {[0, 1, 2, 3].map((i) => (

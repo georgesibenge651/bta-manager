@@ -34,12 +34,16 @@ import { ReceiptModal } from './components/ReceiptModal';
 import { BarcodeScannerModal } from './components/BarcodeScannerModal';
 import { KotlinSourceModal } from './components/KotlinSourceModal';
 import { ApkExportModal } from './components/ApkExportModal';
+import { GlobalSearch } from './components/GlobalSearch';
+import { NewOperations } from './components/NewOperations';
 import { ArrowLeft } from 'lucide-react';
 import { generateProjectZip, downloadProjectZip } from './utils/exportZip';
 import { App as CapacitorApp } from '@capacitor/app';
-import { LockScreen, ForcePinChange } from './components/LockScreen';
+import { FirstAdminSetup, LockScreen, ForcePinChange } from './components/LockScreen';
 import { IS_DEV } from './utils/config';
 import { saveTextFile } from './utils/files';
+import { getFirebaseUser } from './firebase/auth';
+import { getBranchPermissions } from './firebase/tenancy';
 
 /** Runs a repository action; permission/validation errors are shown to the user instead of crashing. */
 function guard<T>(fn: () => T): T | undefined {
@@ -54,6 +58,9 @@ function guard<T>(fn: () => T): T | undefined {
 export default function App() {
   // Database reactive state
   const [dbState, setDbState] = useState(() => appRepository.getState());
+  const isAuthenticated = appRepository.isAuthenticated();
+  const cloudContext = appRepository.getCloudContext();
+  const [remoteAccess, setRemoteAccess] = useState<{ loading: boolean; permissions: string[]; error?: string } | null>(null);
 
   // Subscribe to Repository changes
   useEffect(() => {
@@ -65,8 +72,26 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!cloudContext || !isAuthenticated) { setRemoteAccess(null); return; }
+    let cancelled = false;
+    setRemoteAccess({ loading: true, permissions: [] });
+    (async () => {
+      try {
+        const account = await getFirebaseUser();
+        if (!account || account.uid !== dbState.currentUser.firebaseUid) {
+          throw new Error('Le compte Firebase connecté ne correspond pas à cet utilisateur local. Verrouillez l’application et associez le bon compte.');
+        }
+        const access = await getBranchPermissions(cloudContext.tenantId, cloudContext.branchId);
+        if (!cancelled) setRemoteAccess({ loading: false, permissions: access.permissions });
+      } catch (e) {
+        if (!cancelled) setRemoteAccess({ loading: false, permissions: [], error: e instanceof Error ? e.message : 'Accès Firebase refusé.' });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [cloudContext?.tenantId, cloudContext?.branchId, dbState.currentUser.firebaseUid, isAuthenticated]);
+
   // Authentication: the app is locked until a PIN is verified
-  const isAuthenticated = appRepository.isAuthenticated();
   const [pinChangeDone, setPinChangeDone] = useState(false);
   const currentPinHash = dbState.currentUser.pinHash;
   // Expensive check (hash rounds): only recomputed when the user or his PIN changes
@@ -116,9 +141,16 @@ export default function App() {
 
   // Modals state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
+const handleOpenSettings = () => {
+  if (dbState.currentUser.role !== 'ADMIN') {
+    return;
+  }
+  setIsSettingsOpen(true);
+};
+const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
   const [isKotlinModalOpen, setIsKotlinModalOpen] = useState(false);
   const [isApkModalOpen, setIsApkModalOpen] = useState(false);
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
 
   // Receipt Modal state
   const [receiptModalProps, setReceiptModalProps] = useState<{
@@ -262,18 +294,44 @@ export default function App() {
     }
   };
 
+  const hasRemotePermission = (...permissions: string[]) =>
+    !cloudContext || !!remoteAccess?.permissions.some((permission) => permissions.includes(permission));
+  const visibleMainTabs: MainTab[] = !cloudContext ? ['accueil', 'produits', 'ventes', 'clients', 'menu'] : [
+    'accueil',
+    ...(hasRemotePermission('stock.read') ? ['produits' as MainTab] : []),
+    ...(hasRemotePermission('sales.read', 'sales.create') ? ['ventes' as MainTab] : []),
+    ...(hasRemotePermission('customers.read', 'customers.manage', 'debts.read', 'debts.pay') ? ['clients' as MainTab] : []),
+    'menu',
+  ];
+
   // Render current content view
   const renderContent = () => {
+    if (cloudContext && (!remoteAccess || remoteAccess.loading)) return <div className="p-8 text-center text-sm text-slate-600">Vérification des autorisations Firebase…</div>;
+    if (cloudContext && remoteAccess?.error) return <div role="alert" className="m-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">{remoteAccess.error} Les données locales restent intactes ; aucune nouvelle opération distante ne sera acceptée sans l’identité et les droits correspondants.</div>;
+    if (currentTab === 'produits' && !hasRemotePermission('stock.read')) return <div className="p-8 text-center text-sm text-slate-600">Accès de lecture du stock non accordé pour cet établissement.</div>;
+    if (currentTab === 'ventes' && !hasRemotePermission('sales.read', 'sales.create')) return <div className="p-8 text-center text-sm text-slate-600">Accès aux ventes non accordé pour cet établissement.</div>;
+    if (currentTab === 'clients' && !hasRemotePermission('customers.read', 'customers.manage', 'debts.read', 'debts.pay')) return <div className="p-8 text-center text-sm text-slate-600">Accès aux clients et dettes non accordé pour cet établissement.</div>;
+    if (currentTab === 'menu' && activeSubModule) {
+      const permissions: Record<string, string[]> = {
+        fournisseurs: ['suppliers.read', 'suppliers.manage'], achats: ['purchases.read', 'purchases.create'],
+        dettes: ['debts.read', 'debts.pay'], mouvements: ['stock.read', 'stock.manage'],
+        depenses: ['expenses.read', 'expenses.create'], rapports: ['reports.read'],
+        reservations: ['sales.read', 'sales.create'], dommages: ['stock.read', 'stock.manage'],
+        'sorties-gratuites': ['stock.read', 'stock.manage'],
+      };
+      const required = permissions[activeSubModule];
+      if (required && !hasRemotePermission(...required)) return <div className="p-8 text-center text-sm text-slate-600">Permission requise absente pour ce module.</div>;
+    }
     if (currentTab === 'accueil') {
       return (
         <Dashboard
-          products={dbState.products}
-          customers={dbState.customers}
-          suppliers={dbState.suppliers}
-          sales={dbState.sales}
-          purchases={dbState.purchases}
-          expenses={dbState.expenses}
-          debts={dbState.debts}
+          products={hasRemotePermission('stock.read') ? dbState.products : []}
+          customers={hasRemotePermission('customers.read', 'customers.manage') ? dbState.customers : []}
+          suppliers={hasRemotePermission('suppliers.read', 'suppliers.manage') ? dbState.suppliers : []}
+          sales={hasRemotePermission('sales.read') ? dbState.sales : []}
+          purchases={hasRemotePermission('purchases.read') ? dbState.purchases : []}
+          expenses={hasRemotePermission('expenses.read') ? dbState.expenses : []}
+          debts={hasRemotePermission('debts.read') ? dbState.debts : []}
           settings={dbState.settings}
           currentUser={dbState.currentUser}
           onNavigate={(tab, sub) => handleNavigate(tab as MainTab, sub)}
@@ -289,7 +347,7 @@ export default function App() {
           categories={dbState.categories}
           stockMovements={dbState.stockMovements}
           exchangeRate={dbState.settings.exchangeRate}
-          userRole={dbState.currentUser.role}
+          userRole={cloudContext && !hasRemotePermission('stock.manage') ? 'CASHIER' : dbState.currentUser.role}
           onSaveProduct={(data) => { guard(() => appRepository.saveProduct(data)); }}
           onDeleteProduct={(id) => { guard(() => appRepository.deleteProduct(id)); }}
           onSaveCategory={(c) => { guard(() => appRepository.updateCategory(c)); }}
@@ -305,9 +363,10 @@ export default function App() {
         <SalesPOS
           products={dbState.products}
           customers={dbState.customers}
-          sales={dbState.sales}
+          sales={hasRemotePermission('sales.read') ? dbState.sales : []}
           exchangeRate={dbState.settings.exchangeRate}
           currentUser={dbState.currentUser}
+          canCreate={hasRemotePermission('sales.create')}
           onExecuteSale={(input) => appRepository.executeSale(input)}
           onOpenReceipt={handleOpenReceiptForSale}
           onOpenBarcodeScanner={() => setIsBarcodeOpen(true)}
@@ -324,7 +383,7 @@ export default function App() {
           sales={dbState.sales}
           debts={dbState.debts}
           exchangeRate={dbState.settings.exchangeRate}
-          userRole={dbState.currentUser.role}
+          userRole={cloudContext && !hasRemotePermission('customers.manage') ? 'CASHIER' : dbState.currentUser.role}
           onSaveCustomer={(data) => { guard(() => appRepository.saveCustomer(data)); }}
           onRecordDebtPayment={(debtId, amount, method, notes) =>
             appRepository.recordDebtRepayment(debtId, amount, method, notes)
@@ -353,7 +412,7 @@ export default function App() {
                 suppliers={dbState.suppliers}
                 purchases={dbState.purchases}
                 exchangeRate={dbState.settings.exchangeRate}
-                userRole={dbState.currentUser.role}
+                userRole={cloudContext && !hasRemotePermission('suppliers.manage') ? 'CASHIER' : dbState.currentUser.role}
                 onSaveSupplier={(data) => { guard(() => appRepository.saveSupplier(data)); }}
                 onNavigateToPurchases={() => setActiveSubModule('achats')}
               />
@@ -365,14 +424,16 @@ export default function App() {
                 suppliers={dbState.suppliers}
                 purchases={dbState.purchases}
                 exchangeRate={dbState.settings.exchangeRate}
+                canCreate={hasRemotePermission('purchases.create')}
                 onExecutePurchase={(input) => appRepository.executePurchase(input)}
               />
             )}
 
             {activeSubModule === 'dettes' && (
               <Debts
-                debts={dbState.debts}
+                debts={hasRemotePermission('debts.read') ? dbState.debts : []}
                 exchangeRate={dbState.settings.exchangeRate}
+                canPay={hasRemotePermission('debts.pay')}
                 onRecordDebtPayment={(debtId, amount, method, notes) =>
                   appRepository.recordDebtRepayment(debtId, amount, method, notes)
                 }
@@ -384,7 +445,7 @@ export default function App() {
               <StockMovements
                 products={dbState.products}
                 stockMovements={dbState.stockMovements}
-                userRole={dbState.currentUser.role}
+                userRole={cloudContext && !hasRemotePermission('stock.manage') ? 'CASHIER' : dbState.currentUser.role}
                 onAddManualMovement={(data) => { guard(() => appRepository.recordManualMovement(data)); }}
                 onReconcileInventory={(adjustments) => { guard(() => appRepository.reconcileInventory(adjustments)); }}
               />
@@ -394,19 +455,36 @@ export default function App() {
               <Expenses
                 expenses={dbState.expenses}
                 exchangeRate={dbState.settings.exchangeRate}
-                userRole={dbState.currentUser.role}
+                userRole={cloudContext && !hasRemotePermission('expenses.create') ? 'CASHIER' : dbState.currentUser.role}
                 onAddExpense={(data) => { guard(() => appRepository.addExpense(data)); }}
               />
             )}
 
             {activeSubModule === 'rapports' && (
               <Reports
-                products={dbState.products}
-                sales={dbState.sales}
-                purchases={dbState.purchases}
-                expenses={dbState.expenses}
-                debts={dbState.debts}
+                products={hasRemotePermission('stock.read') ? dbState.products : []}
+                sales={hasRemotePermission('sales.read') ? dbState.sales : []}
+                purchases={hasRemotePermission('purchases.read') ? dbState.purchases : []}
+                expenses={hasRemotePermission('expenses.read') ? dbState.expenses : []}
+                debts={hasRemotePermission('debts.read') ? dbState.debts : []}
                 settings={dbState.settings}
+              />
+            )}
+
+            {(activeSubModule === 'reservations' || activeSubModule === 'dommages' || activeSubModule === 'sorties-gratuites') && (
+              <NewOperations
+                view={activeSubModule}
+                reservations={dbState.reservations}
+                reservationPayments={dbState.reservationPayments}
+                reservationDeliveries={dbState.reservationDeliveries}
+                reservationCancellations={dbState.reservationCancellations}
+                stockDamages={dbState.stockDamages}
+                freeIssues={dbState.freeIssues}
+                products={dbState.products}
+                customers={dbState.customers}
+                onCreateReservation={(input) => guard(() => appRepository.createReservation(input)) || { success: false, error: 'Création interrompue.' }}
+                onRecordReservationPayment={(reservationId, amount, method, notes) => guard(() => appRepository.recordReservationPayment(reservationId, amount, method, notes)) || { success: false, error: 'Paiement interrompu.' }}
+                onDeliverReservation={(input) => guard(() => appRepository.deliverReservation(input)) || { success: false, error: 'Livraison interrompue.' }}
               />
             )}
           </div>
@@ -422,7 +500,7 @@ export default function App() {
           syncInfo={dbState.syncInfo}
           onToggleOffline={() => appRepository.toggleNetworkMode()}
           onManualSync={() => appRepository.triggerSync()}
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSettings={handleOpenSettings}
           onOpenKotlinModal={IS_DEV ? () => setIsKotlinModalOpen(true) : undefined}
           onDownloadZip={IS_DEV ? handleDownloadZip : undefined}
           onOpenApkModal={IS_DEV ? () => setIsApkModalOpen(true) : undefined}
@@ -432,6 +510,8 @@ export default function App() {
 
     return null;
   };
+
+  if (appRepository.isBootstrapRequired()) return <FirstAdminSetup />;
 
   if (!isAuthenticated) {
     return <LockScreen users={dbState.users} companyName={dbState.settings.companyName} />;
@@ -477,8 +557,9 @@ export default function App() {
           onManualSync={() => appRepository.triggerSync()}
           isMobileFrame={isMobileFrame}
           onToggleMobileFrame={() => setIsMobileFrame(!isMobileFrame)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSettings={handleOpenSettings}
           onDownloadZip={IS_DEV ? handleDownloadZip : undefined}
+          onOpenGlobalSearch={(!cloudContext || !!remoteAccess?.permissions.length) ? () => setIsGlobalSearchOpen(true) : undefined}
         />
 
         {/* Main Content Area */}
@@ -490,6 +571,7 @@ export default function App() {
         <BottomNav
           currentTab={currentTab}
           onTabChange={(tab) => handleNavigate(tab)}
+          visibleTabs={visibleMainTabs}
           cartItemCount={cartItemCount}
           lowStockCount={lowStockCount}
           debtAlertCount={debtAlertCount}
@@ -499,6 +581,27 @@ export default function App() {
       {mustChangePin && (
         <ForcePinChange onDone={() => setPinChangeDone(true)} onLogout={() => appRepository.logout()} />
       )}
+
+      {/* Global search across all business modules */}
+      <GlobalSearch
+        isOpen={isGlobalSearchOpen}
+        onClose={() => setIsGlobalSearchOpen(false)}
+        onNavigate={({ tab, subModule }) => handleNavigate(tab, subModule)}
+        products={hasRemotePermission('stock.read') ? dbState.products : []}
+        customers={hasRemotePermission('customers.read', 'customers.manage') ? dbState.customers : []}
+        suppliers={hasRemotePermission('suppliers.read', 'suppliers.manage') ? dbState.suppliers : []}
+        sales={hasRemotePermission('sales.read') ? dbState.sales : []}
+        purchases={hasRemotePermission('purchases.read') ? dbState.purchases : []}
+        debts={hasRemotePermission('debts.read') ? dbState.debts : []}
+        expenses={hasRemotePermission('expenses.read') ? dbState.expenses : []}
+        stockMovements={hasRemotePermission('stock.read') ? dbState.stockMovements : []}
+        reservations={hasRemotePermission('sales.read') ? dbState.reservations : []}
+        reservationPayments={hasRemotePermission('sales.read') ? dbState.reservationPayments : []}
+        reservationDeliveries={hasRemotePermission('sales.read') ? dbState.reservationDeliveries : []}
+        reservationCancellations={hasRemotePermission('sales.read') ? dbState.reservationCancellations : []}
+        stockDamages={dbState.stockDamages}
+        freeIssues={dbState.freeIssues}
+      />
 
       {/* Barcode Scanner Modal */}
       <BarcodeScannerModal
@@ -536,7 +639,7 @@ export default function App() {
             );
           });
         }}
-        onImportDatabase={(json) => guard(() => appRepository.importDatabaseJson(json)) ?? false}
+        onImportDatabase={(json) => appRepository.importDatabaseJson(json)}
         onResetDatabase={() => { guard(() => appRepository.resetToDefaultSeed()); }}
         onClearDatabase={() => { guard(() => appRepository.clearAllBusinessData()); }}
         onDeleteUser={(id) => { guard(() => appRepository.deleteUser(id)); }}
@@ -559,7 +662,7 @@ export default function App() {
         isOpen={isApkModalOpen}
         onClose={() => setIsApkModalOpen(false)}
         onDownloadZip={handleDownloadZip}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSettings={handleOpenSettings}
       />
       )}
     </div>

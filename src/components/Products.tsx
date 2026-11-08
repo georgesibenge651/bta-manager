@@ -77,11 +77,7 @@ export const Products: React.FC<ProductsProps> = ({
   const [newVariantName, setNewVariantName] = useState('');
   const [newVariantValue, setNewVariantValue] = useState('');
 
-  const canEdit =
-    userRole === 'ADMIN' ||
-    userRole === 'ADMINISTRATEUR' ||
-    userRole === 'GESTIONNAIRE' ||
-    userRole === 'MANAGER';
+  const canEdit = userRole === 'ADMIN' || userRole === 'GESTIONNAIRE';
 
   // Filtered Products
   const filteredProducts = useMemo(() => {

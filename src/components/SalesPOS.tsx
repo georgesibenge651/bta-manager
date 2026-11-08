@@ -27,6 +27,7 @@ interface SalesPOSProps {
   sales: Sale[];
   exchangeRate: number;
   currentUser: User;
+  canCreate?: boolean;
   onExecuteSale: (saleInput: {
     customerId?: string;
     customerName: string;
@@ -53,6 +54,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
   customers,
   sales,
   exchangeRate,
+  canCreate = true,
   onExecuteSale,
   onOpenReceipt,
   onOpenBarcodeScanner,
@@ -61,6 +63,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
 }) => {
   const [activeView, setActiveView] = useState<'POS' | 'HISTORY'>('POS');
   const [searchTerm, setSearchTerm] = useState('');
+  const [historySearch, setHistorySearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [discountUSD, setDiscountUSD] = useState<number>(0);
@@ -71,6 +74,13 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
   const [notes, setNotes] = useState('');
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const normalizedHistorySearch = historySearch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const filteredSales = useMemo(() => sales.filter((sale) => !normalizedHistorySearch || [
+    sale.invoiceNumber, sale.customerName, sale.customerPhone, sale.cashierName,
+    sale.paymentMethod, sale.status, sale.items.map((item) => `${item.productName} ${item.sku}`).join(' '),
+    sale.date, sale.totalUSD,
+  ].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(normalizedHistorySearch)), [sales, normalizedHistorySearch]);
 
   // Cart financial calculations
   const subtotalUSD = useMemo(() => {
@@ -545,12 +555,12 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
 
               {/* Checkout Button */}
               <button
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || !canCreate}
                 onClick={handleOpenCheckout}
                 className="w-full py-3 bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 disabled:opacity-50 text-white rounded-2xl font-black text-sm shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Check className="w-5 h-5" />
-                Encaisser & Valider ({formatUSD(totalUSD)})
+                {canCreate ? `Encaisser & Valider (${formatUSD(totalUSD)})` : 'Consultation uniquement'}
               </button>
             </div>
           </div>
@@ -558,13 +568,18 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
       ) : (
         /* History of Sales */
         <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h3 className="font-bold text-sm text-slate-900">Historique des Factures Enregistrées</h3>
-            <span className="text-xs text-slate-500">{sales.length} ventes</span>
+            <span className="text-xs text-slate-500">{filteredSales.length} / {sales.length} ventes</span>
+          </div>
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder="Rechercher facture, client, téléphone, produit ou caissier..." className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500" />
+            {historySearch && <button onClick={() => setHistorySearch('')} className="absolute right-3 top-2.5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
           </div>
 
           <div className="divide-y divide-slate-100 overflow-x-auto">
-            {sales.map((sale) => (
+            {filteredSales.map((sale) => (
               <div
                 key={sale.id}
                 onClick={() => onOpenReceipt(sale)}
@@ -597,6 +612,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                 </div>
               </div>
             ))}
+            {filteredSales.length === 0 && <p className="py-8 text-center text-xs text-slate-400">Aucune facture correspondante.</p>}
           </div>
         </div>
       )}

@@ -31,6 +31,9 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps --no-audit --no-fund
 
+      - name: Unit tests (sync engine)
+        run: npm run test:unit
+
       - name: Build web application
         run: npm run build
 

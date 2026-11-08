@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Building2,
   Download,
+  Search,
 } from 'lucide-react';
 import { User, CompanySettings, SyncStatusInfo, UserRole } from '../types';
 
@@ -26,6 +27,7 @@ interface NavbarProps {
   onToggleMobileFrame: () => void;
   onOpenSettings: () => void;
   onDownloadZip?: () => void;
+  onOpenGlobalSearch?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -40,27 +42,21 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleMobileFrame,
   onOpenSettings,
   onDownloadZip,
+  onOpenGlobalSearch,
 }) => {
   const getRoleBadge = (role: UserRole) => {
-    switch (role) {
-      case 'ADMIN':
-      case 'ADMINISTRATEUR':
-        return <span className="bg-red-500/20 text-red-200 border border-red-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">ADMIN</span>;
-      case 'GESTIONNAIRE':
-      case 'MANAGER':
-        return <span className="bg-amber-500/20 text-amber-200 border border-amber-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">GESTION</span>;
-      case 'CAISSIER':
-      case 'CASHIER':
-      default:
-        return <span className="bg-emerald-500/20 text-emerald-200 border border-emerald-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">CAISSE</span>;
+    if (role === "ADMIN") {
+      return <span className="bg-red-500/20 text-red-200 border border-red-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">ADMIN</span>;
     }
+
+    return <span className="bg-amber-500/20 text-amber-200 border border-amber-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">GESTION</span>;
   };
 
   return (
     <header className="bg-[#0B1A30] text-white sticky top-0 z-30 shadow-md border-b border-sky-950">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2">
         {/* Brand & Store Name */}
-        <div className="flex items-center gap-2 sm:gap-3 cursor-pointer" onClick={onOpenSettings}>
+        <div onClick={currentUser.role === "ADMIN" ? onOpenSettings : undefined} className="flex items-center gap-2 sm:gap-3 cursor-pointer">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center shadow-lg shadow-sky-500/20 ring-2 ring-white/10 shrink-0">
             <Building2 className="w-5 h-5 text-white" />
           </div>
@@ -83,7 +79,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2">
           {/* Exchange Rate Badge */}
           <div
-            onClick={onOpenSettings}
+            onClick={currentUser.role === "ADMIN" ? onOpenSettings : undefined}
             className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 cursor-pointer text-xs transition"
             title="Cliquez pour configurer le taux de change"
           >
@@ -147,8 +143,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Right: Download ZIP, User Switcher & Mobile Frame Toggle */}
+        {/* Right: Global Search, Download ZIP, User Switcher & Mobile Frame Toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {onOpenGlobalSearch && (
+            <button
+              onClick={onOpenGlobalSearch}
+              className="p-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 border border-sky-400/20 transition"
+              title="Recherche globale dans BTA Manager"
+              aria-label="Ouvrir la recherche globale"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          )}
           {onDownloadZip && (
             <button
               onClick={onDownloadZip}

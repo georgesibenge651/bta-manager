@@ -1,15 +1,10 @@
-export type UserRole =
-  | 'ADMIN'
-  | 'ADMINISTRATEUR'
-  | 'GESTIONNAIRE'
-  | 'MANAGER'
-  | 'CAISSIER'
-  | 'CASHIER';
+export type UserRole = 'ADMIN' | 'GESTIONNAIRE' | 'CASHIER';
 
 export interface User {
   id: string;
   name: string;
   email: string;
+firebaseUid?: string; // Identifiant du compte Firebase associé
   role: UserRole;
   phone: string;
   active: boolean;
@@ -141,6 +136,9 @@ export interface Purchase {
   status: 'COMPLETED' | 'DRAFT' | 'PENDING' | 'CANCELLED';
   date: string;
   syncStatus: 'SYNCED' | 'PENDING' | 'ERROR';
+  createdById?: string;
+  createdByName?: string;
+  authenticatedActorUid?: string;
 }
 
 export type StockMovementType =
@@ -189,6 +187,8 @@ export interface Expense {
   date: string;
   createdBy: string;
   syncStatus: 'SYNCED' | 'PENDING' | 'ERROR';
+  createdById?: string;
+  authenticatedActorUid?: string;
 }
 
 export interface DebtPaymentEntry {
@@ -241,4 +241,155 @@ export interface SyncStatusInfo {
   lastSyncTime: string;
   pendingCount: number;
   errorMessage?: string;
+  syncProgress?: { collection: string; recovered: number; phase: 'PULL' };
+}
+// ==========================================
+// RESERVATIONS CLIENTS ET LIVRAISONS
+// ==========================================
+
+ export type ReservationStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'PARTIALLY_DELIVERED'
+  | 'DELIVERED'
+  | 'CANCELLATION_PENDING'
+  | 'CANCELLED';
+
+export type ReservationStockPolicy =
+  | 'BLOCK_STOCK'
+  | 'BLOCK_ON_DELIVERY';
+
+export interface ReservationItem {
+  id: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  quantityReserved: number;
+  quantityDelivered: number;
+  unit: UnitOfMeasure;
+  unitPriceUSD: number;
+  totalUSD: number;
+  stockPolicy: ReservationStockPolicy;
+}
+export interface Reservation {
+  id: string;
+  reservationNumber: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  items: ReservationItem[];
+  totalUSD: number;
+  totalCDF: number;
+  exchangeRate: number;
+  amountPaidUSD: number;
+  remainingAmountUSD: number;
+  status: ReservationStatus;
+  reservationDate: string;
+  expectedDeliveryDate?: string;
+  notes?: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: string;
+}
+export interface ReservationCancellation {
+  id: string;
+  reservationId: string;
+  reservationNumber: string;
+  reason: string;
+  requestedBy: string;
+  requestedByName: string;
+  requestedAt: string;
+  status: 'PENDING' | 'DECIDED';
+  decision?: 'REFUND_FULL' | 'REFUND_PARTIAL' | 'RETAIN_FULL' | 'RETAIN_PARTIAL';
+  amountPaidUSD: number;
+  amountRefundedUSD?: number;
+  amountRetainedUSD?: number;
+  decisionReason?: string;
+  decidedBy?: string;
+  decidedByName?: string;
+  decidedAt?: string;
+}
+export interface ReservationPayment {
+  id: string;
+  reservationId: string;
+  reservationNumber: string;
+  amountUSD: number;
+  amountCDF: number;
+  exchangeRate: number;
+  paymentMethod: PaymentMethod;
+  receiptNumber: string;
+  paymentDate: string;
+  recordedBy: string;
+  notes?: string;
+}
+
+export interface ReservationDeliveryItem {
+  reservationItemId: string;
+  productId: string;
+  productName: string;
+  quantityDelivered: number;
+  unit: UnitOfMeasure;
+}
+
+export interface ReservationDelivery {
+  id: string;
+  deliveryNumber: string;
+  reservationId: string;
+  reservationNumber: string;
+  customerId: string;
+  customerName: string;
+  items: ReservationDeliveryItem[];
+  deliveryDate: string;
+  deliveredBy: string;
+  deliveredByName: string;
+  notes?: string;
+}
+
+// ==========================================
+// PRODUITS ENDOMMAGES ET PERTES
+// ==========================================
+
+export type StockDamageStatus =
+  | 'RECOVERABLE'
+  | 'UNSELLABLE'
+  | 'RETURN_TO_SUPPLIER'
+  | 'DISCOUNT_RESALE'
+  | 'WRITTEN_OFF';
+
+export interface StockDamage {
+  id: string;
+  damageNumber: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unit: UnitOfMeasure;
+  status: StockDamageStatus;
+  estimatedLossUSD: number;
+  description: string;
+  supplierId?: string;
+  supplierName?: string;
+  date: string;
+  recordedBy: string;
+  recordedByName: string;
+  notes?: string;
+}
+
+// ==========================================
+// SORTIES GRATUITES DE STOCK
+// ==========================================
+
+export interface FreeIssue {
+  id: string;
+  issueNumber: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unit: UnitOfMeasure;
+  estimatedValueUSD: number;
+  beneficiary: string;
+  reason: string;
+  date: string;
+  issuedBy: string;
+  issuedByName: string;
+  notes?: string;
 }
