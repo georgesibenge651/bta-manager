@@ -1,4 +1,5 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
+import {createHash, randomBytes} from "node:crypto";
 import {getFirestore, FieldValue, Firestore, Transaction} from "firebase-admin/firestore";
 import {initializeApp, getApps} from "firebase-admin/app";
 import {
@@ -22,6 +23,22 @@ function requireAuth(req: CallableRequest): {uid: string; email: string | null; 
     email: (req.auth.token.email as string | undefined)?.toLowerCase() ?? null,
     verified: req.auth.token.email_verified === true,
   };
+}
+
+
+/** Refuse les comptes anonymes pour les opérations d'administration. */
+function requireNonAnonymousAuth(req: CallableRequest) {
+  const auth = requireAuth(req);
+  const firebase = req.auth?.token.firebase as
+    {sign_in_provider?: string} | undefined;
+
+  if (firebase?.sign_in_provider === "anonymous") {
+    throw new HttpsError(
+      "permission-denied",
+      "Un compte anonyme ne peut pas effectuer cette opération."
+    );
+  }
+  return auth;
 }
 
 function str(v: unknown, field: string, min = 1, max = 120): string {
@@ -85,7 +102,7 @@ async function assertBranchExists(tx: Transaction, tenantId: string, branchId: s
 // ---------- création d'entreprise ----------
 
 export const createTenant = onCall(callOpts, async (req) => {
-  const {uid, email} = requireAuth(req);
+  const {uid, email} = requireNonAnonymousAuth(req);
   const companyName = str(req.data?.companyName, "Nom de l'entreprise", 2, 100);
   const branchName = str(req.data?.branchName ?? "Établissement principal", "Nom de l'établissement", 2, 100);
   const requestId = id(req.data?.clientRequestId, "clientRequestId");
@@ -128,7 +145,7 @@ export const createTenant = onCall(callOpts, async (req) => {
 // ---------- établissements ----------
 
 export const createBranch = onCall(callOpts, async (req) => {
-  const {uid} = requireAuth(req);
+  const {uid} = requireNonAnonymousAuth(req);
   const tenantId = id(req.data?.tenantId, "tenantId");
   const name = str(req.data?.name, "Nom de l'établissement", 2, 100);
 
@@ -179,7 +196,7 @@ async function parseGrants(
 }
 
 export const inviteMember = onCall(callOpts, async (req) => {
-  const {uid} = requireAuth(req);
+  const {uid} = requireNonAnonymousAuth(req);
   const tenantId = id(req.data?.tenantId, "tenantId");
   const email = str(req.data?.email, "E-mail", 5, 200).toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
@@ -245,11 +262,235 @@ export const acceptInvitation = onCall(callOpts, async (req) => {
   });
 });
 
+
+// ---------- invitations de gestionnaires sans e-mail ----------
+
+/**
+ * Crée une invitation anonyme à usage unique.
+ * Seuls OWNER et ADMIN peuvent inviter un MANAGER.
+ * Le secret brut n'est jamais enregistré dans Firestore.
+ */
+export const inviteAnonymousManager = onCall(callOpts, async (req) => {
+  const {uid} = requireNonAnonymousAuth(req);
+  const tenantId = id(req.data?.tenantId, "tenantId");
+
+  const raw = req.data?.branches;
+  if (!Array.isArray(raw)) {
+    throw new HttpsError("invalid-argument", "Établissement requis.");
+  }
+
+  const token = randomBytes(32).toString("hex");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+
+  return db.runTransaction(async (tx) => {
+    const caller = await loadCaller(tx, tenantId, uid);
+
+    if (caller.role !== "OWNER" && caller.role !== "ADMIN") {
+      throw new HttpsError("permission-denied", "Accès refusé.");
+    }
+
+    // Le rôle est imposé par le serveur : le client ne peut pas le modifier.
+    const grants = await parseGrants(
+      tx,
+      tenantId,
+      caller,
+      raw.map((g: unknown) => {
+        const item = g as {branchId?: unknown; permissions?: unknown};
+        return {
+          branchId: item?.branchId,
+          role: "MANAGER",
+          permissions: item?.permissions,
+        };
+      })
+    );
+
+    const ref = db.doc(
+      `tenants/${tenantId}/anonymousInvitations/${tokenHash}`
+    );
+
+    tx.set(ref, {
+      type: "ANONYMOUS_MANAGER",
+      role: "MANAGER",
+      branches: grants,
+      status: "PENDING",
+      invitedBy: uid,
+      createdAt: FieldValue.serverTimestamp(),
+      expiresAt: Date.now() + INVITE_TTL_MS,
+    });
+
+    audit(tx, tenantId, uid, "ANONYMOUS_MANAGER_INVITED", {
+      invitationId: tokenHash,
+      role: "MANAGER",
+    });
+
+    // Le code brut n'est retourné qu'une seule fois.
+    return {tenantId, code: `${tenantId}.${token}`};
+  });
+});
+
+/**
+ * Accepte une invitation anonyme.
+ * L'UID Firebase est celui du compte anonyme authentifié.
+ * La transaction garantit une consommation atomique du code.
+ */
+export const acceptAnonymousInvitation = onCall(callOpts, async (req) => {
+  const {uid} = requireAuth(req);
+
+  const firebase = req.auth?.token.firebase as
+    {sign_in_provider?: string} | undefined;
+
+  if (firebase?.sign_in_provider !== "anonymous") {
+    throw new HttpsError(
+      "permission-denied",
+      "Cette invitation est réservée à un compte Firebase anonyme."
+    );
+  }
+
+  const tenantId = id(req.data?.tenantId, "tenantId");
+  const token = str(req.data?.token, "token", 64, 64);
+
+  if (!/^[a-f0-9]{64}$/.test(token)) {
+    throw new HttpsError("invalid-argument", "Code invalide.");
+  }
+
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+
+  return db.runTransaction(async (tx) => {
+    const invRef = db.doc(
+      `tenants/${tenantId}/anonymousInvitations/${tokenHash}`
+    );
+    const inv = await tx.get(invRef);
+    const data = inv.data();
+
+    if (
+      !inv.exists ||
+      !data ||
+      data.type !== "ANONYMOUS_MANAGER" ||
+      data.role !== "MANAGER" ||
+      (
+        data.status !== "PENDING" &&
+        !(data.status === "ACCEPTED" && data.acceptedBy === uid)
+      ) ||
+      (
+        data.status === "PENDING" &&
+        (
+          typeof data.expiresAt !== "number" ||
+          data.expiresAt < Date.now()
+        )
+      )
+    ) {
+      throw new HttpsError(
+        "permission-denied",
+        "Invitation invalide, expirée ou déjà utilisée."
+      );
+    }
+
+    const memberRef = db.doc(`tenants/${tenantId}/members/${uid}`);
+    const membershipRef = db.doc(
+      `userMemberships/${uid}/tenants/${tenantId}`
+    );
+    const tenantRef = db.doc(`tenants/${tenantId}`);
+
+    const memberSnap = await tx.get(memberRef);
+    const tenantSnap = await tx.get(tenantRef);
+
+    // Reprise idempotente : seul le même UID peut reprendre
+    // une invitation déjà consommée par lui-même.
+    if (
+      data.status === "ACCEPTED" &&
+      data.acceptedBy === uid &&
+      memberSnap.exists
+    ) {
+      return {
+        tenantId,
+        role: "MANAGER",
+        alreadyAccepted: true,
+      };
+    }
+
+    // Ne jamais écraser une adhésion ou un compte existant.
+    if (memberSnap.exists) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Ce compte possède déjà une adhésion dans cette entreprise."
+      );
+    }
+
+    if (!tenantSnap.exists) {
+      throw new HttpsError("not-found", "Entreprise introuvable.");
+    }
+
+    const grants = data.branches as BranchGrant[];
+    if (!Array.isArray(grants) || grants.length === 0) {
+      throw new HttpsError("failed-precondition", "Aucune affectation valide.");
+    }
+
+    // Toutes les lectures sont effectuées avant les écritures.
+    for (const grant of grants) {
+      const branchRef = db.doc(
+        `tenants/${tenantId}/branches/${grant.branchId}`
+      );
+      const branchSnap = await tx.get(branchRef);
+
+      if (!branchSnap.exists || branchSnap.data()?.active === false) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Un établissement de cette invitation n'est plus disponible."
+        );
+      }
+    }
+
+    tx.set(memberRef, {
+      role: "MANAGER",
+      active: true,
+      email: null,
+      invitedBy: data.invitedBy,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    for (const grant of grants) {
+      tx.set(
+        db.doc(
+          `tenants/${tenantId}/members/${uid}/branchAccess/${grant.branchId}`
+        ),
+        {
+          role: "MANAGER",
+          permissions: resolvePermissions(
+            "MANAGER",
+            grant.permissions,
+            new Set(ROLE_DEFAULTS.MANAGER)
+          ),
+          grantedBy: data.invitedBy,
+        }
+      );
+    }
+
+    tx.set(membershipRef, {
+      role: "MANAGER",
+      name: String(tenantSnap.data()?.name ?? ""),
+      active: true,
+    });
+
+    tx.update(invRef, {
+      status: "ACCEPTED",
+      acceptedBy: uid,
+      acceptedAt: FieldValue.serverTimestamp(),
+    });
+
+    audit(tx, tenantId, uid, "ANONYMOUS_INVITATION_ACCEPTED", {
+      invitationId: tokenHash,
+      role: "MANAGER",
+    });
+
+    return {tenantId, role: "MANAGER"};
+  });
+});
+
 // ---------- affectations ----------
 
 /** Crée, modifie (role + permissions) ou retire (role = null) l'accès d'un membre à un établissement. */
 export const setBranchAccess = onCall(callOpts, async (req) => {
-  const {uid} = requireAuth(req);
+  const {uid} = requireNonAnonymousAuth(req);
   const tenantId = id(req.data?.tenantId, "tenantId");
   const targetUid = id(req.data?.uid, "uid");
   const branchId = id(req.data?.branchId, "branchId");
@@ -295,7 +536,7 @@ export const setBranchAccess = onCall(callOpts, async (req) => {
 
 /** Désactive un membre (ses données et son historique restent). */
 export const deactivateMember = onCall(callOpts, async (req) => {
-  const {uid} = requireAuth(req);
+  const {uid} = requireNonAnonymousAuth(req);
   const tenantId = id(req.data?.tenantId, "tenantId");
   const targetUid = id(req.data?.uid, "uid");
   return db.runTransaction(async (tx) => {
