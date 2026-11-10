@@ -28,6 +28,22 @@ export interface Effects {
 
 export class SyncRejection extends Error {}
 
+export type OperationReplay =
+  | {status: "DUPLICATE"; notes: string[]}
+  | {status: "REJECTED"; reason?: string};
+
+/** Rejoue le verdict mémorisé sans jamais transformer un rejet en succès. */
+export function operationReplay(prior: Record<string, any> | undefined): OperationReplay | null {
+  if (!prior) return null;
+  if (prior.status === "REJECTED") {
+    return {status: "REJECTED", reason: typeof prior.reason === "string" ? prior.reason : "Opération précédemment rejetée."};
+  }
+  if (prior.status === "APPLIED") {
+    return {status: "DUPLICATE", notes: Array.isArray(prior.notes) ? prior.notes : []};
+  }
+  throw new SyncRejection("Statut d'opération serveur inconnu ; vérification nécessaire.");
+}
+
 const ID_RE = /^[A-Za-z0-9_-]{1,100}$/;
 const MAX_UNITS = 300;
 const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -153,7 +169,11 @@ export function pathsToRead(t: string, b: string, e: Effects, opId = ""):
     s.add(tombstoneHeadPath(t, d.c, d.id));
     if (opId) s.add(tombstonePath(t, opId, d.c, d.id));
   });
-  e.stockDeltas.forEach((x) => s.add(stockPath(t, b, x.productId)));
+  e.stockDeltas.forEach((x) => {
+    s.add(stockPath(t, b, x.productId));
+    // A stock document must never be created for an unknown product.
+    s.add(docPath(t, b, "products", x.productId));
+  });
   e.balanceDeltas.forEach((x) => s.add(docPath(t, b, x.c, x.id)));
   return [...s];
 }
@@ -372,6 +392,10 @@ export function plan(
   const byProduct = new Map<string, number>();
   for (const s of e.stockDeltas) byProduct.set(s.productId, (byProduct.get(s.productId) ?? 0) + s.delta);
   for (const [productId, delta] of byProduct) {
+    const productPath = docPath(t, b, "products", productId);
+    if (!cur(productPath) || e.deletes.some((d) => d.c === "products" && d.id === productId)) {
+      reject(`Produit de stock introuvable (${productId}).`);
+    }
     const p = stockPath(t, b, productId);
     const prev = cur(p) ?? {id: productId, productId, currentStock: 0};
     const next = r6((prev.currentStock ?? 0) + delta);

@@ -3,7 +3,7 @@ import {getFirestore, FieldPath} from "firebase-admin/firestore";
 import {initializeApp, getApps} from "firebase-admin/app";
 import {Permission, ROLE_DEFAULTS, isRole} from "./permissions";
 import {
-  validateEffects, missingPermission, pathsToRead, plan, SyncRejection, ALL_COLLS, TENANT_COLLS,
+  validateEffects, missingPermission, pathsToRead, plan, SyncRejection, operationReplay, ALL_COLLS, TENANT_COLLS,
 } from "./syncPlan";
 
 if (getApps().length === 0) initializeApp();
@@ -59,7 +59,10 @@ export const syncOperations = onCall(callOpts, async (req) => {
 
       const res = await db.runTransaction(async (tx) => {
         const prior = await tx.get(opRef);
-        if (prior.exists) return {status: "DUPLICATE", notes: prior.data()?.notes ?? []};
+        if (prior.exists) {
+          const replay = operationReplay(prior.data());
+          if (replay) return replay;
+        }
         const paths = pathsToRead(t, b, effects, opId);
         const snaps = paths.length ? await tx.getAll(...paths.map((p) => db.doc(p))) : [];
         const existing = new Map<string, any>();
@@ -85,7 +88,11 @@ export const syncOperations = onCall(callOpts, async (req) => {
           results.push({opId, status: "REJECTED", reason: e.message});
         } catch {
           const prior = (await opRef.get()).data();
-          results.push({opId, status: prior?.status === "APPLIED" ? "DUPLICATE" : "REJECTED", reason: prior?.reason});
+          if (prior?.status === "APPLIED") {
+            results.push({opId, status: "DUPLICATE", notes: prior.notes ?? []});
+          } else {
+            results.push({opId, status: "REJECTED", reason: prior?.reason ?? e.message});
+          }
         }
       } else {
         throw e; // erreur technique : le client réessaiera, l'idempotence protège

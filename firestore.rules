@@ -19,12 +19,19 @@ service cloud.firestore {
     }
     function isOwner(t) { return isActiveMember(t) && member(t).role == 'OWNER'; }
 
-    // Le propriétaire voit tout ; les autres doivent avoir l'affectation ET la permission.
+    function isActiveBranch(t, b) {
+      return exists(/databases/$(database)/documents/tenants/$(t)/branches/$(b))
+        && get(/databases/$(database)/documents/tenants/$(t)/branches/$(b)).data.active != false;
+    }
+
+    // Le propriétaire voit tout établissement actif ; les autres doivent avoir
+    // l'affectation ET la permission. Même règle que branchPerms() côté serveur.
     function canBranch(t, b, perm) {
-      return isOwner(t)
-        || (isActiveMember(t)
-            && exists(/databases/$(database)/documents/tenants/$(t)/members/$(request.auth.uid)/branchAccess/$(b))
-            && perm in get(/databases/$(database)/documents/tenants/$(t)/members/$(request.auth.uid)/branchAccess/$(b)).data.permissions);
+      return isActiveMember(t)
+        && isActiveBranch(t, b)
+        && (member(t).role == 'OWNER'
+          || (exists(/databases/$(database)/documents/tenants/$(t)/members/$(request.auth.uid)/branchAccess/$(b))
+            && perm in get(/databases/$(database)/documents/tenants/$(t)/members/$(request.auth.uid)/branchAccess/$(b)).data.permissions));
     }
     // Données partagées par l'entreprise : il suffit d'avoir la permission dans au moins un établissement
     // — vérifié côté fonctions ; ici, simple appartenance active.

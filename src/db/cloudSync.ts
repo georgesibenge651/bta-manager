@@ -11,6 +11,10 @@ export interface PullCursor {
   afterId?: string;
   serverTime: number;
   recovered: number;
+  /** Collections ciblées lors d'un rattrapage différé, si présent. */
+  collections?: string[];
+  /** Collections ignorées faute de permission et à retenter au prochain cycle. */
+  deferredCollections?: string[];
 }
 
 const TRANSIENT = new Set(['NETWORK', 'TIMEOUT', 'UNAVAILABLE', 'INTERNAL', 'DEADLINE_EXCEEDED']);
@@ -32,8 +36,10 @@ export async function pullAll(
 ): Promise<PullCursor> {
   let cursor: PullCursor = { ...initial };
   const seen = new Set<string>();
-  for (let ci = cursor.collectionIndex; ci < PULL_ORDER.length;) {
-    const collection = PULL_ORDER[ci];
+  const order = cursor.collections ?? PULL_ORDER;
+  const deferred = new Set(cursor.deferredCollections ?? []);
+  for (let ci = cursor.collectionIndex; ci < order.length;) {
+    const collection = order[ci];
     const request: Record<string, unknown> = { ...ctx, collection, since: cursor.since };
     if (cursor.afterVersion !== undefined && cursor.afterId !== undefined) {
       request.afterVersion = cursor.afterVersion;
@@ -44,14 +50,17 @@ export async function pullAll(
       page = await callFunction('pullChanges', request, 60000);
     } catch (e) {
       if (e instanceof CallableError && e.code === 'PERMISSION_DENIED') {
-        // A caller may lack read access to some branch collections; record the skipped collection.
-        cursor = { ...cursor, collectionIndex: ci + 1, afterVersion: undefined, afterId: undefined };
+        // Do not lose this collection: storage persists it and retries it on a later sync.
+        deferred.add(collection);
+        cursor = { ...cursor, deferredCollections: [...deferred], collectionIndex: ci + 1,
+          afterVersion: undefined, afterId: undefined };
         await onPage(collection, [], cursor);
         ci++;
         continue;
       }
       throw e;
     }
+    deferred.delete(collection);
     if (!Array.isArray(page.docs) || typeof page.hasMore !== 'boolean' || !Number.isFinite(page.serverTime)) {
       throw new Error(`Réponse de pagination invalide pour ${collection}.`);
     }
@@ -72,12 +81,13 @@ export async function pullAll(
       afterId = doc.id;
     }
     if (page.hasMore) {
-      cursor = { ...cursor, afterVersion, afterId, serverTime: cursor.serverTime || page.serverTime,
-        recovered: cursor.recovered + page.docs.length };
+      cursor = { ...cursor, deferredCollections: [...deferred], afterVersion, afterId,
+        serverTime: cursor.serverTime || page.serverTime, recovered: cursor.recovered + page.docs.length };
       await onPage(collection, page.docs, cursor);
     } else {
-      cursor = { ...cursor, collectionIndex: ci + 1, afterVersion: undefined, afterId: undefined,
-        serverTime: cursor.serverTime || page.serverTime, recovered: cursor.recovered + page.docs.length };
+      cursor = { ...cursor, deferredCollections: [...deferred], collectionIndex: ci + 1,
+        afterVersion: undefined, afterId: undefined, serverTime: cursor.serverTime || page.serverTime,
+        recovered: cursor.recovered + page.docs.length };
       await onPage(collection, page.docs, cursor);
       ci++;
     }

@@ -1,12 +1,39 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {validateEffects, missingPermission, plan, SyncRejection, Effects} from "./syncPlan";
+import {validateEffects, missingPermission, plan, SyncRejection, Effects, operationReplay, pathsToRead} from "./syncPlan";
 
 const T = "t1"; const B = "b1";
 const empty = (): Effects => ({upserts: [], deletes: [], stockDeltas: [], balanceDeltas: []});
 const sale = (over: any = {}) => ({
   id: "s1", items: [{productId: "p1", quantity: 2, unitPriceUSD: 5}], discountUSD: 0,
   totalUSD: 10, amountPaidUSD: 10, debtAmountUSD: 0, exchangeRate: 2800, ...over,
+});
+
+
+
+test("rejeu d'une opération rejetée conserve le statut REJECTED", () => {
+  assert.deepEqual(operationReplay({status: "REJECTED", reason: "Permission manquante."}),
+    {status: "REJECTED", reason: "Permission manquante."});
+});
+
+test("rejeu d'une opération appliquée devient DUPLICATE", () => {
+  assert.deepEqual(operationReplay({status: "APPLIED", notes: ["OK"]}),
+    {status: "DUPLICATE", notes: ["OK"]});
+  assert.equal(operationReplay(undefined), null);
+});
+
+test("un delta de stock ne peut pas créer un stock orphelin", () => {
+  const e = validateEffects({...empty(), stockDeltas: [{productId: "missing", delta: -1}]});
+  const paths = pathsToRead(T, B, e);
+  assert.ok(paths.includes(`tenants/${T}/products/missing`));
+  assert.throws(() => plan(T, B, e, new Map(), 1, 2), SyncRejection);
+});
+
+test("un delta de stock est refusé si le produit est supprimé dans la même opération", () => {
+  const e = validateEffects({...empty(), deletes: [{c: "products", id: "p1"}],
+    stockDeltas: [{productId: "p1", delta: -1}]});
+  const ex = new Map([[`tenants/${T}/products/p1`, {id: "p1"}]]);
+  assert.throws(() => plan(T, B, e, ex, 1, 2), SyncRejection);
 });
 
 test("vente valide : stock décrémenté et marqué", () => {
@@ -34,8 +61,9 @@ test("stock insuffisant : la vente est acceptée mais signalée (jamais perdue)"
 test("deux téléphones vendent : les deltas s'additionnent", () => {
   const path = `tenants/${T}/branches/${B}/stock/p1`;
   const mk = () => validateEffects({...empty(), stockDeltas: [{productId: "p1", delta: -3}]});
-  const a = plan(T, B, mk(), new Map([[path, {currentStock: 10}]]), 1, 1);
-  const b = plan(T, B, mk(), new Map([[path, a.sets.get(path)]]), 2, 2);
+  const productPath = `tenants/${T}/products/p1`;
+  const a = plan(T, B, mk(), new Map([[path, {currentStock: 10}], [productPath, {id: "p1"}]]), 1, 1);
+  const b = plan(T, B, mk(), new Map([[path, a.sets.get(path)], [productPath, {id: "p1"}]]), 2, 2);
   assert.equal(b.sets.get(path).currentStock, 4);
 });
 

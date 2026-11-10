@@ -45,7 +45,7 @@ import { generateReferenceNumber, generateUUID, usdToCdf } from '../utils/curren
 import { generateSalt, hashPinSync, verifyPinSync, isSeedDefaultPin, isWeakPin } from '../utils/security';
 import { API_BASE, API_KEY, SYNC_ENABLED } from '../utils/config';
 import { Baseline, Effects, PULL_ORDER, applyPulled, diffState, makeBaseline, splitEffects, trackedIds } from './syncEngine';
-import { isTransient, pullAll, pushOps, PullCursor } from './cloudSync';
+import { isTransient, pullAll, pushOps, PullCursor, PulledDoc } from './cloudSync';
 import localforage from 'localforage';
 import { Preferences } from '@capacitor/preferences';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
@@ -88,6 +88,11 @@ interface AppDatabaseState {
     baseline: Baseline;
     rejections: Array<{ at: string; reason: string }>;
     pullCursor?: PullCursor;
+    /** Collections dont la lecture a été refusée ; elles sont retentées depuis leur ancien curseur. */
+    deferredPullCollections?: string[];
+    deferredPullSince?: number;
+    /** Version du mécanisme de rattrapage ; absent sur les installations précédentes. */
+    pullRecoveryVersion?: number;
     failedOps?: Array<{ id: string; timestamp: string; payload: unknown; reason: string; at: string }>;
   };
   savedAt?: number;
@@ -626,13 +631,7 @@ freeIssues: [],
       // 2) Lecture : seulement si rien n'est en attente (le local gagne tant qu'il n'est pas envoyé).
       const cloud = this.state.cloud!;
       const rev = this.rev;
-      cloud.pullCursor ??= {
-        since: Math.max(0, cloud.lastPull - 60_000), // recouvrement contre dérive d'horloge et égalités de version
-        collectionIndex: 0, serverTime: 0, recovered: 0,
-      };
-      this.persist();
-      await this.flushDurableAndWait();
-      const completed = await pullAll(ctx, cloud.pullCursor, async (collection, docs, cursor) => {
+      const applyPullPage = async (collection: string, docs: PulledDoc[], cursor: PullCursor) => {
         if (rev !== this.rev || this.state.offlineQueue.length > 0) {
           throw new Error('Une saisie locale est arrivée pendant la lecture ; reprise après son envoi.');
         }
@@ -642,8 +641,68 @@ freeIssues: [],
         this.persist();
         // Acknowledged progress survives an abrupt native process exit.
         await this.flushDurableAndWait();
-      });
+      };
+
+      // Resume an interrupted pull first. Otherwise, retry collections skipped in a previous
+      // cycle before advancing the ordinary global watermark.
+      if (cloud.pullRecoveryVersion !== 1 && cloud.pullCursor && !cloud.pullCursor.collections &&
+          (cloud.pullCursor.since !== 0 ||
+            (cloud.pullCursor.collectionIndex > 0 && cloud.pullCursor.deferredCollections === undefined))) {
+        // Legacy cursors did not remember skipped collections. Restart once from zero to
+        // recover documents that may have been skipped by the previous implementation.
+        cloud.pullCursor = undefined;
+      }
+      if (!cloud.pullCursor) {
+        if (cloud.deferredPullCollections?.length) {
+          const collections = [...new Set(cloud.deferredPullCollections)];
+          cloud.pullCursor = {
+            since: Math.max(0, cloud.deferredPullSince ?? (cloud.lastPull - 60_000)),
+            collectionIndex: 0, serverTime: 0, recovered: 0,
+            collections, deferredCollections: collections,
+          };
+        } else {
+          cloud.pullCursor = {
+            since: cloud.pullRecoveryVersion === 1 ? Math.max(0, cloud.lastPull - 60_000) : 0,
+            collectionIndex: 0, serverTime: 0, recovered: 0,
+          };
+        }
+      }
+      this.persist();
+      await this.flushDurableAndWait();
+
+      const isDeferredPull = !!cloud.pullCursor.collections;
+      const activePullSince = cloud.pullCursor.since;
+      let completed = await pullAll(ctx, cloud.pullCursor, applyPullPage);
+      if (isDeferredPull) {
+        // This was a deferred-only retry. Keep unresolved collections and their original
+        // watermark; a successful retry clears them without changing lastPull.
+        cloud.deferredPullCollections = completed.deferredCollections ?? [];
+        if (cloud.deferredPullCollections.length === 0) {
+          cloud.deferredPullCollections = undefined;
+          cloud.deferredPullSince = undefined;
+        } else {
+          cloud.deferredPullSince = activePullSince;
+        }
+        cloud.pullCursor = undefined;
+        this.persist();
+        await this.flushDurableAndWait();
+
+        cloud.pullCursor = {
+          since: cloud.pullRecoveryVersion === 1 ? Math.max(0, cloud.lastPull - 60_000) : 0,
+          collectionIndex: 0, serverTime: 0, recovered: 0,
+        };
+        this.persist();
+        await this.flushDurableAndWait();
+        completed = await pullAll(ctx, cloud.pullCursor, applyPullPage);
+      }
+
+      const newlyDeferred = completed.deferredCollections ?? [];
+      if (newlyDeferred.length) {
+        cloud.deferredPullCollections = [...new Set([...(cloud.deferredPullCollections ?? []), ...newlyDeferred])];
+        cloud.deferredPullSince = Math.min(cloud.deferredPullSince ?? completed.since, completed.since);
+      }
       cloud.lastPull = completed.serverTime || Date.now();
+      cloud.pullRecoveryVersion = 1;
       cloud.pullCursor = undefined;
       this.state.syncInfo.syncProgress = undefined;
       this.persist();
@@ -666,7 +725,8 @@ freeIssues: [],
         pendingCount: this.state.offlineQueue.length,
         errorMessage: isTransient(err) ? 'Connexion instable : réessai automatique.' : (err instanceof Error ? err.message : 'Échec de synchronisation'),
         ...(this.state.cloud?.pullCursor ? { syncProgress: {
-          collection: PULL_ORDER[Math.min(this.state.cloud.pullCursor.collectionIndex, PULL_ORDER.length - 1)] ?? 'lecture',
+          collection: (this.state.cloud.pullCursor.collections ?? PULL_ORDER)[Math.min(this.state.cloud.pullCursor.collectionIndex,
+            (this.state.cloud.pullCursor.collections ?? PULL_ORDER).length - 1)] ?? 'lecture',
           recovered: this.state.cloud.pullCursor.recovered, phase: 'PULL' as const,
       } } : {}),
       };

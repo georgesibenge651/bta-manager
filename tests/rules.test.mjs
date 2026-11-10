@@ -81,6 +81,24 @@ test('permissions différentes selon l\'établissement', async () => {
   await assertSucceeds(getDoc(doc(as('mgrA'), br(A, BR2, 'sales', 's1'))));
 });
 
+
+
+test('établissement désactivé : même le propriétaire ne lit plus ses données', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), `tenants/${A}/branches/${BR2}`), { active: false });
+  });
+  await assertFails(getDoc(doc(as('ownerA'), br(A, BR2, 'sales', 's1'))));
+  await assertFails(getDoc(doc(as('ownerA'), br(A, BR2, 'stock', 'p1'))));
+  await assertFails(getDoc(doc(as('ownerA'), `tenants/${A}/branches/${BR2}`)));
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), `tenants/${A}/branches/${BR2}`), { active: true });
+  });
+});
+
+
+
+
+
 test('membre désactivé : plus aucun accès', async () => {
   await assertFails(getDoc(doc(as('gone'), br(A, BR1, 'sales', 's1'))));
   await assertFails(getDoc(doc(as('gone'), `tenants/${A}/products/p1`)));
