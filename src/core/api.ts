@@ -56,7 +56,7 @@ export async function coreRequest<T>(path: string, options: {
       const e = payload as { code?: string; message?: string; data?: unknown } | null;
       if (response.status === 401 && options.auth !== false) {
         await clearCoreToken();
-        if (typeof window !== 'undefined') window.dispatchEvent(new Event('bta-core-unauthorized'));
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('bta-core-unauthorized', { detail: { path, code: e?.code ?? 'unknown', status: response.status } }));
       }
       throw new CoreApiError(response.status, e?.code ?? 'bta_http_error', e?.message ?? `Erreur HTTP ${response.status}`, e?.data);
     }

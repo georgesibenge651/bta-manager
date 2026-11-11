@@ -78,7 +78,7 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
   useEffect(() => { void refresh(); }, []);
 
   useEffect(() => {
-    const onUnauthorized = () => { void Preferences.remove({ key: CACHED_SESSION_KEY }); appRepository.logout(); setMe(null); setMembership(null); setBranches([]); setBranch(null); setPermissions([]); setError('Session Core expirée. Reconnectez-vous.'); };
+    const onUnauthorized = (event: Event) => { const detail = (event as CustomEvent).detail; void Preferences.remove({ key: CACHED_SESSION_KEY }); appRepository.logout(); setMe(null); setMembership(null); setBranches([]); setBranch(null); setPermissions([]); setError(`Session expirée — requête: ${detail?.path ?? 'inconnue'} | HTTP ${detail?.status ?? 401} | ${detail?.code ?? 'unknown'}`); };
     window.addEventListener('bta-core-unauthorized', onUnauthorized);
     return () => window.removeEventListener('bta-core-unauthorized', onUnauthorized);
   }, []);
