@@ -1,4 +1,4 @@
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core';
 
 interface SecureTokenPlugin {
   get(): Promise<{ value: string | null }>;
@@ -35,6 +35,28 @@ export async function clearCoreToken(): Promise<void> {
   else { try { sessionStorage.removeItem(TOKEN_KEY); } catch { /* no-op */ } }
 }
 
+type Sent = { ok: boolean; status: number; payload: unknown };
+
+/**
+ * Android : le fetch du WebView échoue sur tout POST/préflight CORS vers l'API (diagnostic du 2026-11-11,
+ * étapes C/D/E/H/I en échec, N1/N2 natifs OK). On utilise donc le client HTTP natif (TLS système, pas de CORS).
+ * Web : fetch inchangé.
+ */
+async function sendRequest(url: URL, method: string, headers: Record<string, string>, body: unknown, timeoutMs: number, signal: AbortSignal): Promise<Sent> {
+  if (Capacitor.isNativePlatform()) {
+    const r = await CapacitorHttp.request({
+      url: url.toString(), method, headers,
+      ...(body === undefined ? {} : { data: body }),
+      connectTimeout: timeoutMs, readTimeout: timeoutMs,
+    });
+    let payload: unknown = r.data;
+    if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch { payload = null; } }
+    return { ok: r.status >= 200 && r.status < 300, status: r.status, payload };
+  }
+  const response = await fetch(url, { method, signal, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  return { ok: response.ok, status: response.status, payload: await response.json().catch(() => null) };
+}
+
 export async function coreRequest<T>(path: string, options: {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH'; query?: Record<string, string | number | undefined>;
   body?: unknown; auth?: boolean; timeoutMs?: number;
@@ -46,19 +68,17 @@ export async function coreRequest<T>(path: string, options: {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 20000);
   try {
-    const response = await fetch(url, {
-      method: options.method ?? 'GET', signal: controller.signal,
-      headers: { Accept: 'application/json', ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
+    const sent = await sendRequest(url, options.method ?? 'GET',
+      { Accept: 'application/json', ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      options.body, options.timeoutMs ?? 20000, controller.signal);
+    const payload = sent.payload;
+    if (!sent.ok) {
       const e = payload as { code?: string; message?: string; data?: unknown } | null;
-      if (response.status === 401 && options.auth !== false) {
+      if (sent.status === 401 && options.auth !== false) {
         await clearCoreToken();
-        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('bta-core-unauthorized', { detail: { path, code: e?.code ?? 'unknown', status: response.status } }));
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('bta-core-unauthorized', { detail: { path, code: e?.code ?? 'unknown', status: sent.status } }));
       }
-      throw new CoreApiError(response.status, e?.code ?? 'bta_http_error', e?.message ?? `Erreur HTTP ${response.status}`, e?.data);
+      throw new CoreApiError(sent.status, e?.code ?? 'bta_http_error', e?.message ?? `Erreur HTTP ${sent.status}`, e?.data);
     }
     return payload as T;
   } catch (error) {
