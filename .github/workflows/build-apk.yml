@@ -65,7 +65,7 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD_SECRET: ${{ secrets.KEYSTORE_PASSWORD }}
-         KEY_PASSWORD_SECRET: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD_SECRET: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS_SECRET: ${{ secrets.KEY_ALIAS }}
         run: |
           set -euo pipefail
