@@ -14,12 +14,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21   # requis par l'émulateur Firestore
-      - run: npm install --legacy-peer-deps --no-audit --no-fund
-      - run: npm --prefix functions install --no-audit --no-fund
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - run: npm --prefix functions ci --no-audit --no-fund
       - name: Typage de l'application
         run: npm run lint
       - name: Tests du moteur de synchronisation

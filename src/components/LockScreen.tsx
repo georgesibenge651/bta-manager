@@ -2,7 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Lock, Delete, AlertCircle, ShieldCheck, User as UserIcon, Cloud, CheckCircle2 } from 'lucide-react';
 import { User } from '../types';
 import { appRepository } from '../db/storage';
-import { signInWithEmail } from '../firebase/auth';
+import {
+  signInWithEmail,
+  signInAnonymously,
+  getFirebaseUser,
+  signOutFirebase,
+} from '../firebase/auth';
+import {
+  acceptAnonymousInvitation,
+} from '../firebase/tenancy';
 
 interface LockScreenProps {
   users: User[];
@@ -52,6 +60,9 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
   const [firebaseBusy, setFirebaseBusy] = useState(false);
   const [firebaseMessage, setFirebaseMessage] = useState('');
   const [firebaseError, setFirebaseError] = useState('');
+  const [anonymousCode, setAnonymousCode] = useState('');
+  const [anonymousBusy, setAnonymousBusy] = useState(false);
+  const [anonymousMessage, setAnonymousMessage] = useState('');
 
   useEffect(() => {
     if (!lockedUntil) return;
@@ -119,6 +130,80 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
       setFirebaseError(err instanceof Error ? err.message : 'Impossible de relier le compte Firebase.');
     } finally {
       setFirebaseBusy(false);
+    }
+  };
+
+  const activateAnonymousManager = async () => {
+    if (!selected || selected.role !== 'GESTIONNAIRE' || selected.firebaseUid) {
+      setFirebaseError('Cette activation est réservée à un profil gestionnaire sans compte Firebase associé.');
+      return;
+    }
+
+    if (pin.length < 4 || secondsLeft > 0) {
+      setFirebaseError('Saisissez d’abord le PIN local valide.');
+      return;
+    }
+
+    if (!anonymousCode.trim()) {
+      setFirebaseError('Saisissez le code fourni par Georges.');
+      return;
+    }
+
+    const pinCheck = appRepository.verifyUserPinWithLockout(selected.id, pin);
+    if (!pinCheck.ok) {
+      setFirebaseError(pinCheck.error || 'PIN incorrect.');
+      setPin('');
+      if (pinCheck.lockedMs) {
+        setLockedUntil(Date.now() + pinCheck.lockedMs);
+      }
+      return;
+    }
+
+    setAnonymousBusy(true);
+    setFirebaseError('');
+    setAnonymousMessage('');
+
+    try {
+      // Si une activation précédente a déjà créé une identité anonyme,
+      // on la réutilise pour permettre la reprise idempotente.
+      let account = await getFirebaseUser();
+
+      if (account && !account.isAnonymous) {
+        throw new Error(
+          'Un compte Firebase avec e-mail est déjà connecté. Déconnectez-le avant d’activer le profil gestionnaire.'
+        );
+      }
+
+      if (!account) {
+        account = await signInAnonymously();
+      }
+
+      const uidAlreadyLinked = appRepository.getUsers().some(
+        (user) => user.id !== selected.id && user.firebaseUid === account.uid
+      );
+
+      if (uidAlreadyLinked) {
+        throw new Error('Ce compte Firebase est déjà associé à un autre profil local.');
+      }
+
+      await acceptAnonymousInvitation(anonymousCode);
+
+      appRepository.linkFirebaseUid(selected.id, account.uid, pin);
+
+      const login = appRepository.attemptLogin(selected.id, pin);
+      if (!login.ok) {
+        throw new Error(login.error || 'Activation terminée, mais ouverture de session impossible.');
+      }
+
+      setAnonymousMessage('Profil gestionnaire activé avec succès.');
+      setAnonymousCode('');
+      setPin('');
+    } catch (err) {
+      setFirebaseError(
+        err instanceof Error ? err.message : 'Activation anonyme impossible.',
+      );
+    } finally {
+      setAnonymousBusy(false);
     }
   };
 
@@ -225,6 +310,39 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
                       </div>
                     )}
                   </>
+              </div>
+            )}
+
+            {selected.role === 'GESTIONNAIRE' && !selected.firebaseUid && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-left space-y-2">
+                <p className="text-xs font-extrabold text-emerald-900">
+                  Activer l'accès gestionnaire
+                </p>
+                <p className="text-[11px] text-slate-600">
+                  Saisissez le code d'invitation remis par Georges et votre PIN local.
+                </p>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  value={anonymousCode}
+                  onChange={(e) => setAnonymousCode(e.target.value.trim())}
+                  placeholder="Code d'invitation"
+                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs"
+                />
+                {firebaseError && (
+                  <p role="alert" className="text-[11px] font-semibold text-red-600">{firebaseError}</p>
+                )}
+                {anonymousMessage && (
+                  <p className="text-[11px] font-semibold text-emerald-700">{anonymousMessage}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={activateAnonymousManager}
+                  disabled={anonymousBusy || pin.length < 4 || secondsLeft > 0 || !anonymousCode.trim()}
+                  className="w-full rounded-xl bg-emerald-700 px-3 py-2.5 text-xs font-bold text-white disabled:opacity-50"
+                >
+                  {anonymousBusy ? 'Activation en cours…' : 'Activer mon accès gestionnaire'}
+                </button>
               </div>
             )}
 

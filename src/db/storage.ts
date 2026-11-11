@@ -48,7 +48,10 @@ import { Baseline, Effects, PULL_ORDER, applyPulled, diffState, makeBaseline, sp
 import { isTransient, pullAll, pushOps, PullCursor, PulledDoc } from './cloudSync';
 import localforage from 'localforage';
 import { Preferences } from '@capacitor/preferences';
-import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+import { coreOperationStatus, corePushOperation, CoreApiError } from '../core/api';
+import { getServerId, mapServerId } from '../core/persistence';
+import type { CoreBootstrapSnapshot } from '../core/bootstrap';
+import { fetchCoreBootstrap } from '../core/bootstrap';
 
 // Configure localforage for Android IndexedDB / SQLite leveldb persistence
 if (typeof window !== 'undefined') {
@@ -78,7 +81,9 @@ interface AppDatabaseState {
   reservationDeliveries: ReservationDelivery[];
   stockDamages: StockDamage[];
   freeIssues: FreeIssue[];
-  offlineQueue: Array<{ id: string; type: string; payload: unknown; timestamp: string }>;
+  offlineQueue: Array<{ id: string; type: string; payload: unknown; timestamp: string; status?: 'PENDING'|'PROCESSING'|'FAILED'|'REVIEW'; attempts?: number; error?: string }>;
+  coreSyncHistory: Array<{ id:string; type:string; status:'DONE'|'FAILED'|'REVIEW'; timestamp:string; error?:string }>;
+  coreScope?: { tenantId: number; branchId: number };
   syncInfo: SyncStatusInfo;
   /** Synchronisation entreprise (Firestore) : présent seulement une fois la migration/jonction faite. */
   cloud?: {
@@ -161,12 +166,14 @@ class AppRepository {
   private sessionUserId: string | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private isSyncing = false;
+  private coreContext: { tenantId: number; branchId: number } | null = null;
+  private initialization: Promise<void> = Promise.resolve();
   /** Incrémenté à chaque changement local capturé : permet d'abandonner une lecture serveur périmée. */
   private rev = 0;
 
   constructor() {
     this.state = this.loadFromStorage();
-    this.initAsyncStorage();
+    this.initialization = this.initAsyncStorage();
     // Simulate auto network listening
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => this.handleNetworkChange(true));
@@ -248,6 +255,7 @@ const cleanState: AppDatabaseState = {
   currentUser:
     usersToKeep.find((u) => u.id === oldCurrentId) || usersToKeep[0],
   offlineQueue: baseState.offlineQueue || [],
+  coreSyncHistory: baseState.coreSyncHistory || [],
   syncInfo: {
     ...baseState.syncInfo,
     pendingCount: (baseState.offlineQueue || []).length,
@@ -371,6 +379,7 @@ reservationDeliveries: [],
 stockDamages: [],
 freeIssues: [],
       offlineQueue: [],
+      coreSyncHistory: [],
       syncInfo: {
         status: typeof navigator !== 'undefined' && navigator.onLine ? 'ONLINE' : 'OFFLINE',
         lastSyncTime: new Date().toISOString(),
@@ -587,11 +596,10 @@ freeIssues: [],
     this.state.syncInfo.status = 'SYNCING';
     this.notify();
     try {
-      const authState = await FirebaseAuthentication.getCurrentUser();
-      const firebaseUid = authState.user?.uid;
-      if (!firebaseUid || firebaseUid !== this.state.currentUser.firebaseUid) {
-        throw new Error('Le profil local n’est pas associé au compte Firebase actuellement connecté. Les opérations restent en attente.');
-      }
+      // Core bearer sessions are owned by CoreSessionGate. Local operations remain
+      // queued until the Core adapter can map every local reference to a server ID.
+      const { getCoreToken } = await import('../core/api');
+      if (!(await getCoreToken())) throw new Error('Session Core absente ou expirée. Les opérations restent en attente.');
       const ctx = { tenantId: this.state.cloud!.tenantId, branchId: this.state.cloud!.branchId };
 
       // 1) Envoi : tant qu'il reste des opérations, par lots de 10, dans l'ordre.
@@ -743,6 +751,7 @@ freeIssues: [],
   }
 
   public async triggerSync(): Promise<boolean> {
+    if (this.coreContext) return this.coreSync();
     if (this.state.cloud) return this.cloudSync();
     // Standalone mode (no server configured): everything is stored on the device, nothing to push.
     if (!SYNC_ENABLED) {
@@ -826,6 +835,211 @@ freeIssues: [],
     }
   }
 
+  private async coreSync(): Promise<boolean> {
+    if (!this.coreContext || this.isSyncing || this.state.syncInfo.status === 'OFFLINE' || (typeof navigator !== 'undefined' && !navigator.onLine)) return false;
+    this.isSyncing = true;
+    this.state.syncInfo.status = 'SYNCING';
+    this.notify();
+    try {
+      const { getCoreToken } = await import('../core/api');
+      if (!(await getCoreToken())) throw new CoreApiError(401, 'bta_unauthenticated', 'Session Core absente ou expirée.');
+      const ctx = this.coreContext;
+      for (let index = 0; index < this.state.offlineQueue.length;) {
+        const queued = this.state.offlineQueue[index] as AppDatabaseState['offlineQueue'][number];
+        if (queued.status === 'FAILED' || queued.status === 'REVIEW') { index++; continue; }
+        if (queued.status === 'PROCESSING') {
+          try {
+            const status = await coreOperationStatus(ctx.tenantId, queued.id);
+            if (status.status === 'PROCESSING') break;
+            if (status.status === 'REVIEW' || status.status === 'FAILED') {
+              queued.status = status.status;
+              queued.error = status.error?.message;
+              index++;
+              continue;
+            }
+            if (status.status === 'DONE') {
+              await this.applyCoreAck(queued, status.result ?? { success: true, operation_id: queued.id, duplicate: true });
+              this.state.offlineQueue.splice(index, 1);
+              continue;
+            }
+          } catch (error) {
+            if (!(error instanceof CoreApiError && error.status === 404 && error.code === 'bta_sync_operation_not_found')) throw error;
+          }
+        }
+        queued.status = 'PROCESSING';
+        queued.attempts = (queued.attempts ?? 0) + 1;
+        this.persist();
+        try {
+          const payload = await this.toCorePayload(queued.type, queued.payload as Record<string, unknown>);
+          const result = await corePushOperation(ctx.tenantId, queued.id, this.toCoreOperationType(queued.type), payload);
+          if (result.success !== true || result.operation_id !== queued.id) {
+            queued.status = 'REVIEW'; queued.error = 'Accusé Core invalide; aucune synchronisation déclarée.'; index++; continue;
+          }
+          await this.applyCoreAck(queued, result);
+          this.state.offlineQueue.splice(index, 1);
+        } catch (error) {
+          if (error instanceof CoreApiError && error.status > 0 && error.status < 500) {
+            const retryable = error.code === 'bta_sync_in_progress';
+            queued.status = retryable ? 'PROCESSING' : (error.code.includes('stock_conflict') || error.code.includes('manual_review') ? 'REVIEW' : 'FAILED');
+            queued.error = error.message;
+            if (retryable) break;
+            index++;
+            continue;
+          }
+          // The server may have committed before a connection failed. Keep UUID and payload,
+          // then query the operation status before any retry on the next run.
+          queued.status = 'PROCESSING';
+          queued.error = error instanceof Error ? error.message : 'Connexion Core interrompue.';
+          throw error;
+        }
+        this.persist();
+      }
+      const pending = this.state.offlineQueue.length;
+      this.state.syncInfo = { status: pending ? 'ERROR' : 'SYNCED', lastSyncTime: pending ? this.state.syncInfo.lastSyncTime : new Date().toISOString(), pendingCount: pending,
+        ...(pending ? { errorMessage: 'Des opérations restent en attente ou nécessitent une résolution.' } : {}) };
+      this.persist();
+      return pending === 0;
+    } catch (error) {
+      this.state.syncInfo = { status: 'ERROR', lastSyncTime: this.state.syncInfo.lastSyncTime, pendingCount: this.state.offlineQueue.length,
+        errorMessage: error instanceof Error ? error.message : 'Synchronisation Core impossible.' };
+      this.persist();
+      return false;
+    } finally { this.isSyncing = false; this.notify(); }
+  }
+
+  private toCoreOperationType(type: string): string {
+    const map: Record<string, string> = {
+      SALE_CREATE: 'sale_create', PURCHASE_CREATE: 'purchase_create', EXPENSE_CREATE: 'expense_create',
+      STOCK_ADJUSTMENT: 'stock_adjustment', DEBT_PAYMENT: 'debt_payment', SALE_REFUND: 'sale_refund',
+      CATEGORY_CREATE: 'category_create', CATEGORY_UPDATE: 'category_update', PRODUCT_CREATE: 'product_create', PRODUCT_UPDATE: 'product_update',
+      CUSTOMER_CREATE: 'customer_create', CUSTOMER_UPDATE: 'customer_update', SUPPLIER_CREATE: 'supplier_create', SUPPLIER_UPDATE: 'supplier_update',
+    };
+    const result = map[type];
+    if (!result) throw new CoreApiError(400, 'bta_unsupported_local_operation', `Opération locale ${type} sans endpoint Core.`);
+    return result;
+  }
+
+  private async toCorePayload(type: string, raw: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const ctx = this.coreContext!;
+    const idOf = async (entity: string, local: unknown, optional = false): Promise<number | undefined> => {
+      if (local === undefined || local === null || local === '') return undefined;
+      if (typeof local !== 'string') throw new CoreApiError(400, 'bta_local_id_invalid', `ID local ${entity} invalide.`);
+      const id = await getServerId(ctx.tenantId, entity, local);
+      if (!id && !optional) throw new CoreApiError(409, 'bta_id_mapping_missing', `${entity} local non encore lié à un ID Core.`);
+      return id ?? undefined;
+    };
+    const branch_id = ctx.branchId;
+    if (type === 'SALE_CREATE') {
+      const sale = raw as unknown as Sale;
+      const items = await Promise.all(sale.items.map(async item => ({ product_id: await idOf('products', item.productId), quantity: item.quantity, unit_price: item.unitPriceUSD })));
+      const customer_id = await idOf('customers', sale.customerId, true);
+      return { branch_id, customer_id, reference: sale.invoiceNumber, currency: 'USD', exchange_rate: sale.exchangeRate, items, discount: sale.discountUSD, paid: sale.amountPaidUSD, payment_method: this.corePaymentMethod(sale.paymentMethod), payment_reference: sale.invoiceNumber, notes: sale.notes, _local_record_id: sale.id };
+    }
+    if (type === 'PURCHASE_CREATE') {
+      const purchase = raw as unknown as Purchase;
+      const supplier_id = await idOf('suppliers', purchase.supplierId);
+      const items = await Promise.all(purchase.items.map(async item => ({ product_id: await idOf('products', item.productId), quantity: item.quantity, unit_cost: item.buyPriceUSD })));
+      if (purchase.status !== 'COMPLETED') throw new CoreApiError(409, 'bta_local_draft_unsupported', 'Les achats en brouillon restent locaux; Core crée uniquement des achats reçus.');
+      return { branch_id, supplier_id, reference: purchase.purchaseNumber, currency: 'USD', exchange_rate: purchase.exchangeRate, items, fees: purchase.additionalFeesUSD, paid: purchase.amountPaidUSD, payment_method: this.corePaymentMethod(purchase.paymentMethod), payment_reference: purchase.purchaseNumber, notes: '', _local_record_id: purchase.id };
+    }
+    if (type === 'EXPENSE_CREATE') {
+      const expense = raw as unknown as Expense;
+      return { branch_id, category: expense.category, description: expense.description || expense.title, amount: expense.amountUSD, currency: 'USD', exchange_rate: expense.exchangeRate, payment_method: 'CASH', receipt_url: '', _local_record_id: expense.id };
+    }
+    if (type === 'STOCK_ADJUSTMENT') {
+      const product_id = await idOf('products', raw.productId);
+      return { branch_id, product_id, quantity_delta: raw.quantity_delta ?? raw.quantity, expected_quantity: raw.expected_quantity, reason: raw.reason ?? 'Ajustement BTA', _local_record_id: raw.id };
+    }
+    if (type === 'DEBT_PAYMENT') {
+      const debt_id = await idOf('debts', raw.debtId);
+      return { debt_id, amount: raw.amount, method: this.corePaymentMethod(raw.paymentMethod as PaymentMethod), reference: raw.reference ?? raw.id, _local_record_id: raw.id };
+    }
+    if (type === 'CATEGORY_CREATE') {
+      const parent_id = await idOf('categories', raw.parentId, true);
+      return { branch_id: ctx.branchId, name: raw.name, parent_id, description: raw.description ?? '', _local_record_id: raw.id };
+    }
+    if (type === 'CATEGORY_UPDATE') {
+      return { branch_id, category_id: await idOf('categories', raw.id), name: raw.name, description: raw.description ?? '' };
+    }
+    if (type === 'PRODUCT_CREATE' || type === 'PRODUCT_UPDATE') {
+      const product = raw as unknown as Product;
+      const category_id = await idOf('categories', product.categoryId, true);
+      const fields: Record<string, unknown> = {
+        sku: product.sku, barcode: product.barcode, name: product.name, description: product.description,
+        unit: product.unit === 'pcs' ? 'piece' : product.unit, purchase_price: product.buyPriceUSD,
+        sale_price: product.sellPriceUSD, currency: 'USD', image_url: product.photoUrl,
+        track_stock: true, min_stock: product.minStock, category_id,
+      };
+      if (type === 'PRODUCT_CREATE') return { ...fields, branch_id: ctx.branchId, initial_stock: product.currentStock, _local_record_id: product.id };
+      const product_id = await idOf('products', product.id);
+      return { ...fields, product_id, branch_id: ctx.branchId, _local_record_id: product.id };
+    }
+    if (type === 'CUSTOMER_CREATE') {
+      const customer = raw as unknown as Customer;
+      return { branch_id: ctx.branchId, name: customer.name, phone: customer.phone, email: customer.email, address: [customer.address, customer.city].filter(Boolean).join(', '), notes: customer.notes ?? '', credit_limit: customer.creditLimitUSD, _local_record_id: customer.id };
+    }
+    if (type === 'CUSTOMER_UPDATE') {
+      const customer = raw as unknown as Customer;
+      return { branch_id: ctx.branchId, customer_id: await idOf('customers', customer.id), name: customer.name, phone: customer.phone, email: customer.email, address: [customer.address, customer.city].filter(Boolean).join(', '), notes: customer.notes ?? '', credit_limit: customer.creditLimitUSD };
+    }
+    if (type === 'SUPPLIER_CREATE') {
+      const supplier = raw as unknown as Supplier;
+      return { branch_id: ctx.branchId, name: supplier.companyName, phone: supplier.phone, email: supplier.email, address: supplier.address, notes: [supplier.contactName, supplier.suppliedProducts].filter(Boolean).join(' · '), _local_record_id: supplier.id };
+    }
+    if (type === 'SUPPLIER_UPDATE') {
+      const supplier = raw as unknown as Supplier;
+      return { branch_id: ctx.branchId, supplier_id: await idOf('suppliers', supplier.id), name: supplier.companyName, phone: supplier.phone, email: supplier.email, address: supplier.address, notes: [supplier.contactName, supplier.suppliedProducts].filter(Boolean).join(' · ') };
+    }
+    return raw;
+  }
+
+  private corePaymentMethod(method?: PaymentMethod): string {
+    if (method === 'BANK_TRANSFER') return 'BANK';
+    if (method === 'CREDIT' || method === 'PARTIAL') return 'CASH';
+    return method || 'CASH';
+  }
+
+  private async applyCoreAck(queued: AppDatabaseState['offlineQueue'][number], result: Record<string, unknown>): Promise<void> {
+    const payload = queued.payload as Record<string, unknown>;
+    const localId = String(payload.id ?? payload._local_record_id ?? '');
+    const entityMap: Record<string,string> = { SALE_CREATE:'sales', PURCHASE_CREATE:'purchases', EXPENSE_CREATE:'expenses', CATEGORY_CREATE:'categories', CATEGORY_UPDATE:'categories', PRODUCT_CREATE:'products', PRODUCT_UPDATE:'products', CUSTOMER_CREATE:'customers', CUSTOMER_UPDATE:'customers', SUPPLIER_CREATE:'suppliers', SUPPLIER_UPDATE:'suppliers' };
+    const entity = entityMap[queued.type] ?? '';
+    const record = result.sale as Record<string, unknown> | undefined;
+    const named = (result.category ?? result.product ?? result.customer ?? result.supplier ?? result.purchase) as Record<string,unknown> | undefined;
+    const serverId = Number(record?.id ?? named?.id ?? result.purchase_id ?? result.expense_id ?? result.sale_id);
+    if (entity && localId && Number.isSafeInteger(serverId) && serverId > 0) await mapServerId(this.coreContext!.tenantId, entity, localId, serverId);
+    if (queued.type === 'SALE_CREATE' && record?.debt_id) {
+      const sale = this.state.sales.find(item => item.id === localId);
+      const debt = sale && this.state.debts.find(item => item.referenceInvoice === sale.invoiceNumber && item.type === 'CUSTOMER');
+      if (debt) await mapServerId(this.coreContext!.tenantId, 'debts', debt.id, Number(record.debt_id));
+    }
+    if (entity) {
+      if (entity === 'sales' || entity === 'purchases' || entity === 'expenses') {
+        const rows = this.state[entity] as Array<{id:string; syncStatus:'SYNCED'|'PENDING'|'ERROR'}>;
+        const row = rows.find(x => x.id === localId);
+        if (row) row.syncStatus = 'SYNCED';
+      }
+    }
+    this.state.coreSyncHistory.unshift({ id: queued.id, type: queued.type, status: 'DONE', timestamp: new Date().toISOString() });
+    this.state.coreSyncHistory = this.state.coreSyncHistory.slice(0, 500);
+  }
+
+  public getCoreOperationHistory() { return this.state.coreSyncHistory; }
+  public getCorePendingOperations() { return this.state.offlineQueue.map(item => ({ id:item.id, type:item.type, timestamp:item.timestamp, status:item.status ?? 'PENDING', error:item.error })); }
+  public retryFailedCoreOperation(id: string, correctedPayload?: unknown, confirmedNotApplied = false) {
+    const op = this.state.offlineQueue.find(item => item.id === id);
+    if (!op || (op.status !== 'FAILED' && op.status !== 'REVIEW')) throw new Error('Cette opération ne peut pas être résolue depuis cet état.');
+    if (op.status === 'REVIEW' && !confirmedNotApplied) throw new Error('Vérifiez dans Core que l’opération n’a pas été appliquée avant de la recréer.');
+    this.state.coreSyncHistory.unshift({ id: op.id, type: op.type, status: op.status, timestamp: new Date().toISOString(), error: op.error });
+    this.state.coreSyncHistory = this.state.coreSyncHistory.slice(0, 500);
+    const retry = { ...op, id: generateUUID(), payload: correctedPayload ?? op.payload, timestamp: new Date().toISOString(), status: 'PENDING' as const, attempts: 0, error: undefined };
+    this.state.offlineQueue = this.state.offlineQueue.filter(item => item.id !== id);
+    this.state.offlineQueue.push(retry);
+    this.state.syncInfo.pendingCount = this.state.offlineQueue.length;
+    this.persist();
+    if (this.coreContext && this.state.syncInfo.status !== 'OFFLINE') void this.triggerSync();
+  }
+
   private scheduleBackToOnline(ms: number) {
     setTimeout(() => {
       if (this.state.syncInfo.status === 'SYNCED') {
@@ -836,9 +1050,9 @@ freeIssues: [],
   }
 
   /** Queues a record for the server (only when a server is configured). */
-  private enqueue(type: string, payload: { id: string }) {
-    if (this.state.cloud) return; // le mode entreprise déduit les opérations par comparaison (captureChanges)
-    if (!SYNC_ENABLED) return;
+  private enqueue<T extends { id: string }>(type: string, payload: T) {
+    if (this.state.cloud && !this.coreContext) return; // legacy cloud diff mode is used only without an authenticated Core context
+    if (!SYNC_ENABLED && !this.coreContext) return;
     this.state.offlineQueue.push({
       id: generateUUID(),
       type,
@@ -850,12 +1064,12 @@ freeIssues: [],
 
   private syncStatusForNewRecord(): 'SYNCED' | 'PENDING' {
     // Local-only mode: nothing to wait for. Server mode: pending until the server confirms.
-    return SYNC_ENABLED || this.state.cloud ? 'PENDING' : 'SYNCED';
+    return SYNC_ENABLED || this.state.cloud || this.coreContext ? 'PENDING' : 'SYNCED';
   }
 
   private afterWrite() {
     this.persist();
-    if ((SYNC_ENABLED || this.state.cloud) && this.state.syncInfo.status !== 'OFFLINE') {
+    if ((SYNC_ENABLED || this.state.cloud || this.coreContext) && this.state.syncInfo.status !== 'OFFLINE') {
       void this.triggerSync();
     }
   }
@@ -863,6 +1077,98 @@ freeIssues: [],
   // Getters
   public getState(): AppDatabaseState {
     return this.state;
+  }
+
+  private coreSnapshotKey(tenantId: number, branchId: number) { return `snapshot:${tenantId}:${branchId}`; }
+  private coreBackupKey(tenantId: number, branchId: number) { return `pre-core:${tenantId}:${branchId}`; }
+
+  public async applyCoreSnapshot(snapshot: CoreBootstrapSnapshot, source: 'server'|'cache'): Promise<void> {
+    await this.initialization;
+    const { tenantId, branchId } = snapshot;
+    const backupKey = this.coreBackupKey(tenantId, branchId);
+    if (!(await localforage.getItem(backupKey))) {
+      // Keep the pre-Core local data recoverable on-device before replacing seeded/demo lists.
+      const backup = {
+        savedAt: new Date().toISOString(), categories: this.state.categories, products: this.state.products,
+        customers: this.state.customers, suppliers: this.state.suppliers, sales: this.state.sales,
+        purchases: this.state.purchases, stockMovements: this.state.stockMovements, expenses: this.state.expenses,
+        debts: this.state.debts, reservations: this.state.reservations, reservationCancellations: this.state.reservationCancellations,
+        reservationPayments: this.state.reservationPayments, reservationDeliveries: this.state.reservationDeliveries,
+        stockDamages: this.state.stockDamages, freeIssues: this.state.freeIssues,
+      };
+      await localforage.setItem(backupKey, backup);
+    }
+    await localforage.setItem(this.coreSnapshotKey(tenantId, branchId), snapshot);
+
+    for (const item of snapshot.categories) await mapServerId(tenantId, 'categories', item.id, Number(item.id.split('-').at(-1)));
+    for (const item of snapshot.products) await mapServerId(tenantId, 'products', item.id, Number(item.id.split('-').at(-1)));
+    for (const item of snapshot.customers) await mapServerId(tenantId, 'customers', item.id, Number(item.id.split('-').at(-1)));
+    for (const item of snapshot.suppliers) await mapServerId(tenantId, 'suppliers', item.id, Number(item.id.split('-').at(-1)));
+
+    const pendingByType = new Map<string, Set<string>>();
+    for (const op of this.state.offlineQueue) {
+      if ((op.status as string | undefined) === 'DONE') continue;
+      const payload = op.payload as Record<string, unknown>;
+      const id = typeof payload.id === 'string' ? payload.id : typeof payload._local_record_id === 'string' ? payload._local_record_id : '';
+      if (!id) continue;
+      const bucket = pendingByType.get(op.type) ?? new Set<string>(); bucket.add(id); pendingByType.set(op.type, bucket);
+    }
+    const keepPending = async <T extends {id:string}>(remote: T[], local: T[], operations: string[], entity?: string): Promise<T[]> => {
+      const keep = new Set(operations.flatMap(type => [...(pendingByType.get(type) ?? [])]));
+      const result = [...remote];
+      for (const localItem of local) {
+        if (!keep.has(localItem.id)) continue;
+        const mappedId = entity ? await getServerId(tenantId, entity, localItem.id) : null;
+        const serverKind = entity === 'categories' ? 'category' : entity?.slice(0, -1);
+        const serverLocalId = mappedId ? `core-${serverKind}-${mappedId}` : '';
+        const existing = result.findIndex(row => row.id === localItem.id || (!!serverLocalId && row.id === serverLocalId));
+        if (existing >= 0) result[existing] = localItem;
+        else result.unshift(localItem);
+      }
+      return result;
+    };
+    this.state.categories = await keepPending(snapshot.categories, this.state.categories, ['CATEGORY_CREATE','CATEGORY_UPDATE'], 'categories');
+    this.state.products = await keepPending(snapshot.products, this.state.products, ['PRODUCT_CREATE','PRODUCT_UPDATE'], 'products');
+    this.state.customers = await keepPending(snapshot.customers, this.state.customers, ['CUSTOMER_CREATE','CUSTOMER_UPDATE'], 'customers');
+    this.state.suppliers = await keepPending(snapshot.suppliers, this.state.suppliers, ['SUPPLIER_CREATE','SUPPLIER_UPDATE'], 'suppliers');
+    this.state.stockMovements = await keepPending(snapshot.stockMovements, this.state.stockMovements, ['STOCK_ADJUSTMENT']);
+    this.state.sales = this.state.sales.filter(row => pendingByType.get('SALE_CREATE')?.has(row.id));
+    this.state.purchases = this.state.purchases.filter(row => pendingByType.get('PURCHASE_CREATE')?.has(row.id));
+    this.state.expenses = this.state.expenses.filter(row => pendingByType.get('EXPENSE_CREATE')?.has(row.id));
+    this.state.debts = [];
+    this.state.reservations = []; this.state.reservationCancellations = []; this.state.reservationPayments = [];
+    this.state.reservationDeliveries = []; this.state.stockDamages = []; this.state.freeIssues = [];
+    this.state.syncInfo = {
+      ...this.state.syncInfo, status: source === 'cache' ? 'OFFLINE' : 'SYNCED', lastSyncTime: snapshot.downloadedAt,
+      pendingCount: this.state.offlineQueue.length,
+      ...(source === 'cache' ? { errorMessage: 'Données Core locales : serveur indisponible, synchronisation suspendue.' } : { errorMessage: undefined }),
+    };
+    this.persist();
+    await this.flushDurableAndWait();
+  }
+
+  public async loadCachedCoreSnapshot(tenantId: number, branchId: number): Promise<CoreBootstrapSnapshot | null> {
+    return localforage.getItem<CoreBootstrapSnapshot>(this.coreSnapshotKey(tenantId, branchId));
+  }
+
+  public async bootstrapCoreData(tenantId: number, branchId: number, permissions: string[]): Promise<'server'|'cache'> {
+    await this.initialization;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const cached = await this.loadCachedCoreSnapshot(tenantId, branchId);
+      if (!cached) throw new Error('Aucune donnée Core locale pour cet établissement. Connectez-vous à Internet pour le premier chargement.');
+      await this.applyCoreSnapshot(cached, 'cache');
+      return 'cache';
+    }
+    try {
+      const snapshot = await fetchCoreBootstrap(tenantId, branchId, this.state.settings.exchangeRate, permissions);
+      await this.applyCoreSnapshot(snapshot, 'server');
+      return 'server';
+    } catch (error) {
+      const cached = await this.loadCachedCoreSnapshot(tenantId, branchId);
+      if (!cached) throw error;
+      await this.applyCoreSnapshot(cached, 'cache');
+      return 'cache';
+    }
   }
 
   public getSettings(): CompanySettings {
@@ -878,6 +1184,27 @@ freeIssues: [],
   // ---------------------------------------------------------------------
   public isAuthenticated(): boolean {
     return this.sessionUserId !== null;
+  }
+
+  /** Core identity is held in memory; local business data and PIN profiles remain untouched. */
+  public activateCoreUser(core: { id: number; name: string; email: string; role: 'OWNER' | 'ADMIN' | 'MANAGER' | 'CASHIER'; tenantId: number; branchId: number }) {
+    const role: UserRole = core.role === 'OWNER' || core.role === 'ADMIN' ? 'ADMIN' : core.role === 'MANAGER' ? 'GESTIONNAIRE' : 'CASHIER';
+    const user: User = { id: `core:${core.id}`, name: core.name, email: core.email, role, phone: '', active: true };
+    this.sessionUserId = user.id;
+    this.state.currentUser = user;
+    const previousScope = this.coreContext ?? this.state.coreScope;
+    const changedScope = previousScope
+      ? previousScope.tenantId !== core.tenantId || previousScope.branchId !== core.branchId
+      : this.state.offlineQueue.length > 0;
+    this.coreContext = { tenantId: core.tenantId, branchId: core.branchId };
+    this.state.coreScope = { ...this.coreContext };
+    if (changedScope && this.state.offlineQueue.some(op => op.status !== 'FAILED' && op.status !== 'REVIEW')) {
+      this.state.offlineQueue.forEach(op => { if (op.status !== 'FAILED' && op.status !== 'REVIEW') { op.status = 'REVIEW'; op.error = 'Contexte Core changé; rattachement manuel requis.'; } });
+    } else if (this.state.offlineQueue.length && (typeof navigator === 'undefined' || navigator.onLine)) {
+      void this.triggerSync();
+    }
+    this.persist();
+    this.notify();
   }
 
   public logout() {
@@ -1021,6 +1348,64 @@ freeIssues: [],
     this.updateUser({ ...user, firebaseUid: firebaseUid.trim() });
   }
 
+  public verifyUserPinWithLockout(
+    userId: string,
+    candidatePin: string,
+  ): { ok: boolean; error?: string; lockedMs?: number } {
+    const user = this.getUserById(userId);
+    if (!user || user.active === false) {
+      return { ok: false, error: 'Compte introuvable ou désactivé.' };
+    }
+
+    const remaining = this.getLockoutRemainingMs(userId);
+    if (remaining > 0) {
+      return {
+        ok: false,
+        lockedMs: remaining,
+        error: `Trop de tentatives. Réessayez dans ${Math.ceil(remaining / 1000)} s.`,
+      };
+    }
+
+    const lockouts = this.readLockouts();
+
+    if (verifyPinSync(candidatePin, user.pinHash, user.pinSalt)) {
+      delete lockouts[userId];
+      this.writeLockouts(lockouts);
+
+      if (user.pinHash && !user.pinHash.startsWith('v2$') && user.pinSalt) {
+        user.pinHash = hashPinSync(candidatePin, user.pinSalt);
+        this.updateUser(user);
+      }
+
+      return { ok: true };
+    }
+
+    const entry = lockouts[userId] || { count: 0, until: 0, level: 0 };
+    entry.count += 1;
+
+    if (entry.count >= MAX_PIN_ATTEMPTS) {
+      entry.until = Date.now() + LOCKOUT_BASE_MS * Math.pow(2, Math.min(entry.level, 6));
+      entry.level += 1;
+      entry.count = 0;
+      lockouts[userId] = entry;
+      this.writeLockouts(lockouts);
+
+      return {
+        ok: false,
+        lockedMs: entry.until - Date.now(),
+        error: 'Trop de tentatives. Compte verrouillé temporairement.',
+      };
+    }
+
+    lockouts[userId] = entry;
+    this.writeLockouts(lockouts);
+
+    return {
+      ok: false,
+      error: `Code PIN incorrect. ${MAX_PIN_ATTEMPTS - entry.count} essai(s) restant(s).`,
+    };
+  }
+
   public verifyUserPin(userId: string, candidatePin: string): boolean {
     const user = this.getUserById(userId);
     if (!user) return false;
@@ -1120,14 +1505,16 @@ freeIssues: [],
       color,
     };
     this.state.categories = [...this.state.categories, newCat];
-    this.persist();
+    this.enqueue('CATEGORY_CREATE', newCat);
+    this.afterWrite();
     return newCat;
   }
 
   public updateCategory(category: Category) {
     this.requireManager();
     this.state.categories = this.state.categories.map((c) => (c.id === category.id ? category : c));
-    this.persist();
+    this.enqueue('CATEGORY_UPDATE', category);
+    this.afterWrite();
   }
 
   public deleteCategory(categoryId: string): boolean {
@@ -1739,7 +2126,11 @@ freeIssues: [],
       }
 
       this.state.products = this.state.products.map((p) => (p.id === updated.id ? updated : p));
-      this.persist();
+      if (existing.currentStock !== updated.currentStock) {
+        this.enqueue('STOCK_ADJUSTMENT', { id: generateUUID(), productId: updated.id, quantity_delta: r2(updated.currentStock - existing.currentStock), expected_quantity: existing.currentStock, reason: 'Ajustement manuel de fiche produit' });
+      }
+      this.enqueue('PRODUCT_UPDATE', updated);
+      this.afterWrite();
       return updated;
     } else {
       const newProduct: Product = {
@@ -1765,7 +2156,8 @@ freeIssues: [],
       }
 
       this.state.products = [newProduct, ...this.state.products];
-      this.persist();
+      this.enqueue('PRODUCT_CREATE', newProduct);
+      this.afterWrite();
       return newProduct;
     }
   }
@@ -1822,7 +2214,8 @@ freeIssues: [],
     product.currentStock = newStock;
     product.updatedAt = new Date().toISOString();
     const movement = this.addStockMovement({ ...data, previousStock, newStock });
-    this.persist();
+    this.enqueue('STOCK_ADJUSTMENT', { id: movement.id, productId: product.id, quantity_delta: data.quantity, expected_quantity: previousStock, reason: data.reason });
+    this.afterWrite();
     return movement;
   }
 
@@ -1848,7 +2241,8 @@ freeIssues: [],
         id: customerData.id,
       };
       this.state.customers = this.state.customers.map((c) => (c.id === updated.id ? updated : c));
-      this.persist();
+      this.enqueue('CUSTOMER_UPDATE', updated);
+      this.afterWrite();
       return updated;
     } else {
       const newCustomer: Customer = {
@@ -1857,7 +2251,8 @@ freeIssues: [],
         registeredAt: new Date().toISOString(),
       };
       this.state.customers = [newCustomer, ...this.state.customers];
-      this.persist();
+      this.enqueue('CUSTOMER_CREATE', newCustomer);
+      this.afterWrite();
       return newCustomer;
     }
   }
@@ -1882,7 +2277,8 @@ freeIssues: [],
         id: supplierData.id,
       };
       this.state.suppliers = this.state.suppliers.map((s) => (s.id === updated.id ? updated : s));
-      this.persist();
+      this.enqueue('SUPPLIER_UPDATE', updated);
+      this.afterWrite();
       return updated;
     } else {
       const newSupplier: Supplier = {
@@ -1891,7 +2287,8 @@ freeIssues: [],
         registeredAt: new Date().toISOString(),
       };
       this.state.suppliers = [newSupplier, ...this.state.suppliers];
-      this.persist();
+      this.enqueue('SUPPLIER_CREATE', newSupplier);
+      this.afterWrite();
       return newSupplier;
     }
   }
@@ -2275,7 +2672,11 @@ freeIssues: [],
       }
     }
 
-    this.persist();
+    const entry = debt.history[debt.history.length - 1];
+    this.enqueue(debt.type === 'CUSTOMER' ? 'DEBT_PAYMENT' : 'SUPPLIER_DEBT_PAYMENT', {
+      id: entry.id, debtId: debt.id, amount: paymentAmountUSD, paymentMethod, reference: receiptNumber, notes,
+    });
+    this.afterWrite();
     return { success: true, updatedDebt: debt, receiptNumber };
   }
 

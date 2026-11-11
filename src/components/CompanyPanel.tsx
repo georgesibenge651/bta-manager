@@ -5,7 +5,7 @@ import { migrateLocalData, isMigrated } from '../db/migration';
 import { appRepository } from '../db/storage';
 import {
   Membership, Branch, TenantRole, listMemberships, listBranches, createTenant, createBranch,
-  inviteMember, acceptInvitation, getActiveContext, setActiveContext, newRequestId, assertBranchAccess,
+  inviteMember, inviteAnonymousManager, acceptInvitation, getActiveContext, setActiveContext, newRequestId, assertBranchAccess,
 } from '../firebase/tenancy';
 
 const ROLE_LABEL: Record<TenantRole, string> = {
@@ -30,6 +30,7 @@ export const CompanyPanel: React.FC = () => {
   const [inviteRole, setInviteRole] = useState<TenantRole>('CASHIER');
   const [inviteBranch, setInviteBranch] = useState('');
   const [lastCode, setLastCode] = useState('');
+  const [lastAnonymousCode, setLastAnonymousCode] = useState('');
   const [migrated, setMigrated] = useState(false);
   const [progress, setProgress] = useState('');
   // Un identifiant par tentative de création : un rejeu réseau ne crée pas de doublon.
@@ -124,6 +125,13 @@ export const CompanyPanel: React.FC = () => {
     if (!tenantId || !inviteBranch) throw new Error('Choisissez un établissement.');
     const r = await inviteMember(tenantId, inviteEmail, inviteRole, [{ branchId: inviteBranch, role: inviteRole }]);
     setLastCode(r.code); setInviteEmail(''); setMsg('Invitation créée. Transmettez le code ci-dessous.');
+  });
+
+  const doInviteAnonymousManager = () => run(async () => {
+    if (!tenantId || !inviteBranch) throw new Error('Choisissez un établissement.');
+    const result = await inviteAnonymousManager(tenantId, [{ branchId: inviteBranch }]);
+    setLastAnonymousCode(result.code);
+    setMsg('Invitation gestionnaire créée. Transmettez ce code à Didier.');
   });
 
   const input = 'w-full border border-slate-300 rounded-xl px-3 py-2 text-xs';
@@ -237,6 +245,40 @@ export const CompanyPanel: React.FC = () => {
               {lastCode && <p className="p-2 rounded-xl bg-amber-50 border border-amber-200 break-all select-all">Code : <b>{lastCode}</b></p>}
             </div>
           )}
+        {current && canManage && (
+          <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50 space-y-2">
+            <h3 className="font-extrabold flex items-center gap-2">
+              <KeyRound className="w-4 h-4" /> Inviter un gestionnaire sans e-mail
+            </h3>
+            <p className="text-slate-600">
+              Code valable 7 jours et utilisable une seule fois.
+            </p>
+            <select
+              className={input}
+              value={inviteBranch}
+              onChange={(e) => setInviteBranch(e.target.value)}
+            >
+              <option value="">Choisir un établissement</option>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <button
+              className={btn}
+              disabled={busy || !inviteBranch}
+              onClick={doInviteAnonymousManager}
+            >
+              <KeyRound className="w-3.5 h-3.5" /> Générer le code
+            </button>
+            {lastAnonymousCode && (
+              <div className="p-3 rounded-xl bg-white border border-emerald-200 break-all select-all">
+                <p className="font-bold mb-1">Code à transmettre à Didier :</p>
+                <b>{lastAnonymousCode}</b>
+                <p className="text-[10px] text-slate-500 mt-2">
+                  Conservez ce code : il ne sera plus affiché après actualisation.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
         </>
       )}
     </div>

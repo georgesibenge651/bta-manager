@@ -13,7 +13,7 @@
     "cap:build": "vite build && npx cap sync android",
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
-    "test:unit": "tsx --test src/db/syncEngine.test.ts",
+    "test:unit": "tsx --test src/db/syncEngine.test.ts src/core/bootstrap.test.ts",
     "test:functions": "npm --prefix functions run build && node --test functions/lib/syncPlan.test.js functions/lib/permissions.test.js",
     "test:rules": "firebase emulators:exec --only firestore --project demo-bta \"node --test tests/rules.test.mjs\"",
     "test": "npm run test:unit && npm run test:functions && npm run test:rules"

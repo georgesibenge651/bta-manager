@@ -251,9 +251,9 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           </div>
           <div>
             <h4 className="font-bold text-xs text-slate-900">
-              État Synchronisation Cloud Firestore :{' '}
+              État synchronisation Fondation Kenda Core :{' '}
               <span className={syncInfo.status === 'OFFLINE' ? 'text-amber-700' : 'text-emerald-700'}>
-                {syncInfo.status === 'OFFLINE' ? 'Mode Hors-Ligne (Room DB Local)' : 'Connecté & En Ligne'}
+                {syncInfo.status === 'OFFLINE' ? 'Mode hors ligne (stockage local)' : 'En ligne'}
               </span>
             </h4>
             <p className="text-[11px] text-slate-500">

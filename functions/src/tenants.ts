@@ -392,6 +392,7 @@ export const acceptAnonymousInvitation = onCall(callOpts, async (req) => {
     const tenantRef = db.doc(`tenants/${tenantId}`);
 
     const memberSnap = await tx.get(memberRef);
+    const membershipSnap = await tx.get(membershipRef);
     const tenantSnap = await tx.get(tenantRef);
 
     // Reprise idempotente : seul le même UID peut reprendre
@@ -408,8 +409,8 @@ export const acceptAnonymousInvitation = onCall(callOpts, async (req) => {
       };
     }
 
-    // Ne jamais écraser une adhésion ou un compte existant.
-    if (memberSnap.exists) {
+    // Ne jamais écraser une adhésion ou un index préexistant.
+    if (memberSnap.exists || membershipSnap.exists) {
       throw new HttpsError(
         "failed-precondition",
         "Ce compte possède déjà une adhésion dans cette entreprise."

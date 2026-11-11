@@ -6,12 +6,14 @@ export interface FirebaseAccount {
   uid: string;
   email: string | null;
   displayName: string | null;
+  isAnonymous: boolean;
 }
 
 type FirebaseUser = {
   uid: string;
   email?: string | null;
   displayName?: string | null;
+  isAnonymous?: boolean;
 } | null;
 
 function normalizeUser(user: FirebaseUser): FirebaseAccount | null {
@@ -21,6 +23,7 @@ function normalizeUser(user: FirebaseUser): FirebaseAccount | null {
     uid: user.uid,
     email: user.email ?? null,
     displayName: user.displayName ?? null,
+    isAnonymous: user.isAnonymous ?? false,
   };
 }
 
@@ -49,6 +52,16 @@ export async function signInWithEmail(
     throw new Error('Firebase n’a retourné aucun utilisateur.');
   }
 
+  return account;
+}
+
+export async function signInAnonymously(): Promise<FirebaseAccount> {
+  ensureNativePlatform();
+  const result = await FirebaseAuthentication.signInAnonymously();
+  const account = normalizeUser(result.user);
+  if (!account) {
+    throw new Error('Firebase n’a retourné aucun utilisateur anonyme.');
+  }
   return account;
 }
 
