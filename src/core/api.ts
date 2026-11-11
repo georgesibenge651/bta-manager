@@ -63,8 +63,21 @@ export async function coreRequest<T>(path: string, options: {
     return payload as T;
   } catch (error) {
     if (error instanceof CoreApiError) throw error;
-    if (error instanceof DOMException && error.name === 'AbortError') throw new CoreApiError(0, 'bta_timeout', 'Le serveur ne répond pas.');
-    throw new CoreApiError(0, 'bta_network_error', 'Connexion au serveur indisponible.');
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new CoreApiError(0, 'bta_timeout', 'Le serveur ne répond pas (délai dépassé).');
+    }
+
+    const diagnostic = error instanceof Error
+      ? `${error.name}: ${error.message}`
+      : String(error);
+
+    console.error('[BTA Core Network Diagnostic]', diagnostic);
+
+    throw new CoreApiError(
+      0,
+      'bta_network_error',
+      `Erreur réseau détectée : ${diagnostic}`
+    );
   } finally { clearTimeout(timer); }
 }
 
