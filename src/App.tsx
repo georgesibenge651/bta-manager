@@ -101,7 +101,7 @@ function BtaApp() {
     const arm = () => {
       if (timer) clearTimeout(timer);
       if (autoLogoutMinutes > 0) {
-        timer = setTimeout(() => appRepository.logout(), autoLogoutMinutes * 60_000);
+        timer = setTimeout(() => { void coreSession?.signOut(); }, autoLogoutMinutes * 60_000);
       }
     };
     const events = ['pointerdown', 'keydown', 'touchstart', 'scroll'];
@@ -111,7 +111,7 @@ function BtaApp() {
       if (timer) clearTimeout(timer);
       events.forEach((e) => window.removeEventListener(e, arm));
     };
-  }, [isAuthenticated, autoLogoutMinutes]);
+  }, [isAuthenticated, autoLogoutMinutes, coreSession]);
 
   // UI Navigation states
   const [currentTab, setCurrentTab] = useState<MainTab>('accueil');

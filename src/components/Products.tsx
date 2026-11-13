@@ -112,7 +112,7 @@ export const Products: React.FC<ProductsProps> = ({
       description: '',
       categoryId: categories[0]?.id || '',
       brand: '',
-      photoUrl: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=400&auto=format&fit=crop&q=80',
+      photoUrl: '',
       buyPriceUSD: 0,
       sellPriceUSD: 0,
       currentStock: 0,
@@ -318,11 +318,11 @@ export const Products: React.FC<ProductsProps> = ({
                 {/* Header: Photo, Status Badge & Title */}
                 <div className="flex gap-3">
                   <div className="w-16 h-16 rounded-2xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                    <img
+                    {product.photoUrl && <img
                       src={product.photoUrl}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+                    />}
                   </div>
 
                   <div className="flex-1 min-w-0">

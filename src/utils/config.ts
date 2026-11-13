@@ -5,16 +5,16 @@
  *                     When empty the app runs 100% locally (standalone APK): no network
  *                     call is made and nothing is falsely reported as "synchronised".
  */
-const raw = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '';
+const raw = (import.meta.env?.VITE_API_BASE_URL as string | undefined) || '';
 
 export const API_BASE: string = raw.trim().replace(/\/+$/, '');
 export const SYNC_ENABLED: boolean = API_BASE.length > 0;
 /** Optional shared secret (weak protection: it is embedded in the app). */
-export const API_KEY: string = ((import.meta.env.VITE_SYNC_API_KEY as string | undefined) || '').trim();
-export const IS_DEV: boolean = !!import.meta.env.DEV;
+export const API_KEY: string = ((import.meta.env?.VITE_SYNC_API_KEY as string | undefined) || '').trim();
+export const IS_DEV: boolean = !!import.meta.env?.DEV;
 
 /** Projet Firebase et région des Cloud Functions (multi-entreprises). */
 export const FIREBASE_PROJECT_ID: string =
-  ((import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined) || 'bta-manager-fab3f').trim();
+  ((import.meta.env?.VITE_FIREBASE_PROJECT_ID as string | undefined) || 'bta-manager-fab3f').trim();
 export const FUNCTIONS_REGION: string =
-  ((import.meta.env.VITE_FUNCTIONS_REGION as string | undefined) || 'africa-south1').trim();
+  ((import.meta.env?.VITE_FUNCTIONS_REGION as string | undefined) || 'africa-south1').trim();

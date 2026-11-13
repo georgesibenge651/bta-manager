@@ -55,6 +55,13 @@ jobs:
       - name: Unit tests (sync engine)
         run: npm run test:unit
 
+      - name: Validate and test WordPress Core
+        run: |
+          command -v php || (sudo apt-get update && sudo apt-get install -y php-cli)
+          find wordpress/fondation-kenda-core -name '*.php' -exec php -l {} \;
+          npm run test:core
+          python3 scripts/package-core.py
+
       - name: Build web application
         run: npm run build
 
@@ -113,4 +120,11 @@ jobs:
         with:
           name: bta-manager-apk
           path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Upload WordPress Core ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: fondation-kenda-core
+          path: artifacts/fondation-kenda-core-*.zip
           if-no-files-found: error

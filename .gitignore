@@ -26,3 +26,6 @@ backups/
 # Fichiers locaux à ne pas publier
 .restore-point-*.tar.gz
 firestore-debug.log
+
+# Generated delivery artifacts
+artifacts/

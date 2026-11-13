@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { appRepository } from '../db/storage';
-import { clearCoreToken, coreBranches, coreBranchPermissions, coreLogin, coreLogout, coreMe, CoreBranch, CoreMembership, CoreMe, CoreRole, getCoreToken, setCoreToken } from './api';
+import { clearCoreToken, coreBranches, coreBranchPermissions, coreLogin, coreLogout, coreMe, CoreApiError, CoreBranch, CoreMembership, CoreMe, CoreRole, getCoreToken, setCoreToken } from './api';
 import { CoreSignIn } from './signIn';
 import { Preferences } from '@capacitor/preferences';
 
@@ -38,7 +38,10 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
         try {
           const access = await coreBranchPermissions(m.tenantId, item.id);
           return access.role === m.role && access.permissions.length > 0 ? { branch: item, access } : null;
-        } catch { return null; }
+        } catch (error) {
+          if (error instanceof CoreApiError && (error.status === 0 || error.status >= 500 || error.status === 401)) throw error;
+          return null;
+        }
       }));
       const authorized = accessResults.filter((item): item is NonNullable<typeof item> => item !== null);
       const selectedAccess = authorized.find(x => x.branch.id === saved?.branchId) ?? authorized[0];
@@ -51,11 +54,11 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
         setPermissions(branchPermissions.permissions);
         await Preferences.set({ key: CONTEXT_KEY, value: JSON.stringify({ tenantId: m.tenantId, branchId: selected.id }) });
         appRepository.activateCoreUser({ id: identity.user.id, name: identity.user.name, email: identity.user.email, role: m.role, tenantId: m.tenantId, branchId: selected.id });
-        await Preferences.set({ key: CACHED_SESSION_KEY, value: JSON.stringify({ me: identity, membership: m, branches: br.branches.filter(x => x.status === 'ACTIVE'), branch: selected, permissions: branchPermissions.permissions }) });
+        await Preferences.set({ key: CACHED_SESSION_KEY, value: JSON.stringify({ me: identity, membership: m, branches: authorized.map(x => x.branch), branch: selected, permissions: branchPermissions.permissions }) });
       }
     } catch (e) {
       const apiError = e as { status?: number };
-      if (apiError.status === 0) {
+      if (apiError.status === 0 || (apiError.status !== undefined && apiError.status >= 500)) {
         try {
           const cached = await Preferences.get({ key: CACHED_SESSION_KEY });
           const session = cached.value ? JSON.parse(cached.value) as { me:CoreMe; membership:CoreMembership; branches:CoreBranch[]; branch:CoreBranch; permissions:string[] } : null;

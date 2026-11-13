@@ -57,9 +57,9 @@ export async function fetchCoreBootstrap(tenantId: number, branchId: number, usd
   const [categoryRows, productRows, customerResponse, supplierResponse, debtResponse, stockRows, movementRows] = await Promise.all([
     allPages<Record<string, unknown>>(page => coreCategories(tenantId, branchId, page), 'categories'),
     allPages<Record<string, unknown>>(page => coreProducts(tenantId, branchId, page), 'products'),
-    permissions.includes('customers.read') ? coreCustomers(tenantId, branchId) : Promise.resolve({success:true as const,customers:[]}),
-    permissions.includes('suppliers.read') && permissions.includes('purchases.read') ? coreSuppliers(tenantId, branchId) : Promise.resolve({success:true as const,suppliers:[]}),
-    permissions.includes('debts.read') ? coreDebts(tenantId, branchId) : Promise.resolve({success:true as const,debts:[]}),
+    permissions.includes('customers.read') ? allPages<Record<string,unknown>>(page => coreCustomers(tenantId, branchId, page), 'customers').then(customers => ({success:true as const,customers})) : Promise.resolve({success:true as const,customers:[]}),
+    permissions.includes('suppliers.read') && permissions.includes('purchases.read') ? allPages<Record<string,unknown>>(page => coreSuppliers(tenantId, branchId, page), 'suppliers').then(suppliers => ({success:true as const,suppliers})) : Promise.resolve({success:true as const,suppliers:[]}),
+    permissions.includes('debts.read') ? allPages<Record<string,unknown>>(page => coreDebts(tenantId, branchId, page), 'debts').then(debts => ({success:true as const,debts})) : Promise.resolve({success:true as const,debts:[]}),
     allCursorPages(cursor => coreStock(tenantId, branchId, cursor)),
     allCursorPages(cursor => coreStockMovements(tenantId, branchId, cursor)),
   ]);

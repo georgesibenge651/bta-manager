@@ -49,7 +49,7 @@ import { isTransient, pullAll, pushOps, PullCursor, PulledDoc } from './cloudSyn
 import localforage from 'localforage';
 import { Preferences } from '@capacitor/preferences';
 import { coreOperationStatus, corePushOperation, CoreApiError } from '../core/api';
-import { getServerId, mapServerId } from '../core/persistence';
+import { getLocalId, getServerId, mapServerId } from '../core/persistence';
 import type { CoreBootstrapSnapshot } from '../core/bootstrap';
 import { fetchCoreBootstrap } from '../core/bootstrap';
 
@@ -81,9 +81,10 @@ interface AppDatabaseState {
   reservationDeliveries: ReservationDelivery[];
   stockDamages: StockDamage[];
   freeIssues: FreeIssue[];
-  offlineQueue: Array<{ id: string; type: string; payload: unknown; timestamp: string; status?: 'PENDING'|'PROCESSING'|'FAILED'|'REVIEW'; attempts?: number; error?: string }>;
+  offlineQueue: Array<{ id: string; type: string; payload: unknown; timestamp: string; status?: 'PENDING'|'PROCESSING'|'FAILED'|'REVIEW'; attempts?: number; error?: string; corePayload?: Record<string, unknown> }>;
   coreSyncHistory: Array<{ id:string; type:string; status:'DONE'|'FAILED'|'REVIEW'; timestamp:string; error?:string }>;
   coreScope?: { tenantId: number; branchId: number };
+  coreActorId?: number;
   syncInfo: SyncStatusInfo;
   /** Synchronisation entreprise (Firestore) : présent seulement une fois la migration/jonction faite. */
   cloud?: {
@@ -166,6 +167,9 @@ class AppRepository {
   private sessionUserId: string | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private isSyncing = false;
+  private isBootstrapping = false;
+  private durableWrites: Promise<void> = Promise.resolve();
+  private corePermissions = new Set<string>();
   private coreContext: { tenantId: number; branchId: number } | null = null;
   private initialization: Promise<void> = Promise.resolve();
   /** Incrémenté à chaque changement local capturé : permet d'abandonner une lecture serveur périmée. */
@@ -390,6 +394,7 @@ freeIssues: [],
 
   /** Transforme les changements locaux depuis la dernière base de référence en opérations en file. */
   private captureChanges() {
+    if (this.coreContext || this.state.coreScope) return;
     const cloud = this.state.cloud;
     if (!cloud) return;
     const { effects, baseline } = diffState(this.state as unknown as Record<string, unknown>, cloud.baseline);
@@ -404,6 +409,7 @@ freeIssues: [],
   }
 
   private persist() {
+    this.rev++;
     this.captureChanges();
     this.state.savedAt = Date.now();
     if (typeof window !== 'undefined') {
@@ -421,26 +427,21 @@ freeIssues: [],
   }
 
   private flushDurable() {
-    this.persistTimer = null;
-    const snapshot = JSON.parse(JSON.stringify(this.state)) as AppDatabaseState;
-    // Layer 2: IndexedDB via localforage
-    localforage.setItem(STORAGE_KEY, snapshot).catch((err) => {
-      console.warn('LocalForage IndexedDB persistence warning:', err);
-    });
-    // Layer 3: Capacitor native Preferences
-    Preferences.set({ key: STORAGE_KEY, value: JSON.stringify(snapshot) }).catch(() => {
-      // Ignored outside the native shell
-    });
+    void this.flushDurableAndWait().catch(error => console.warn('BTA durable storage write failed:', error));
   }
 
   private async flushDurableAndWait() {
     if (this.persistTimer) clearTimeout(this.persistTimer);
     this.persistTimer = null;
     const snapshot = JSON.parse(JSON.stringify(this.state)) as AppDatabaseState;
-    await Promise.all([
-      localforage.setItem(STORAGE_KEY, snapshot),
-      Preferences.set({ key: STORAGE_KEY, value: JSON.stringify(snapshot) }),
-    ]);
+    // Serialize writes so an older background flush cannot overwrite a newer queue checkpoint.
+    this.durableWrites = this.durableWrites.catch(() => {}).then(async () => {
+      await Promise.all([
+        localforage.setItem(STORAGE_KEY, snapshot),
+        Preferences.set({ key: STORAGE_KEY, value: JSON.stringify(snapshot) }),
+      ]);
+    });
+    await this.durableWrites;
   }
 
   public subscribe(listener: () => void) {
@@ -752,6 +753,7 @@ freeIssues: [],
 
   public async triggerSync(): Promise<boolean> {
     if (this.coreContext) return this.coreSync();
+    if (this.state.coreScope) return false; // Wait for the authenticated Core session; never send a Core queue to Firebase.
     if (this.state.cloud) return this.cloudSync();
     // Standalone mode (no server configured): everything is stored on the device, nothing to push.
     if (!SYNC_ENABLED) {
@@ -836,7 +838,7 @@ freeIssues: [],
   }
 
   private async coreSync(): Promise<boolean> {
-    if (!this.coreContext || this.isSyncing || this.state.syncInfo.status === 'OFFLINE' || (typeof navigator !== 'undefined' && !navigator.onLine)) return false;
+    if (!this.coreContext || this.isSyncing || this.isBootstrapping || this.state.syncInfo.status === 'OFFLINE' || (typeof navigator !== 'undefined' && !navigator.onLine)) return false;
     this.isSyncing = true;
     this.state.syncInfo.status = 'SYNCING';
     this.notify();
@@ -844,6 +846,7 @@ freeIssues: [],
       const { getCoreToken } = await import('../core/api');
       if (!(await getCoreToken())) throw new CoreApiError(401, 'bta_unauthenticated', 'Session Core absente ou expirée.');
       const ctx = this.coreContext;
+      if (!this.state.coreScope || this.state.coreScope.tenantId !== ctx.tenantId || this.state.coreScope.branchId !== ctx.branchId) throw new Error('Contexte de synchronisation incohérent.');
       for (let index = 0; index < this.state.offlineQueue.length;) {
         const queued = this.state.offlineQueue[index] as AppDatabaseState['offlineQueue'][number];
         if (queued.status === 'FAILED' || queued.status === 'REVIEW') { index++; continue; }
@@ -870,7 +873,10 @@ freeIssues: [],
         queued.attempts = (queued.attempts ?? 0) + 1;
         this.persist();
         try {
-          const payload = await this.toCorePayload(queued.type, queued.payload as Record<string, unknown>);
+          const payload = queued.corePayload ?? await this.toCorePayload(queued.type, queued.payload as Record<string, unknown>);
+          queued.corePayload = JSON.parse(JSON.stringify(payload));
+          this.persist();
+          await this.flushDurableAndWait();
           const result = await corePushOperation(ctx.tenantId, queued.id, this.toCoreOperationType(queued.type), payload);
           if (result.success !== true || result.operation_id !== queued.id) {
             queued.status = 'REVIEW'; queued.error = 'Accusé Core invalide; aucune synchronisation déclarée.'; index++; continue;
@@ -878,6 +884,9 @@ freeIssues: [],
           await this.applyCoreAck(queued, result);
           this.state.offlineQueue.splice(index, 1);
         } catch (error) {
+          if (error instanceof CoreApiError && error.code === 'bta_id_mapping_missing') {
+            queued.status = 'PENDING'; queued.error = error.message; break;
+          }
           if (error instanceof CoreApiError && error.status > 0 && error.status < 500) {
             const retryable = error.code === 'bta_sync_in_progress';
             queued.status = retryable ? 'PROCESSING' : (error.code.includes('stock_conflict') || error.code.includes('manual_review') ? 'REVIEW' : 'FAILED');
@@ -911,7 +920,7 @@ freeIssues: [],
     const map: Record<string, string> = {
       SALE_CREATE: 'sale_create', PURCHASE_CREATE: 'purchase_create', EXPENSE_CREATE: 'expense_create',
       STOCK_ADJUSTMENT: 'stock_adjustment', DEBT_PAYMENT: 'debt_payment', SALE_REFUND: 'sale_refund',
-      CATEGORY_CREATE: 'category_create', CATEGORY_UPDATE: 'category_update', PRODUCT_CREATE: 'product_create', PRODUCT_UPDATE: 'product_update',
+      CATEGORY_CREATE: 'category_create', CATEGORY_UPDATE: 'category_update', PRODUCT_CREATE: 'product_create', PRODUCT_UPDATE: 'product_update', PRODUCT_ARCHIVE: 'product_archive',
       CUSTOMER_CREATE: 'customer_create', CUSTOMER_UPDATE: 'customer_update', SUPPLIER_CREATE: 'supplier_create', SUPPLIER_UPDATE: 'supplier_update',
     };
     const result = map[type];
@@ -925,7 +934,7 @@ freeIssues: [],
       if (local === undefined || local === null || local === '') return undefined;
       if (typeof local !== 'string') throw new CoreApiError(400, 'bta_local_id_invalid', `ID local ${entity} invalide.`);
       const id = await getServerId(ctx.tenantId, entity, local);
-      if (!id && !optional) throw new CoreApiError(409, 'bta_id_mapping_missing', `${entity} local non encore lié à un ID Core.`);
+      if (!id) throw new CoreApiError(409, 'bta_id_mapping_missing', `${entity} local non encore lié à un ID Core.`);
       return id ?? undefined;
     };
     const branch_id = ctx.branchId;
@@ -961,6 +970,7 @@ freeIssues: [],
     if (type === 'CATEGORY_UPDATE') {
       return { branch_id, category_id: await idOf('categories', raw.id), name: raw.name, description: raw.description ?? '' };
     }
+    if (type === 'PRODUCT_ARCHIVE') return { branch_id, product_id: await idOf('products', raw.id), status: 'ARCHIVED' };
     if (type === 'PRODUCT_CREATE' || type === 'PRODUCT_UPDATE') {
       const product = raw as unknown as Product;
       const category_id = await idOf('categories', product.categoryId, true);
@@ -1002,11 +1012,12 @@ freeIssues: [],
   private async applyCoreAck(queued: AppDatabaseState['offlineQueue'][number], result: Record<string, unknown>): Promise<void> {
     const payload = queued.payload as Record<string, unknown>;
     const localId = String(payload.id ?? payload._local_record_id ?? '');
-    const entityMap: Record<string,string> = { SALE_CREATE:'sales', PURCHASE_CREATE:'purchases', EXPENSE_CREATE:'expenses', CATEGORY_CREATE:'categories', CATEGORY_UPDATE:'categories', PRODUCT_CREATE:'products', PRODUCT_UPDATE:'products', CUSTOMER_CREATE:'customers', CUSTOMER_UPDATE:'customers', SUPPLIER_CREATE:'suppliers', SUPPLIER_UPDATE:'suppliers' };
+    const entityMap: Record<string,string> = { SALE_CREATE:'sales', PURCHASE_CREATE:'purchases', EXPENSE_CREATE:'expenses', CATEGORY_CREATE:'categories', CATEGORY_UPDATE:'categories', PRODUCT_CREATE:'products', PRODUCT_UPDATE:'products', PRODUCT_ARCHIVE:'products', CUSTOMER_CREATE:'customers', CUSTOMER_UPDATE:'customers', SUPPLIER_CREATE:'suppliers', SUPPLIER_UPDATE:'suppliers' };
     const entity = entityMap[queued.type] ?? '';
     const record = result.sale as Record<string, unknown> | undefined;
     const named = (result.category ?? result.product ?? result.customer ?? result.supplier ?? result.purchase) as Record<string,unknown> | undefined;
     const serverId = Number(record?.id ?? named?.id ?? result.purchase_id ?? result.expense_id ?? result.sale_id);
+    if (entity && queued.type.endsWith('_CREATE') && (!localId || !Number.isSafeInteger(serverId) || serverId <= 0)) throw new CoreApiError(409, 'bta_sync_manual_review', 'Accusé Core sans identifiant de ressource; opération conservée.');
     if (entity && localId && Number.isSafeInteger(serverId) && serverId > 0) await mapServerId(this.coreContext!.tenantId, entity, localId, serverId);
     if (queued.type === 'SALE_CREATE' && record?.debt_id) {
       const sale = this.state.sales.find(item => item.id === localId);
@@ -1032,7 +1043,7 @@ freeIssues: [],
     if (op.status === 'REVIEW' && !confirmedNotApplied) throw new Error('Vérifiez dans Core que l’opération n’a pas été appliquée avant de la recréer.');
     this.state.coreSyncHistory.unshift({ id: op.id, type: op.type, status: op.status, timestamp: new Date().toISOString(), error: op.error });
     this.state.coreSyncHistory = this.state.coreSyncHistory.slice(0, 500);
-    const retry = { ...op, id: generateUUID(), payload: correctedPayload ?? op.payload, timestamp: new Date().toISOString(), status: 'PENDING' as const, attempts: 0, error: undefined };
+    const retry = { ...op, id: generateUUID(), payload: correctedPayload ?? op.payload, corePayload: undefined, timestamp: new Date().toISOString(), status: 'PENDING' as const, attempts: 0, error: undefined };
     this.state.offlineQueue = this.state.offlineQueue.filter(item => item.id !== id);
     this.state.offlineQueue.push(retry);
     this.state.syncInfo.pendingCount = this.state.offlineQueue.length;
@@ -1056,7 +1067,7 @@ freeIssues: [],
     this.state.offlineQueue.push({
       id: generateUUID(),
       type,
-      payload,
+      payload: JSON.parse(JSON.stringify(payload)),
       timestamp: new Date().toISOString(),
     });
     this.state.syncInfo.pendingCount = this.state.offlineQueue.length;
@@ -1083,12 +1094,20 @@ freeIssues: [],
   private coreBackupKey(tenantId: number, branchId: number) { return `pre-core:${tenantId}:${branchId}`; }
 
   public async applyCoreSnapshot(snapshot: CoreBootstrapSnapshot, source: 'server'|'cache'): Promise<void> {
+    if (this.isSyncing || this.isBootstrapping) throw new Error('Synchronisation ou chargement en cours. Réessayez après sa fin.');
+    this.isBootstrapping = true;
+    try { await this.mergeCoreSnapshot(snapshot, source); }
+    finally { this.isBootstrapping = false; }
+  }
+
+  private async mergeCoreSnapshot(snapshot: CoreBootstrapSnapshot, source: 'server'|'cache'): Promise<void> {
     await this.initialization;
     const { tenantId, branchId } = snapshot;
     const backupKey = this.coreBackupKey(tenantId, branchId);
     if (!(await localforage.getItem(backupKey))) {
       // Keep the pre-Core local data recoverable on-device before replacing seeded/demo lists.
       const backup = {
+        offlineQueue: this.state.offlineQueue, coreSyncHistory: this.state.coreSyncHistory, coreScope: this.state.coreScope,
         savedAt: new Date().toISOString(), categories: this.state.categories, products: this.state.products,
         customers: this.state.customers, suppliers: this.state.suppliers, sales: this.state.sales,
         purchases: this.state.purchases, stockMovements: this.state.stockMovements, expenses: this.state.expenses,
@@ -1098,12 +1117,38 @@ freeIssues: [],
       };
       await localforage.setItem(backupKey, backup);
     }
+    const businessKeys = ['categories','products','customers','suppliers','sales','purchases','stockMovements','expenses','debts','reservations','reservationCancellations','reservationPayments','reservationDeliveries','stockDamages','freeIssues','offlineQueue','coreSyncHistory'] as const;
+    const previous = this.state.coreScope;
+    const scopeChanged = !previous || previous.tenantId !== tenantId || previous.branchId !== branchId;
+    if (this.isSyncing) throw new Error('Synchronisation en cours. Réessayez après sa fin.');
+    if (scopeChanged) {
+      if (previous) {
+        const archive = { ...Object.fromEntries(businessKeys.map(key => [key, this.state[key]])), coreActorId: this.state.coreActorId };
+        await localforage.setItem(`core-state:${previous.tenantId}:${previous.branchId}`, archive);
+      }
+      const restored = await localforage.getItem<Partial<AppDatabaseState>>(`core-state:${tenantId}:${branchId}`);
+      for (const key of businessKeys) (this.state as unknown as Record<string,unknown>)[key] = restored?.[key] ?? [];
+      this.state.coreActorId = restored?.coreActorId;
+      this.coreContext = null;
+      this.state.coreScope = { tenantId, branchId };
+    }
     await localforage.setItem(this.coreSnapshotKey(tenantId, branchId), snapshot);
 
-    for (const item of snapshot.categories) await mapServerId(tenantId, 'categories', item.id, Number(item.id.split('-').at(-1)));
-    for (const item of snapshot.products) await mapServerId(tenantId, 'products', item.id, Number(item.id.split('-').at(-1)));
-    for (const item of snapshot.customers) await mapServerId(tenantId, 'customers', item.id, Number(item.id.split('-').at(-1)));
-    for (const item of snapshot.suppliers) await mapServerId(tenantId, 'suppliers', item.id, Number(item.id.split('-').at(-1)));
+    // Reuse each acknowledged local ID so sales, debts and queued references remain valid.
+    snapshot = JSON.parse(JSON.stringify(snapshot)) as CoreBootstrapSnapshot;
+    for (const [entity, kind] of [['categories','category'], ['products','product'], ['customers','customer'], ['suppliers','supplier']] as const) {
+      const translations = new Map<string,string>();
+      for (const item of snapshot[entity]) {
+        const remoteId = item.id;
+        const serverId = Number(remoteId.split('-').at(-1));
+        const stableId = await getLocalId(tenantId, entity, serverId) ?? remoteId;
+        translations.set(remoteId, stableId);
+        item.id = stableId;
+        await mapServerId(tenantId, entity, stableId, serverId);
+      }
+      if (kind === 'category') for (const item of snapshot.products) item.categoryId = translations.get(item.categoryId) ?? item.categoryId;
+      if (kind === 'product') for (const item of snapshot.stockMovements) item.productId = translations.get(item.productId) ?? item.productId;
+    }
 
     const pendingByType = new Map<string, Set<string>>();
     for (const op of this.state.offlineQueue) {
@@ -1120,7 +1165,7 @@ freeIssues: [],
         if (!keep.has(localItem.id)) continue;
         const mappedId = entity ? await getServerId(tenantId, entity, localItem.id) : null;
         const serverKind = entity === 'categories' ? 'category' : entity?.slice(0, -1);
-        const serverLocalId = mappedId ? `core-${serverKind}-${mappedId}` : '';
+        const serverLocalId = mappedId ? (await getLocalId(tenantId, entity!, mappedId) ?? `core-${serverKind}-${mappedId}`) : '';
         const existing = result.findIndex(row => row.id === localItem.id || (!!serverLocalId && row.id === serverLocalId));
         if (existing >= 0) result[existing] = localItem;
         else result.unshift(localItem);
@@ -1128,16 +1173,24 @@ freeIssues: [],
       return result;
     };
     this.state.categories = await keepPending(snapshot.categories, this.state.categories, ['CATEGORY_CREATE','CATEGORY_UPDATE'], 'categories');
-    this.state.products = await keepPending(snapshot.products, this.state.products, ['PRODUCT_CREATE','PRODUCT_UPDATE'], 'products');
+    const pendingStock = new Set<string>();
+    for (const op of this.state.offlineQueue) {
+      const payload = op.payload as {productId?: string; items?: Array<{productId:string}>};
+      if (op.type === 'STOCK_ADJUSTMENT' && payload.productId) pendingStock.add(payload.productId);
+      if (op.type === 'SALE_CREATE' || op.type === 'PURCHASE_CREATE') for (const item of payload.items ?? []) pendingStock.add(item.productId);
+    }
+    for (const product of snapshot.products) {
+      if (pendingStock.has(product.id)) {
+        const local = this.state.products.find(item => item.id === product.id);
+        if (local) product.currentStock = local.currentStock;
+      }
+    }
+    const archiving = new Set(this.state.offlineQueue.filter(op => op.type === 'PRODUCT_ARCHIVE' && op.status !== 'FAILED' && op.status !== 'REVIEW').map(op => (op.payload as Product).id));
+    this.state.products = await keepPending(snapshot.products.filter(item => !archiving.has(item.id)), this.state.products, ['PRODUCT_CREATE','PRODUCT_UPDATE'], 'products');
     this.state.customers = await keepPending(snapshot.customers, this.state.customers, ['CUSTOMER_CREATE','CUSTOMER_UPDATE'], 'customers');
     this.state.suppliers = await keepPending(snapshot.suppliers, this.state.suppliers, ['SUPPLIER_CREATE','SUPPLIER_UPDATE'], 'suppliers');
     this.state.stockMovements = await keepPending(snapshot.stockMovements, this.state.stockMovements, ['STOCK_ADJUSTMENT']);
-    this.state.sales = this.state.sales.filter(row => pendingByType.get('SALE_CREATE')?.has(row.id));
-    this.state.purchases = this.state.purchases.filter(row => pendingByType.get('PURCHASE_CREATE')?.has(row.id));
-    this.state.expenses = this.state.expenses.filter(row => pendingByType.get('EXPENSE_CREATE')?.has(row.id));
-    this.state.debts = [];
-    this.state.reservations = []; this.state.reservationCancellations = []; this.state.reservationPayments = [];
-    this.state.reservationDeliveries = []; this.state.stockDamages = []; this.state.freeIssues = [];
+    // Bootstrap only contains catalogue and stock. It cannot replace transaction histories.
     this.state.syncInfo = {
       ...this.state.syncInfo, status: source === 'cache' ? 'OFFLINE' : 'SYNCED', lastSyncTime: snapshot.downloadedAt,
       pendingCount: this.state.offlineQueue.length,
@@ -1157,16 +1210,23 @@ freeIssues: [],
       const cached = await this.loadCachedCoreSnapshot(tenantId, branchId);
       if (!cached) throw new Error('Aucune donnée Core locale pour cet établissement. Connectez-vous à Internet pour le premier chargement.');
       await this.applyCoreSnapshot(cached, 'cache');
+      this.corePermissions = new Set(permissions);
       return 'cache';
     }
+    const revision = this.rev;
     try {
       const snapshot = await fetchCoreBootstrap(tenantId, branchId, this.state.settings.exchangeRate, permissions);
+      if (revision !== this.rev) throw new Error('Les données locales ont changé pendant le chargement. Réessayez.');
       await this.applyCoreSnapshot(snapshot, 'server');
+      this.corePermissions = new Set(permissions);
       return 'server';
     } catch (error) {
+      if (revision !== this.rev) throw error;
+      if (error instanceof CoreApiError && (error.status === 401 || error.status === 403)) throw error;
       const cached = await this.loadCachedCoreSnapshot(tenantId, branchId);
       if (!cached) throw error;
       await this.applyCoreSnapshot(cached, 'cache');
+      this.corePermissions = new Set(permissions);
       return 'cache';
     }
   }
@@ -1189,7 +1249,9 @@ freeIssues: [],
   /** Core identity is held in memory; local business data and PIN profiles remain untouched. */
   public activateCoreUser(core: { id: number; name: string; email: string; role: 'OWNER' | 'ADMIN' | 'MANAGER' | 'CASHIER'; tenantId: number; branchId: number }) {
     const role: UserRole = core.role === 'OWNER' || core.role === 'ADMIN' ? 'ADMIN' : core.role === 'MANAGER' ? 'GESTIONNAIRE' : 'CASHIER';
-    const user: User = { id: `core:${core.id}`, name: core.name, email: core.email, role, phone: '', active: true };
+    const existing = this.state.users.find(user => user.id === `core:${core.id}`);
+    const user: User = { ...existing, id: `core:${core.id}`, name: core.name, email: core.email, role, phone: existing?.phone ?? '', active: true };
+    this.state.users = [...this.state.users.filter(item => item.id !== user.id), user];
     this.sessionUserId = user.id;
     this.state.currentUser = user;
     const previousScope = this.coreContext ?? this.state.coreScope;
@@ -1198,8 +1260,10 @@ freeIssues: [],
       : this.state.offlineQueue.length > 0;
     this.coreContext = { tenantId: core.tenantId, branchId: core.branchId };
     this.state.coreScope = { ...this.coreContext };
-    if (changedScope && this.state.offlineQueue.some(op => op.status !== 'FAILED' && op.status !== 'REVIEW')) {
-      this.state.offlineQueue.forEach(op => { if (op.status !== 'FAILED' && op.status !== 'REVIEW') { op.status = 'REVIEW'; op.error = 'Contexte Core changé; rattachement manuel requis.'; } });
+    const changedActor = this.state.coreActorId !== core.id;
+    this.state.coreActorId = core.id;
+    if ((changedScope || changedActor) && this.state.offlineQueue.some(op => op.status !== 'FAILED' && op.status !== 'REVIEW')) {
+      this.state.offlineQueue.forEach(op => { if (op.status !== 'FAILED' && op.status !== 'REVIEW') { op.status = 'REVIEW'; op.error = 'Entreprise, établissement ou utilisateur Core changé; rattachement manuel requis.'; } });
     } else if (this.state.offlineQueue.length && (typeof navigator === 'undefined' || navigator.onLine)) {
       void this.triggerSync();
     }
@@ -1292,14 +1356,21 @@ freeIssues: [],
   return this.sessionUserId ? this.state.currentUser.role : null;
 }
   private requireAdmin() {
+    if (this.isBootstrapping) throw new Error('Chargement des données en cours. Réessayez après sa fin.');
     if (!ADMIN_ROLES.includes(this.currentRole())) throw new Error('Action réservée à l’administrateur.');
   }
 
+  private requireCorePermission(permission: string) {
+    if (this.coreContext && !this.corePermissions.has(permission)) throw new Error('Permission Core refusée pour cet établissement: ' + permission);
+  }
+
   private requireManager() {
+    if (this.isBootstrapping) throw new Error('Chargement des données en cours. Réessayez après sa fin.');
     if (!MANAGER_ROLES.includes(this.currentRole())) throw new Error('Action réservée aux gestionnaires et administrateurs.');
   }
 
   private requireLoggedIn() {
+    if (this.isBootstrapping) throw new Error('Chargement des données en cours. Réessayez après sa fin.');
     if (!this.sessionUserId) throw new Error('Session expirée. Reconnectez-vous.');
   }
 
@@ -1497,6 +1568,7 @@ freeIssues: [],
 
   public addCategory(name: string, description: string, iconName = 'Folder', color = '#0284C7'): Category {
     this.requireManager();
+    this.requireCorePermission('stock.manage');
     const newCat: Category = {
       id: `cat-${generateUUID().substring(0, 8)}`,
       name,
@@ -1512,6 +1584,7 @@ freeIssues: [],
 
   public updateCategory(category: Category) {
     this.requireManager();
+    this.requireCorePermission('stock.manage');
     this.state.categories = this.state.categories.map((c) => (c.id === category.id ? category : c));
     this.enqueue('CATEGORY_UPDATE', category);
     this.afterWrite();
@@ -1519,6 +1592,7 @@ freeIssues: [],
 
   public deleteCategory(categoryId: string): boolean {
     this.requireManager();
+    this.requireCorePermission('stock.manage');
     const hasProducts = this.state.products.some((p) => p.categoryId === categoryId);
     if (hasProducts) {
       return false; // prevent deletion if attached to products
@@ -2070,6 +2144,7 @@ freeIssues: [],
 
   public saveProduct(productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Product {
     this.requireManager();
+    this.requireCorePermission('stock.manage');
     const name = (productData.name || '').trim();
     if (!name) throw new Error('Le nom du produit est obligatoire.');
     for (const [label, v] of [
@@ -2164,8 +2239,15 @@ freeIssues: [],
 
   public deleteProduct(id: string) {
     this.requireManager();
+    this.requireCorePermission('stock.manage');
+    const product = this.getProductById(id);
+    if (!product) throw new Error('Produit introuvable.');
+    if (this.coreContext) {
+      if (product.currentStock !== 0 || this.getReservedStock(id) > 0) throw new Error('Le stock et les réservations doivent être soldés avant d’archiver le produit.');
+      this.enqueue('PRODUCT_ARCHIVE', product);
+    }
     this.state.products = this.state.products.filter((p) => p.id !== id);
-    this.persist();
+    this.afterWrite();
   }
 
   // Stock Movement Operations
@@ -2201,6 +2283,7 @@ freeIssues: [],
     data: Omit<StockMovement, 'id' | 'date' | 'userId' | 'userName' | 'previousStock' | 'newStock'>
   ): StockMovement {
     this.requireManager();
+    this.requireCorePermission('stock.manage');
     const product = this.getProductById(data.productId);
     if (!product) throw new Error('Produit introuvable.');
     if (!isNum(data.quantity) || data.quantity === 0) throw new Error('Quantité invalide.');
@@ -2230,6 +2313,7 @@ freeIssues: [],
 
   public saveCustomer(customerData: Omit<Customer, 'id' | 'registeredAt'> & { id?: string }): Customer {
     this.requireLoggedIn();
+    this.requireCorePermission('customers.manage');
     if (!(customerData.name || '').trim()) throw new Error('Le nom du client est obligatoire.');
     if (customerData.creditLimitUSD !== undefined && (!isNum(customerData.creditLimitUSD) || customerData.creditLimitUSD < 0)) throw new Error('Limite de crédit invalide.');
     if (customerData.id) {
@@ -2268,6 +2352,7 @@ freeIssues: [],
 
   public saveSupplier(supplierData: Omit<Supplier, 'id' | 'registeredAt'> & { id?: string }): Supplier {
     this.requireManager();
+    this.requireCorePermission('suppliers.manage');
     if (supplierData.id) {
       const existing = this.getSupplierById(supplierData.id);
       if (!existing) throw new Error('Fournisseur introuvable.');
@@ -2322,6 +2407,7 @@ freeIssues: [],
     notes?: string;
     allowNegativeStock?: boolean;
   }): { success: boolean; sale?: Sale; error?: string } {
+    if (this.isBootstrapping) return { success: false, error: 'Chargement des données en cours. Réessayez après sa fin.' };
     if (!this.sessionUserId) return { success: false, error: 'Session expirée. Reconnectez-vous.' };
 
     // 1. Validation & Stock checks
@@ -2628,6 +2714,7 @@ freeIssues: [],
     paymentMethod: PaymentMethod,
     notes?: string
   ): { success: boolean; error?: string; updatedDebt?: DebtRecord; receiptNumber?: string } {
+    if (this.isBootstrapping) return { success: false, error: 'Chargement des données en cours. Réessayez après sa fin.' };
     if (!this.sessionUserId) return { success: false, error: 'Session expirée. Reconnectez-vous.' };
     const debt = this.state.debts.find((d) => d.id === debtId);
     if (!debt) return { success: false, error: 'Dossier de dette introuvable' };
@@ -2691,6 +2778,7 @@ freeIssues: [],
     }
   ): Expense {
     this.requireManager();
+    this.requireCorePermission('expenses.create');
     if (!isNum(expenseInput.amountUSD) || expenseInput.amountUSD <= 0) {
       throw new Error('Montant de la dépense invalide.');
     }

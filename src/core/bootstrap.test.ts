@@ -21,7 +21,7 @@ test('chargement bootstrap: pagination, bearer, IDs, stock agence et devises', a
     let data: Record<string, unknown>;
     if (url.pathname.endsWith('/categories')) data = { success:true, categories:[{id:'2',name:'Boissons',description:'Froid'}], pagination:{pages:1} };
     else if (url.pathname.endsWith('/products')) data = { success:true, products:[{id:'11',category_id:'2',sku:'EAU-1',name:'Eau',unit:'piece',purchase_price:'280000',sale_price:'560000',currency:'CDF',min_stock:'2',created_at:'2026-01-01',updated_at:'2026-01-02'}], pagination:{pages:1} };
-    else if (url.pathname.endsWith('/customers')) data = { success:true, customers:[{id:'21',name:'Amina',phone:'123',credit_limit:'50000',created_at:'2026-01-01'}] };
+    else if (url.pathname.endsWith('/customers')) data = { success:true, customers:[url.searchParams.get('page') === '2' ? {id:'22',name:'Deuxième page'} : {id:'21',name:'Amina',phone:'123',credit_limit:'50000',created_at:'2026-01-01'}], pagination:{pages:2} };
     else if (url.pathname.endsWith('/suppliers')) data = { success:true, suppliers:[{id:'31',name:'Grossiste',notes:'Farine',created_at:'2026-01-01'}] };
     else if (url.pathname.endsWith('/debts')) data = { success:true, debts:[{customer_id:'21',balance:'28000',currency:'CDF'}] };
     else if (url.pathname.endsWith('/sync/pull') && url.searchParams.get('resource') === 'stock') data = {success:true,items:[{product_id:'11',quantity:'7'}],has_more:false,next_cursor:null};
@@ -35,6 +35,8 @@ test('chargement bootstrap: pagination, bearer, IDs, stock agence et devises', a
   assert.equal(result.products[0].currentStock, 7);
   assert.equal(result.products[0].sellPriceUSD, 200);
   assert.equal(result.customers[0].debtBalanceUSD, 10);
+  assert.equal(result.customers.length, 2);
+  assert.equal(result.customers[1].name, 'Deuxième page');
   assert.equal(result.suppliers[0].companyName, 'Grossiste');
   assert.equal(result.stockMovements[0].type, 'PURCHASE');
   assert.ok(requests.every(url => url.searchParams.get('branch_id') === '8'));
