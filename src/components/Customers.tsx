@@ -700,8 +700,8 @@ export const Customers: React.FC<CustomersProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="0.5"
-                  min="0.1"
+                  step="0.01"
+                  min="0.01"
                   max={repaymentDebtRecord.remainingBalanceUSD}
                   required
                   value={repaymentAmountUSD}

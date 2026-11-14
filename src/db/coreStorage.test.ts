@@ -20,7 +20,10 @@ test('Core: stable IDs, preserved histories and isolated branch queues survive r
   repo.state.reservations=[{id:'reservation-local'}];
   await mapServerId(7,'products','product-local',3);
   await mapServerId(7,'categories','category-local',2);
-  await repo.applyCoreSnapshot(snapshot(),'server');
+  // The server debt ledger is authoritative: include the existing debt in this server snapshot.
+  const initialSnapshot = snapshot();
+  initialSnapshot.debts = [{id:'debt-local'}];
+  await repo.applyCoreSnapshot(initialSnapshot,'server');
   assert.equal(repo.state.products[0].id,'product-local');
   assert.equal(repo.state.products[0].categoryId,'category-local');
   assert.equal(await getServerId(7,'products','product-local'),3);
@@ -37,6 +40,30 @@ test('Core: stable IDs, preserved histories and isolated branch queues survive r
   assert.equal(repo.state.categories.filter((row:any)=>row.id==='pending-category').length,1);
   assert.equal(repo.state.sales[0].id,'sale-local');
   assert.equal(repo.state.syncInfo.status,'OFFLINE');
+});
+
+test('Core: shared debts refresh across devices while pending repayments remain protected', async () => {
+  repo.state.coreScope={tenantId:7,branchId:4};
+  repo.state.offlineQueue=[{id:'pending-debt-payment',type:'DEBT_PAYMENT',payload:{id:'payment-local',debtId:'debt-local'},status:'PENDING'}];
+  await mapServerId(7,'customers','customer-local',21);
+  await mapServerId(7,'debts','debt-local',99);
+  const localDebt={id:'debt-local',type:'CUSTOMER',partyId:'customer-local',partyName:'Amina',partyPhone:'123',initialAmountUSD:30,paidAmountUSD:22,remainingBalanceUSD:8,dueDate:'2026-02-01',history:[],referenceInvoice:'INV-99'};
+  repo.state.debts=[localDebt];
+  const remote=snapshot();
+  remote.customers=[{id:'core-customer-21',name:'Amina',phone:'123',debtBalanceUSD:9,creditLimitUSD:0,registeredAt:'2026-01-01'}];
+  remote.debts=[{id:'core-debt-99',type:'CUSTOMER',partyId:'core-customer-21',partyName:'Amina',partyPhone:'123',initialAmountUSD:30,paidAmountUSD:21,remainingBalanceUSD:9,dueDate:'2026-02-01',history:[],referenceInvoice:'INV-99'}];
+  await repo.applyCoreSnapshot(remote,'server');
+  assert.equal(repo.state.debts.length,1);
+  assert.equal(repo.state.debts[0].id,'debt-local');
+  assert.equal(repo.state.debts[0].remainingBalanceUSD,8);
+  assert.equal(repo.state.customers[0].debtBalanceUSD,8);
+  repo.state.offlineQueue=[];
+  remote.debts[0].remainingBalanceUSD=7;
+  remote.debts[0].paidAmountUSD=23;
+  await repo.applyCoreSnapshot(remote,'server');
+  assert.equal(repo.state.debts[0].id,'debt-local');
+  assert.equal(repo.state.debts[0].remainingBalanceUSD,7);
+  if(repo.persistTimer)clearTimeout(repo.persistTimer);
 });
 
 test('Core: queue copies values, missing relationship blocks, personal PIN profile survives activation', async () => {

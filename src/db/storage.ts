@@ -1162,6 +1162,16 @@ freeIssues: [],
       if (kind === 'category') for (const item of snapshot.products) item.categoryId = translations.get(item.categoryId) ?? item.categoryId;
       if (kind === 'product') for (const item of snapshot.stockMovements) item.productId = translations.get(item.productId) ?? item.productId;
     }
+    for (const debt of snapshot.debts ?? []) {
+      const serverId = Number(debt.id.split('-').at(-1));
+      if (!Number.isSafeInteger(serverId) || serverId <= 0) continue;
+      debt.id = await getLocalId(tenantId, 'debts', serverId) ?? debt.id;
+      await mapServerId(tenantId, 'debts', debt.id, serverId);
+      const customerServerId = Number(debt.partyId.split('-').at(-1));
+      if (Number.isSafeInteger(customerServerId) && customerServerId > 0) {
+        debt.partyId = await getLocalId(tenantId, 'customers', customerServerId) ?? debt.partyId;
+      }
+    }
 
     const pendingByType = new Map<string, Set<string>>();
     for (const op of this.state.offlineQueue) {
@@ -1203,7 +1213,33 @@ freeIssues: [],
     this.state.customers = await keepPending(snapshot.customers, this.state.customers, ['CUSTOMER_CREATE','CUSTOMER_UPDATE'], 'customers');
     this.state.suppliers = await keepPending(snapshot.suppliers, this.state.suppliers, ['SUPPLIER_CREATE','SUPPLIER_UPDATE'], 'suppliers');
     this.state.stockMovements = await keepPending(snapshot.stockMovements, this.state.stockMovements, ['STOCK_ADJUSTMENT']);
-    // Bootstrap only contains catalogue and stock. It cannot replace transaction histories.
+    const pendingDebtIds = new Set<string>();
+    const pendingSaleReferences = new Set<string>();
+    for (const op of this.state.offlineQueue) {
+      if (op.status === 'FAILED' || op.status === 'REVIEW') continue;
+      const payload = op.payload as Record<string, unknown>;
+      if (op.type === 'DEBT_PAYMENT' && typeof payload.debtId === 'string') pendingDebtIds.add(payload.debtId);
+      if (op.type === 'SALE_CREATE' && typeof payload.invoiceNumber === 'string') pendingSaleReferences.add(payload.invoiceNumber);
+    }
+    const mergedDebts = [...(snapshot.debts ?? [])];
+    for (const localDebt of this.state.debts) {
+      const preserve = localDebt.type === 'SUPPLIER' || pendingDebtIds.has(localDebt.id) || pendingSaleReferences.has(localDebt.referenceInvoice);
+      if (!preserve) continue;
+      const index = mergedDebts.findIndex(remote => remote.id === localDebt.id || (remote.type === localDebt.type && remote.referenceInvoice === localDebt.referenceInvoice));
+      if (index >= 0) mergedDebts[index] = localDebt;
+      else mergedDebts.unshift(localDebt);
+    }
+    this.state.debts = mergedDebts;
+    // Keep each customer's summary consistent with the merged debt ledger, including protected offline repayments.
+    const customerDebtTotals = new Map<string, number>();
+    for (const debt of mergedDebts) {
+      if (debt.type !== 'CUSTOMER') continue;
+      customerDebtTotals.set(debt.partyId, (customerDebtTotals.get(debt.partyId) ?? 0) + debt.remainingBalanceUSD);
+    }
+    for (const customer of this.state.customers) {
+      if (customerDebtTotals.has(customer.id)) customer.debtBalanceUSD = Math.round((customerDebtTotals.get(customer.id)! + Number.EPSILON) * 100) / 100;
+    }
+    // Sales and debt ledgers are now refreshed from confirmed Core records; local pending entries stay protected above.
     this.state.syncInfo = {
       ...this.state.syncInfo, status: source === 'cache' ? 'OFFLINE' : 'SYNCED', lastSyncTime: snapshot.downloadedAt,
       pendingCount: this.state.offlineQueue.length,
