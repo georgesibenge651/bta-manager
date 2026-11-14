@@ -24,8 +24,11 @@ final class FKC_Core {
         add_action('admin_menu', array($this,'admin_menu'));
         add_action('admin_post_fkc_create_first_owner', array($this,'handle_first_owner'));
         add_action('admin_post_fkc_reset_owner_password', array($this,'handle_reset_owner_password'));
+        add_action('admin_post_fkc_generate_license', array($this,'handle_generate_license'));
+        add_action('admin_post_fkc_revoke_license', array($this,'handle_revoke_license'));
         add_action('rest_api_init', array($this,'register_routes'));
         add_action('init', array($this,'ensure_sessions_table'), 1);
+        add_action('init', array($this,'ensure_licenses_table'), 2);
         add_filter('allowed_http_origins', array($this,'allowed_origins'));
     }
     private function table($suffix) { return 'bta_' . $suffix; }
@@ -66,6 +69,7 @@ final class FKC_Core {
         add_menu_page('Fondation Kenda Core','Fondation Kenda Core','manage_options','fondation-kenda-core',array($this,'render_admin_page'),'dashicons-shield-alt',58);
         add_submenu_page('fondation-kenda-core','Tableau de bord du stock','Tableau de bord stock','manage_options','fkc-stock-dashboard',array($this,'render_stock_dashboard_page'));
         add_submenu_page('fondation-kenda-core','Historique des conflits de stock','Conflits de stock','manage_options','fkc-stock-conflicts',array($this,'render_stock_conflicts_page'));
+        add_submenu_page('fondation-kenda-core','Licences des entreprises','Licences entreprises','manage_options','fkc-licenses',array($this,'render_licenses_page'));
     }
     public function render_admin_page() {
         if (!current_user_can('manage_options')) wp_die('Accès non autorisé.');
@@ -102,6 +106,67 @@ final class FKC_Core {
         </table><?php submit_button('Créer le premier propriétaire BTA'); ?></form><?php endif; ?>
         <h2>API BTA</h2><p><a href="<?php echo esc_url(rest_url('bta/v1/health')); ?>" target="_blank" rel="noopener">Vérifier le service</a></p></div><?php
     }
+    public function render_licenses_page() {
+        if (!current_user_can('manage_options')) wp_die('Accès non autorisé.');
+        global $wpdb;
+        $table=$this->table('licenses');
+        $once_key='fkc_license_once_'.get_current_user_id();
+        $new_code=get_transient($once_key);
+        if ($new_code) delete_transient($once_key);
+        $rows=$this->licenses_table_exists()?$wpdb->get_results("SELECT l.id,l.code_hint,l.status,l.created_at,l.redeemed_at,l.tenant_id,t.name AS tenant_name FROM {$table} l LEFT JOIN ".$this->table('tenants')." t ON t.id=l.tenant_id ORDER BY l.id DESC LIMIT 100",ARRAY_A):array();
+        echo '<div class="wrap"><h1>Licences des entreprises</h1><p>Chaque licence autorise la création d’une seule entreprise. Les téléphones et employés de cette entreprise n’ont pas besoin d’une licence supplémentaire.</p>';
+        if ($new_code) echo '<div class="notice notice-success"><p><strong>Nouvelle licence créée. Copiez-la maintenant : elle ne sera plus affichée après cette consultation.</strong><br><code style="font-size:18px;user-select:all">'.esc_html($new_code).'</code></p></div>';
+        if (!$this->licenses_table_exists()) echo '<div class="notice notice-error"><p>La table des licences n’est pas encore prête. Rechargez la page.</p></div>';
+        echo '<h2>Créer une licence</h2><form method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="fkc_generate_license">';
+        wp_nonce_field('fkc_generate_license','fkc_license_nonce');
+        submit_button('Générer une nouvelle licence'); echo '</form>';
+        echo '<h2>Licences récentes</h2><table class="widefat striped"><thead><tr><th>ID</th><th>Code (fin)</th><th>État</th><th>Entreprise</th><th>Créée le (UTC)</th><th>Utilisée le (UTC)</th><th>Action</th></tr></thead><tbody>';
+        if (!$rows) echo '<tr><td colspan="7">Aucune licence enregistrée.</td></tr>';
+        foreach ($rows as $row) {
+            echo '<tr><td>'.(int)$row['id'].'</td><td><code>••••'.esc_html($row['code_hint']).'</code></td><td>'.esc_html($row['status']).'</td><td>'.esc_html($row['tenant_name']?:'—').'</td><td>'.esc_html($row['created_at']).'</td><td>'.esc_html($row['redeemed_at']?:'—').'</td><td>';
+            if ($row['status']==='ACTIVE' || $row['status']==='REDEEMED') {
+                echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'" onsubmit="return confirm(\'Révoquer cette licence ? Si elle a été utilisée, l’entreprise sera suspendue et ses sessions seront fermées.\');"><input type="hidden" name="action" value="fkc_revoke_license"><input type="hidden" name="license_id" value="'.(int)$row['id'].'">';
+                wp_nonce_field('fkc_revoke_license_'.$row['id'],'fkc_revoke_nonce'); submit_button('Révoquer','delete','submit',false); echo '</form>';
+            } else echo '—';
+            echo '</td></tr>';
+        }
+        echo '</tbody></table></div>';
+    }
+    public function handle_generate_license() {
+        if (!current_user_can('manage_options')) wp_die('Accès non autorisé.',403);
+        check_admin_referer('fkc_generate_license','fkc_license_nonce');
+        $this->ensure_licenses_table();
+        if (!$this->licenses_table_exists()) wp_die('Table des licences indisponible.',500);
+        global $wpdb; $table=$this->table('licenses');
+        try { $code='BTA-'.strtoupper(bin2hex(random_bytes(16))); }
+        catch (Throwable $e) { wp_die('Génération sécurisée impossible.',500); }
+        $normalized=preg_replace('/[^A-Z0-9]/','',strtoupper($code));
+        $ok=$wpdb->insert($table,array('code_hash'=>hash('sha256',$normalized),'code_hint'=>substr($normalized,-8),'status'=>'ACTIVE','created_by'=>get_current_user_id()),array('%s','%s','%s','%d'));
+        if (!$ok) wp_die('Impossible d’enregistrer la licence.',500);
+        set_transient('fkc_license_once_'.get_current_user_id(),$code,5*MINUTE_IN_SECONDS);
+        wp_safe_redirect(admin_url('admin.php?page=fkc-licenses')); exit;
+    }
+    public function handle_revoke_license() {
+        if (!current_user_can('manage_options')) wp_die('Accès non autorisé.',403);
+        $id=absint($_POST['license_id']??0); check_admin_referer('fkc_revoke_license_'.$id,'fkc_revoke_nonce');
+        if (!$id || !$this->licenses_table_exists()) wp_die('Licence introuvable.',404);
+        global $wpdb; $table=$this->table('licenses'); $row=$wpdb->get_row($wpdb->prepare("SELECT id,status,tenant_id FROM {$table} WHERE id=%d",$id),ARRAY_A);
+        if (!$row || !in_array($row['status'],array('ACTIVE','REDEEMED'),true)) wp_die('Cette licence ne peut plus être révoquée.',409);
+        $wpdb->query('START TRANSACTION');
+        try {
+            if ($row['tenant_id']) {
+                $tenant_id=(int)$row['tenant_id'];
+                $updated=$wpdb->update($this->table('tenants'),array('status'=>'SUSPENDED'),array('id'=>$tenant_id),array('%s'),array('%d'));
+                if ($updated===false) throw new RuntimeException('tenant_suspend');
+                // Les sessions sont conservées : le statut SUSPENDED bloque l’accès au tenant.
+            }
+            $updated=$wpdb->update($table,array('status'=>'REVOKED','revoked_at'=>gmdate('Y-m-d H:i:s')),array('id'=>$id),array('%s','%s'),array('%d'));
+            if ($updated===false) throw new RuntimeException('license_revoke');
+            $wpdb->query('COMMIT');
+        } catch (Throwable $e) { $wpdb->query('ROLLBACK'); error_log('[FKC] License revoke failed: '.$e->getMessage().' '.$wpdb->last_error); wp_die('Révocation impossible.',500); }
+        wp_safe_redirect(admin_url('admin.php?page=fkc-licenses')); exit;
+    }
+
     public function render_stock_dashboard_page() {
         if (!current_user_can('manage_options')) wp_die('Accès non autorisé.');
         global $wpdb;
@@ -175,6 +240,30 @@ final class FKC_Core {
     }
 
     private function sessions_table_exists() { global $wpdb; $t=$this->table('sessions'); return $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($t)))===$t; }
+    private function licenses_table_exists() { global $wpdb; $t=$this->table('licenses'); return $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($t)))===$t; }
+    public function ensure_licenses_table() {
+        global $wpdb;
+        if (!$this->tables_ready()) return;
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        $table=$this->table('licenses'); $charset=$wpdb->get_charset_collate();
+        $sql="CREATE TABLE {$table} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            code_hash CHAR(64) NOT NULL,
+            code_hint VARCHAR(12) NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+            created_by BIGINT UNSIGNED NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            redeemed_at DATETIME NULL,
+            redeemed_by_user_id BIGINT UNSIGNED NULL,
+            tenant_id BIGINT UNSIGNED NULL,
+            revoked_at DATETIME NULL,
+            PRIMARY KEY  (id),
+            UNIQUE KEY code_hash (code_hash),
+            KEY status (status),
+            KEY tenant_id (tenant_id)
+        ) {$charset};";
+        dbDelta($sql);
+    }
     public function handle_first_owner() {
         if(!current_user_can('manage_options')) wp_die('Accès non autorisé.',403);
         check_admin_referer('fkc_create_first_owner','fkc_nonce');
@@ -270,7 +359,7 @@ final class FKC_Core {
     }
     public function health_endpoint() {
         global $wpdb; $tables=$this->table_status(); $ready=!in_array(false,$tables,true);
-        return rest_ensure_response(array('success'=>true,'service'=>'BTA Manager API','plugin'=>'Fondation Kenda Core','version'=>FKC_VERSION,'status'=>$ready?'online':'degraded','database'=>array('connected'=>!empty($wpdb->dbh),'tables_ready'=>$ready,'tables'=>$tables,'first_owner_initialized'=>$ready?$this->owner_exists():false,'sessions_table_ready'=>$this->sessions_table_exists())));
+        return rest_ensure_response(array('success'=>true,'service'=>'BTA Manager API','plugin'=>'Fondation Kenda Core','version'=>FKC_VERSION,'status'=>$ready?'online':'degraded','database'=>array('connected'=>!empty($wpdb->dbh),'tables_ready'=>$ready,'tables'=>$tables,'first_owner_initialized'=>$ready?$this->owner_exists():false,'sessions_table_ready'=>$this->sessions_table_exists(),'licenses_table_ready'=>$this->licenses_table_exists())));
     }
     private function bearer_token($request) {
         $header=$request->get_header('authorization');
@@ -378,23 +467,38 @@ final class FKC_Core {
 
     public function tenant_create_endpoint($request) {
         global $wpdb; $session=$this->current_session($request); if(!$session)return $this->api_error('bta_unauthenticated','Connexion requise.',401);
+        if (!$this->licenses_table_exists()) return $this->api_error('bta_unavailable','Service de licences indisponible.',503);
+        $license_code=strtoupper(trim((string)$request->get_param('license_code')));
+        $license_normalized=preg_replace('/[^A-Z0-9]/','',$license_code);
+        if (!preg_match('/^BTA[0-9A-F]{32}$/',$license_normalized)) return $this->api_error('bta_license_required','Une licence BTA valide est obligatoire pour créer une entreprise.',403);
         $name=sanitize_text_field((string)$request->get_param('name'));
         $branch=sanitize_text_field((string)($request->get_param('main_branch_name') ?: 'Établissement principal'));
         if(strlen($name)<2 || strlen($name)>190 || strlen($branch)<2 || strlen($branch)>150)return $this->api_error('bta_invalid_input','Nom d’entreprise ou d’établissement invalide.');
-        $tenants=$this->table('tenants'); $branches=$this->table('branches'); $members=$this->table('members');
-        $slug=sanitize_title($name); if(!$slug)$slug='entreprise'; $base=substr($slug,0,170); $n=1;
-        while($wpdb->get_var($wpdb->prepare("SELECT id FROM {$tenants} WHERE slug=%s",$slug)))$slug=substr($base,0,180).'-'.$n++;
+        $tenants=$this->table('tenants'); $branches=$this->table('branches'); $members=$this->table('members'); $licenses=$this->table('licenses'); $permissions=$this->table('permissions'); $branch_access=$this->table('branch_access');
+        $license_hash=hash('sha256',$license_normalized); $lock='fkc_license_'.substr($license_hash,0,32);
+        if((int)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,10)',$lock))!==1)return $this->api_error('bta_registration_busy','Activation momentanément occupée. Réessayez.',429);
         $wpdb->query('START TRANSACTION');
         try {
+            $license=$wpdb->get_row($wpdb->prepare("SELECT id,status FROM {$licenses} WHERE code_hash=%s LIMIT 1 FOR UPDATE",$license_hash),ARRAY_A);
+            if(!$license || $license['status']!=='ACTIVE')throw new DomainException('license_invalid');
+            $slug=sanitize_title($name); if(!$slug)$slug='entreprise'; $base=substr($slug,0,170); $n=1;
+            while($wpdb->get_var($wpdb->prepare("SELECT id FROM {$tenants} WHERE slug=%s",$slug)))$slug=substr($base,0,180).'-'.$n++;
             if(!$wpdb->insert($tenants,array('name'=>$name,'slug'=>$slug,'status'=>'ACTIVE','created_by'=>(int)$session['user_id']),array('%s','%s','%s','%d')))throw new RuntimeException('tenant_insert');
             $tenant_id=(int)$wpdb->insert_id;
             if(!$wpdb->insert($branches,array('tenant_id'=>$tenant_id,'name'=>$branch,'code'=>'MAIN','status'=>'ACTIVE'),array('%d','%s','%s','%s')))throw new RuntimeException('branch_insert');
             $branch_id=(int)$wpdb->insert_id;
             if(!$wpdb->insert($members,array('tenant_id'=>$tenant_id,'user_id'=>(int)$session['user_id'],'role'=>'OWNER','status'=>'ACTIVE'),array('%d','%d','%s','%s')))throw new RuntimeException('membership_insert');
+            $member_id=(int)$wpdb->insert_id;
+            foreach($this->permissions as $key=>$description){if($wpdb->query($wpdb->prepare("INSERT IGNORE INTO {$permissions} (permission_key,description) VALUES (%s,%s)",$key,$description))===false)throw new RuntimeException('permission_seed');}
+            if(!$wpdb->insert($branch_access,array('member_id'=>$member_id,'branch_id'=>$branch_id,'permissions'=>wp_json_encode($this->role_defaults['OWNER'])),array('%d','%d','%s')))throw new RuntimeException('branch_access_insert');
+            $redeemed=$wpdb->update($licenses,array('status'=>'REDEEMED','redeemed_at'=>gmdate('Y-m-d H:i:s'),'redeemed_by_user_id'=>(int)$session['user_id'],'tenant_id'=>$tenant_id),array('id'=>(int)$license['id'],'status'=>'ACTIVE'),array('%s','%s','%d','%d'),array('%d','%s'));
+            if($redeemed!==1)throw new RuntimeException('license_redeem_race');
             $wpdb->query('COMMIT');
-            $this->write_audit($tenant_id,(int)$session['user_id'],'tenant.created','tenant',$tenant_id,array('name'=>$name,'main_branch_id'=>$branch_id));
+            $this->write_audit($tenant_id,(int)$session['user_id'],'tenant.created','tenant',$tenant_id,array('name'=>$name,'main_branch_id'=>$branch_id,'licensed'=>true));
             return new WP_REST_Response(array('success'=>true,'tenant'=>array('id'=>$tenant_id,'name'=>$name,'slug'=>$slug),'main_branch'=>array('id'=>$branch_id,'name'=>$branch)),201);
-        } catch(Throwable $e) { $wpdb->query('ROLLBACK'); error_log('[FKC] Tenant creation failed: '.$e->getMessage().' '.$wpdb->last_error); return $this->api_error('bta_tenant_create_failed','Impossible de créer l’entreprise.',500); }
+        } catch(DomainException $e) { $wpdb->query('ROLLBACK'); return $this->api_error('bta_license_invalid','Code de licence invalide, déjà utilisé ou révoqué.',403); }
+        catch(Throwable $e) { $wpdb->query('ROLLBACK'); error_log('[FKC] Tenant creation failed: '.$e->getMessage().' '.$wpdb->last_error); return $this->api_error('bta_tenant_create_failed','Impossible de créer l’entreprise.',500); }
+        finally { $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock)); }
     }
 
     public function branches_list_endpoint($request) {
@@ -498,7 +602,10 @@ final class FKC_Core {
     /** Inscription autonome : crée un utilisateur, son entreprise, sa branche et une session OWNER. */
     public function register_owner_endpoint($request) {
         global $wpdb;
-        if (!$this->tables_ready() || !$this->sessions_table_exists()) return $this->api_error('bta_unavailable','Service temporairement indisponible.',503);
+        if (!$this->tables_ready() || !$this->sessions_table_exists() || !$this->licenses_table_exists()) return $this->api_error('bta_unavailable','Service temporairement indisponible.',503);
+        $license_code=strtoupper(trim((string)$request->get_param('license_code')));
+        $license_normalized=preg_replace('/[^A-Z0-9]/','',$license_code);
+        if (!preg_match('/^BTA[0-9A-F]{32}$/',$license_normalized)) return $this->api_error('bta_license_required','Un code de licence BTA valide est obligatoire.',403);
         $name=sanitize_text_field((string)$request->get_param('full_name'));
         $email=strtolower(trim(sanitize_email((string)$request->get_param('email'))));
         $password=(string)$request->get_param('password');
@@ -510,11 +617,14 @@ final class FKC_Core {
         $attempts=(int)get_transient($rate_key);
         if($attempts>=5)return $this->api_error('bta_rate_limited','Trop de créations depuis cette connexion. Réessayez dans 15 minutes.',429);
         $users=$this->table('users'); $tenants=$this->table('tenants'); $branches=$this->table('branches');
-        $members=$this->table('members'); $branch_access=$this->table('branch_access'); $permissions=$this->table('permissions'); $sessions=$this->table('sessions');
+        $members=$this->table('members'); $branch_access=$this->table('branch_access'); $permissions=$this->table('permissions'); $sessions=$this->table('sessions'); $licenses=$this->table('licenses');
+        $license_hash=hash('sha256',$license_normalized);
         $lock='fkc_signup_'.substr(hash('sha256',$email),0,32);
         if((int)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,10)',$lock))!==1)return $this->api_error('bta_registration_busy','Inscription momentanément occupée. Réessayez.',429);
         $wpdb->query('START TRANSACTION');
         try {
+            $license=$wpdb->get_row($wpdb->prepare("SELECT id,status FROM {$licenses} WHERE code_hash=%s LIMIT 1 FOR UPDATE",$license_hash),ARRAY_A);
+            if(!$license || $license['status']!=='ACTIVE') throw new DomainException('license_invalid');
             if($wpdb->get_var($wpdb->prepare("SELECT id FROM {$users} WHERE email=%s LIMIT 1 FOR UPDATE",$email)))throw new DomainException('email_exists');
             $password_hash=password_hash($password,PASSWORD_DEFAULT);
             if(!$password_hash)throw new RuntimeException('password_hash');
@@ -532,11 +642,14 @@ final class FKC_Core {
             if(!$wpdb->insert($branch_access,array('member_id'=>$member_id,'branch_id'=>$branch_id,'permissions'=>wp_json_encode($this->role_defaults['OWNER'])),array('%d','%d','%s')))throw new RuntimeException('branch_access_insert');
             $token=bin2hex(random_bytes(32)); $expires=time()+7*DAY_IN_SECONDS;
             if(!$wpdb->insert($sessions,array('user_id'=>$user_id,'token_hash'=>hash('sha256',$token),'expires_at'=>gmdate('Y-m-d H:i:s',$expires),'ip_address'=>$this->client_ip(),'user_agent'=>isset($_SERVER['HTTP_USER_AGENT'])?substr(sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])),0,255):''),array('%d','%s','%s','%s','%s')))throw new RuntimeException('session_insert');
+            $redeemed=$wpdb->update($licenses,array('status'=>'REDEEMED','redeemed_at'=>gmdate('Y-m-d H:i:s'),'redeemed_by_user_id'=>$user_id,'tenant_id'=>$tenant_id),array('id'=>(int)$license['id'],'status'=>'ACTIVE'),array('%s','%s','%d','%d'),array('%d','%s'));
+            if($redeemed!==1)throw new RuntimeException('license_redeem_race');
             $wpdb->query('COMMIT'); delete_transient($rate_key);
             $this->write_audit($tenant_id,$user_id,'tenant.created','tenant',$tenant_id,array('name'=>$company,'main_branch_id'=>$branch_id,'self_service'=>true));
             return new WP_REST_Response(array('success'=>true,'token'=>$token,'token_type'=>'Bearer','expires_at'=>gmdate('c',$expires),'user'=>array('id'=>$user_id,'name'=>$name,'email'=>$email,'status'=>'ACTIVE'),'tenantId'=>$tenant_id,'branchId'=>$branch_id),201);
         } catch(DomainException $e) {
             $wpdb->query('ROLLBACK'); set_transient($rate_key,$attempts+1,15*MINUTE_IN_SECONDS);
+            if ($e->getMessage()==='license_invalid') return $this->api_error('bta_license_invalid','Code de licence invalide, déjà utilisé ou révoqué. Demandez une nouvelle licence à BTA.',403);
             return $this->api_error('bta_email_exists','Cette adresse e-mail possède déjà un compte. Connectez-vous plutôt.',409);
         } catch(Throwable $e) {
             $wpdb->query('ROLLBACK'); set_transient($rate_key,$attempts+1,15*MINUTE_IN_SECONDS);

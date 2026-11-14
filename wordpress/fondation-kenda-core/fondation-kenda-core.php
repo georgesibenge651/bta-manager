@@ -2,13 +2,13 @@
 /**
  * Plugin Name: Fondation Kenda Core
  * Description: Socle central de Fondation Kenda et API sécurisée de BTA Manager.
- * Version: 0.5.33
+ * Version: 0.5.34
  * Author: Fondation Kenda
  * Requires PHP: 7.4
  * Text Domain: fondation-kenda-core
  */
 if (!defined('ABSPATH')) { exit; }
-define('FKC_VERSION', '0.5.33');
+define('FKC_VERSION', '0.5.34');
 define('FKC_PLUGIN_FILE', __FILE__);
 define('FKC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 require_once FKC_PLUGIN_DIR . 'includes/class-fkc-core.php';

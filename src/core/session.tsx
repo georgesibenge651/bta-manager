@@ -90,11 +90,11 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
     await Preferences.remove({ key: CACHED_SESSION_KEY });
     const result = await coreLogin(email, password); await setCoreToken(result.token); await refresh();
   };
-  const ownerSignUp = async (name:string,email:string,password:string,company:string,branch:string) => {
+  const ownerSignUp = async (name:string,email:string,password:string,company:string,branch:string,licenseCode:string) => {
     await Preferences.remove({key:CACHED_SESSION_KEY});
     await clearCoreToken();
     try {
-      const result=await coreRegisterOwner(name,email,password,company,branch);
+      const result=await coreRegisterOwner(name,email,password,company,branch,licenseCode);
       await setCoreToken(result.token);
       await Preferences.set({key:CONTEXT_KEY,value:JSON.stringify({tenantId:result.tenantId,branchId:result.branchId})});
       await refresh();
