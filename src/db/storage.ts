@@ -976,7 +976,16 @@ freeIssues: [],
     if (type === 'PRODUCT_ARCHIVE') return { branch_id, product_id: await idOf('products', raw.id), status: 'ARCHIVED' };
     if (type === 'PRODUCT_CREATE' || type === 'PRODUCT_UPDATE') {
       const product = raw as unknown as Product;
-      if (product.photoUrl?.startsWith('data:')) throw new CoreApiError(409, 'bta_image_upload_required', 'Photo conservée localement. Envoi média Core requis avant synchronisation du produit.');
+      if (product.photoUrl?.startsWith('data:')) {
+        const original = product.photoUrl;
+        const {coreUploadProductImage} = await import('../core/api');
+        const remote = await coreUploadProductImage(ctx.tenantId,ctx.branchId,original);
+        const current = this.state.products.find(item => item.id === product.id);
+        if (current?.photoUrl === original) current.photoUrl = remote;
+        product.photoUrl = remote;
+        this.persist(); this.notify();
+        await this.flushDurableAndWait();
+      }
       const category_id = await idOf('categories', product.categoryId, true);
       const fields: Record<string, unknown> = {
         sku: product.sku, barcode: product.barcode, name: product.name, description: product.description,
@@ -1503,6 +1512,7 @@ freeIssues: [],
 
   public addUser(user: Omit<User, 'id'>, initialPin?: string): User {
     this.requireAdmin();
+    if (this.coreContext) throw new Error('Ce formulaire crée uniquement un profil local. Pour un autre téléphone, utilisez une invitation Core et un compte serveur ; ce parcours reste à intégrer dans BTA.');
     const name = (user.name || '').trim();
     if (!name) throw new Error('Le nom est obligatoire.');
     if (!initialPin || isWeakPin(initialPin)) {
@@ -2727,11 +2737,14 @@ freeIssues: [],
 
     if (!isNum(paymentAmountUSD) || paymentAmountUSD <= 0) return { success: false, error: 'Le montant du versement doit être supérieur à zéro' };
 
-    if (paymentAmountUSD > debt.remainingBalanceUSD + 0.01) {
+    if (paymentAmountUSD > debt.remainingBalanceUSD || r2(paymentAmountUSD) > debt.remainingBalanceUSD) {
       return { success: false, error: 'Le montant dépasse le solde restant de la dette' };
     }
 
-    const exchangeRate = this.state.settings.exchangeRate;
+    if (r2(paymentAmountUSD) <= 0) return { success: false, error: 'Montant minimum : 0,01 USD' };
+    const sourceSale = debt.type === 'CUSTOMER' ? this.state.sales.find(s => s.invoiceNumber === debt.referenceInvoice) : undefined;
+    const exchangeRate = sourceSale?.currency === 'CDF' ? sourceSale.exchangeRate : this.state.settings.exchangeRate;
+    if (!isNum(exchangeRate) || exchangeRate <= 0) return { success: false, error: 'Taux de change invalide' };
     const receiptNumber = generateReferenceNumber('REC-REM');
     const now = new Date().toISOString();
 
@@ -2767,7 +2780,7 @@ freeIssues: [],
 
     const entry = debt.history[debt.history.length - 1];
     this.enqueue(debt.type === 'CUSTOMER' ? 'DEBT_PAYMENT' : 'SUPPLIER_DEBT_PAYMENT', {
-      id: entry.id, debtId: debt.id, amount: paymentAmountUSD, paymentMethod, reference: receiptNumber, notes,
+      id: entry.id, debtId: debt.id, amount: sourceSale?.currency === 'CDF' ? usdToCdf(paymentAmountUSD, exchangeRate) : paymentAmountUSD, paymentMethod, reference: receiptNumber, notes,
     });
     this.afterWrite();
     return { success: true, updatedDebt: debt, receiptNumber };

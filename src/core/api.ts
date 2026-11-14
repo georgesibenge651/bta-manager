@@ -144,3 +144,14 @@ export const corePushOperation = (tenantId:number, operationId:string, type:stri
 export const coreOperationStatus = (tenantId:number, operationId:string) =>
   coreRequest<CoreOperationStatus>(`tenants/${tenantId}/sync/operations/${operationId}`);
 
+
+/** An image is acknowledged independently before its product is transmitted. */
+export async function coreUploadProductImage(tenantId:number, branchId:number, dataUrl:string):Promise<string> {
+  const encoded=dataUrl.split(',')[1] ?? '';
+  const bytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));
+  const digest=await crypto.subtle.digest('SHA-256',bytes);
+  const sha=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');
+  const result=await coreRequest<{success:boolean;sha256:string;image_url:string}>(`tenants/${tenantId}/products/image`,{method:'POST',timeoutMs:60000,body:{branch_id:branchId,data_url:dataUrl}});
+  if(result.success!==true||result.sha256!==sha||!/^https?:\/\//.test(result.image_url))throw new CoreApiError(503,'bta_image_invalid_ack','Confirmation image invalide ; photo locale conservée.');
+  return result.image_url;
+}

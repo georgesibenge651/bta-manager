@@ -148,7 +148,7 @@ test('Targeted: category and customer require resource acknowledgements; optiona
   }
   const product={id:'no-photo',unit:'pcs',photoUrl:''};
   assert.equal((await repo.toCorePayload('PRODUCT_CREATE',product)).image_url,'');
-  await assert.rejects(repo.toCorePayload('PRODUCT_CREATE',{...product,photoUrl:'data:image/png;base64,AAAA'}),{code:'bta_image_upload_required'});
+  // Local-image transmission is exercised by the media-specific tests.
   if(repo.persistTimer)clearTimeout(repo.persistTimer);
 });
 
@@ -187,7 +187,61 @@ test('Finalisation: local category/customer creation through durable queue and s
     assert.equal(saved.products.find((x:any)=>x.id===product.id).photoUrl,photo);
     assert.equal(saved.offlineQueue[0].payload.photoUrl,photo);
     repo.state.syncInfo.status='ONLINE';assert.equal(await repo.coreSync(),false);
-    assert.equal(sent.length,2);assert.equal(repo.state.offlineQueue[0].status,'FAILED');
+    assert.equal(sent.length,3);assert.equal(repo.state.offlineQueue[0].status,'PROCESSING');
     assert.equal(repo.state.coreSyncHistory.filter((x:any)=>x.type==='PRODUCT_CREATE'&&x.status==='DONE').length,0);
   }finally{globalThis.fetch=originalFetch;if(repo.persistTimer)clearTimeout(repo.persistTimer);}
+});
+
+test('Photos: lost upload acknowledgement preserves image; retry replaces it only after matching server hash', async () => {
+  repo.coreContext={tenantId:7,branchId:4};repo.state.syncInfo.status='OFFLINE';
+  const photo='data:image/png;base64,aGVsbG8=';
+  const raw={id:'image-retry',name:'Photo',unit:'pcs',photoUrl:photo};
+  repo.state.products=[{...raw}];
+  const original=globalThis.fetch;let attempts=0;
+  Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{getItem:()=> 'a'.repeat(64)}});
+  globalThis.fetch=async (_input,options)=>{
+    attempts++;const body=JSON.parse(String(options?.body));assert.equal(body.data_url,photo);assert.equal(body.branch_id,4);
+    if(attempts===1)throw new Error('lost upload ACK');
+    return new Response(JSON.stringify({success:true,sha256:'2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',image_url:'https://example.test/photo.png'}));
+  };
+  try{
+    await assert.rejects(repo.toCorePayload('PRODUCT_CREATE',raw));
+    assert.equal(raw.photoUrl,photo);assert.equal(repo.state.products[0].photoUrl,photo);
+    const payload=await repo.toCorePayload('PRODUCT_CREATE',raw);
+    assert.equal(payload.image_url,'https://example.test/photo.png');
+    assert.equal(repo.state.products[0].photoUrl,payload.image_url);
+    await repo.flushDurableAndWait();
+    assert.equal((await localforage.getItem<any>('bta_business_transform_africa_db_v1')).products[0].photoUrl,payload.image_url);
+  }finally{globalThis.fetch=original;if(repo.persistTimer)clearTimeout(repo.persistTimer);}
+});
+
+test('Repayments: decimal amounts, strict balance cap and CDF debt amount', () => {
+  repo.state.syncInfo.status='OFFLINE';repo.isBootstrapping=false;repo.sessionUserId='payer';
+  repo.state.currentUser={id:'payer',name:'Payer',role:'ADMIN'};repo.state.settings.exchangeRate=2800;
+  repo.state.customers=[];repo.state.sales=[];
+  for(const amount of [25,25.5,25.50,24.60]){
+    repo.state.offlineQueue=[];repo.state.debts=[{id:'decimal-debt',type:'CUSTOMER',partyId:'none',remainingBalanceUSD:30,paidAmountUSD:0,history:[]}];
+    assert.equal(repo.recordDebtRepayment('decimal-debt',amount,'BANK_TRANSFER').success,true);
+    assert.equal(repo.state.debts[0].remainingBalanceUSD,Math.round((30-amount)*100)/100);
+  }
+  repo.state.offlineQueue=[];repo.state.debts=[{id:'cap',type:'CUSTOMER',remainingBalanceUSD:24.60,paidAmountUSD:0,history:[],referenceInvoice:'CDF-DEBT'}];
+  for(const amount of [25,24.61,24.601,0.001,NaN,Infinity])assert.equal(repo.recordDebtRepayment('cap',amount,'CASH').success,false);
+  assert.equal(repo.state.offlineQueue.length,0);
+  repo.state.sales=[{invoiceNumber:'CDF-DEBT',currency:'CDF',exchangeRate:2800}];
+  assert.equal(repo.recordDebtRepayment('cap',24.60,'CASH').success,true);
+  assert.equal(repo.state.offlineQueue[0].payload.amount,68880);
+  if(repo.persistTimer)clearTimeout(repo.persistTimer);
+});
+
+test('Multi-user: local-only creation refused under Core and actor change puts pending operations in review', () => {
+  repo.coreContext={tenantId:7,branchId:4};repo.sessionUserId='core:9';repo.state.currentUser={id:'core:9',role:'ADMIN'};
+  const count=repo.state.users.length;
+  assert.throws(()=>repo.addUser({name:'Other phone'},'4826'),/profil local/);
+  assert.equal(repo.state.users.length,count);
+  repo.state.coreScope={tenantId:7,branchId:4};repo.state.coreActorId=9;
+  repo.state.offlineQueue=[{id:'actor-pending',type:'CATEGORY_CREATE',payload:{id:'x'},status:'PENDING'}];
+  repo.activateCoreUser({id:10,name:'Other',email:'other@example.invalid',role:'MANAGER',tenantId:7,branchId:4});
+  assert.equal(repo.state.offlineQueue[0].status,'REVIEW');
+  assert.equal(repo.state.currentUser.id,'core:10');
+  if(repo.persistTimer)clearTimeout(repo.persistTimer);
 });
