@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { CompanySettings, User, UserRole } from '../types';
 import { CompanyPanel } from './CompanyPanel';
+import {CoreInvitations} from './CoreInvitations';
+import {useCoreSession} from '../core/session';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -50,6 +52,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateUserProfile,
   currentUserRole,
 }) => {
+  const coreSession = useCoreSession();
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'CURRENCY' | 'USERS' | 'COMPANY' | 'BACKUP'>('GENERAL');
   const [formData, setFormData] = useState<CompanySettings>(settings);
   const [successMsg, setSuccessMsg] = useState('');
@@ -440,7 +443,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
-          {activeTab === 'USERS' && (
+          {activeTab === 'USERS' && (coreSession ? <CoreInvitations key={`${coreSession.me.user.id}-${coreSession.membership.tenantId}`} tenantId={coreSession.membership.tenantId} role={coreSession.membership.role} branches={coreSession.branches}/> :
             <div className="space-y-4">
               {currentUserRole === 'ADMIN' && (
                 <form onSubmit={handleCreateUser} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">

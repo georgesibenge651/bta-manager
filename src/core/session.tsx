@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { appRepository } from '../db/storage';
-import { clearCoreToken, coreBranches, coreBranchPermissions, coreLogin, coreLogout, coreMe, CoreApiError, CoreBranch, CoreMembership, CoreMe, CoreRole, getCoreToken, setCoreToken } from './api';
+import { coreRegisterInvited, coreAcceptInvitation, clearCoreToken, coreBranches, coreBranchPermissions, coreLogin, coreLogout, coreMe, CoreApiError, CoreBranch, CoreMembership, CoreMe, CoreRole, getCoreToken, setCoreToken } from './api';
 import { CoreSignIn } from './signIn';
 import { Preferences } from '@capacitor/preferences';
 
@@ -90,6 +90,17 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
     await Preferences.remove({ key: CACHED_SESSION_KEY });
     const result = await coreLogin(email, password); await setCoreToken(result.token); await refresh();
   };
+  const invitationSignIn = async (code:string,name:string,email:string,password:string,existing:boolean) => {
+    await Preferences.remove({key:CACHED_SESSION_KEY});
+    await clearCoreToken();
+    try {
+      const registered=existing ? await coreLogin(email,password) : await coreRegisterInvited(code,name,email,password);
+      await setCoreToken(registered.token);
+      const accepted=existing ? await coreAcceptInvitation(code) : registered as {tenantId:number};
+      await Preferences.set({key:CONTEXT_KEY,value:JSON.stringify({tenantId:accepted.tenantId})});
+      await refresh();
+    } catch(e) {await clearCoreToken();throw e;}
+  };
   const signOut = async () => {
     try { if (await getCoreToken()) await coreLogout(); } finally { await clearCoreToken(); await Preferences.remove({ key: CACHED_SESSION_KEY }); appRepository.logout(); setMe(null); setMembership(null); setBranch(null); setPermissions([]); }
   };
@@ -109,9 +120,9 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
   const value = useMemo(() => me && membership && branch ? { me, membership, branch, branches, permissions, selectBranch, signOut, refresh } : null,
     [me, membership, branch, branches, permissions]);
   if (busy) return <div className="min-h-screen grid place-items-center">Connexion à Fondation Kenda Core…</div>;
-  if (!me) return <CoreSignIn onSignIn={signIn} error={error} />;
-  if (!membership) return <CoreSignIn onSignIn={signIn} error="Ce compte n’appartient à aucune entreprise active." />;
-  if (!branches.length || !branch) return <CoreSignIn onSignIn={signIn} error="Aucun établissement actif n’est disponible pour cette entreprise." />;
+  if (!me) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} error={error} />;
+  if (!membership) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} error="Ce compte n’appartient à aucune entreprise active." />;
+  if (!branches.length || !branch) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} error="Aucun établissement actif n’est disponible pour cette entreprise." />;
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 

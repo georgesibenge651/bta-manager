@@ -551,6 +551,8 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
         />
 
         <CoreSyncCenter
+          historyContext={coreSession ? {tenantId:coreSession.membership.tenantId,branchId:coreSession.branch.id,userId:coreSession.me.user.id} : undefined}
+          permissions={coreSession?.permissions}
           cashContext={coreSession?.permissions.includes('cashbox.manage') ? {tenantId:coreSession.membership.tenantId,branchId:coreSession.branch.id,userId:coreSession.me.user.id} : undefined}
           isOpen={isCoreSyncCenterOpen}
           pending={appRepository.getCorePendingOperations()}
