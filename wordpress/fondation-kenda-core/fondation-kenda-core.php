@@ -14,6 +14,7 @@ define('FKC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 require_once FKC_PLUGIN_DIR . 'includes/class-fkc-core.php';
 require_once FKC_PLUGIN_DIR . 'includes/class-fkc-commercial.php';
 require_once FKC_PLUGIN_DIR . 'includes/class-fkc-commercial-api.php';
+require_once FKC_PLUGIN_DIR . 'includes/class-fkc-product-images-api.php';
 require_once FKC_PLUGIN_DIR . 'includes/class-fkc-preorders-api.php';
 require_once FKC_PLUGIN_DIR . 'includes/class-fkc-purchases-api.php';
 require_once FKC_PLUGIN_DIR . 'includes/class-fkc-sales-api.php';
@@ -28,6 +29,7 @@ add_action('plugins_loaded', static function () {
     FKC_Core::instance();
     FKC_Commercial::boot();
     FKC_Commercial_API::boot();
+    FKC_Product_Images_API::boot();
     FKC_Preorders_API::boot();
     FKC_Purchases_API::boot();
     FKC_Sales_API::boot();
