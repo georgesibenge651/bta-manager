@@ -428,35 +428,68 @@ final class FKC_Core {
         return rest_ensure_response(array('success'=>true,'permissions'=>$rows,'role_defaults'=>$this->role_defaults));
     }
 
+    public static function can_invite_role($actor,$target) {
+        return in_array($target,$actor==='OWNER'?array('ADMIN','MANAGER','CASHIER'):($actor==='ADMIN'?array('MANAGER','CASHIER'):array()),true);
+    }
+    private function invitation_scope_valid($inv,$tenant_id) {
+        if(!in_array($inv['role'],array('ADMIN','MANAGER','CASHIER'),true))return false;
+        global $wpdb;$tenant=$wpdb->get_row($wpdb->prepare('SELECT status FROM '.$this->table('tenants').' WHERE id=%d',$tenant_id),ARRAY_A);if(!$tenant||$tenant['status']!=='ACTIVE')return false;
+        $issuer=$this->tenant_membership($tenant_id,(int)$inv['invited_by']);
+        if(!$issuer||!self::can_invite_role($issuer['role'],$inv['role']))return false;
+        $branches=json_decode($inv['branches'],true);
+        if(!is_array($branches)||!count($branches))return false;
+        foreach($branches as $branch){
+            if(!$wpdb->get_var($wpdb->prepare("SELECT id FROM ".$this->table('branches')." WHERE id=%d AND tenant_id=%d AND status='ACTIVE'",absint($branch),$tenant_id)))return false;
+            if($issuer['role']!=='OWNER'){
+                $raw=$wpdb->get_var($wpdb->prepare('SELECT permissions FROM '.$this->table('branch_access').' WHERE member_id=%d AND branch_id=%d',$issuer['id'],absint($branch)));
+                $grants=json_decode((string)$raw,true);
+                if(!is_array($grants)||!in_array('members.manage',$grants,true)||array_diff($this->role_defaults[$inv['role']],$grants))return false;
+            }
+        }
+        return true;
+    }
+
     public function invitations_list_endpoint($request) {
         $tenant_id=(int)$request['tenant_id']; $access=$this->tenant_access($request,$tenant_id,array('OWNER','ADMIN'));
         if(is_wp_error($access))return $access;
         global $wpdb; $i=$this->table('invitations');
         $rows=$wpdb->get_results($wpdb->prepare("SELECT id,tenant_id,invited_by,role,branches,status,expires_at,accepted_by,accepted_at,created_at FROM {$i} WHERE tenant_id=%d ORDER BY id DESC LIMIT 100",$tenant_id),ARRAY_A);
         foreach($rows as &$row){$row['branches']=json_decode($row['branches'],true) ?: array();} unset($row);
+        if($access['membership']['role']!=='OWNER')$rows=array_values(array_filter($rows,function($row)use($request,$tenant_id){foreach($row['branches'] as $branch){if(is_wp_error(FKC_Branch_Access::allowed($request,$tenant_id,absint($branch),'members.manage')))return false;}return count($row['branches'])>0;}));
         return rest_ensure_response(array('success'=>true,'invitations'=>$rows));
     }
 
     public function invitation_create_endpoint($request) {
         $tenant_id=(int)$request['tenant_id']; $access=$this->tenant_access($request,$tenant_id,array('OWNER','ADMIN')); if(is_wp_error($access))return $access;
+        $role=strtoupper((string)($request->get_param('role') ?: 'MANAGER'));
+        if (!self::can_invite_role($access['membership']['role'],$role)) return $this->api_error('bta_invitation_role_forbidden','Ce rôle ne peut pas être attribué par votre compte.',403);
         $branch_ids=$request->get_param('branches'); if(!is_array($branch_ids)||!count($branch_ids))return $this->api_error('bta_invalid_input','Sélectionnez au moins un établissement.');
         $branch_ids=array_values(array_unique(array_filter(array_map('absint',$branch_ids)))); if(!$branch_ids)return $this->api_error('bta_invalid_input','Liste d’établissements invalide.');
         global $wpdb; $b=$this->table('branches');
         foreach($branch_ids as $branch_id){$found=$wpdb->get_var($wpdb->prepare("SELECT id FROM {$b} WHERE id=%d AND tenant_id=%d AND status='ACTIVE'",$branch_id,$tenant_id));if(!$found)return $this->api_error('bta_branch_invalid','Un établissement sélectionné est invalide.',404);}
+        if ($access['membership']['role']!=='OWNER') foreach($branch_ids as $branch_id){
+            $check=FKC_Branch_Access::allowed($request,$tenant_id,$branch_id,'members.manage');if(is_wp_error($check))return $check;
+            $grants=$wpdb->get_var($wpdb->prepare('SELECT permissions FROM '.$this->table('branch_access').' WHERE member_id=%d AND branch_id=%d',$access['membership']['id'],$branch_id));
+            $grants=json_decode((string)$grants,true);
+            if(!is_array($grants)||array_diff($this->role_defaults[$role],$grants))return $this->api_error('bta_invitation_escalation','Vous ne pouvez pas déléguer des permissions que vous ne possédez pas.',403);
+        }
         $token=bin2hex(random_bytes(32)); $hash=hash('sha256',$token); $expires=gmdate('Y-m-d H:i:s',time()+7*DAY_IN_SECONDS); $i=$this->table('invitations');
-        $ok=$wpdb->insert($i,array('tenant_id'=>$tenant_id,'invited_by'=>(int)$access['session']['user_id'],'token_hash'=>$hash,'role'=>'MANAGER','branches'=>wp_json_encode($branch_ids),'status'=>'PENDING','expires_at'=>$expires),array('%d','%d','%s','%s','%s','%s','%s'));
+        $ok=$wpdb->insert($i,array('tenant_id'=>$tenant_id,'invited_by'=>(int)$access['session']['user_id'],'token_hash'=>$hash,'role'=>$role,'branches'=>wp_json_encode($branch_ids),'status'=>'PENDING','expires_at'=>$expires),array('%d','%d','%s','%s','%s','%s','%s'));
         if(!$ok)return $this->api_error('bta_invitation_create_failed','Impossible de créer l’invitation.',500);
-        $id=(int)$wpdb->insert_id; $this->write_audit($tenant_id,(int)$access['session']['user_id'],'invitation.created','invitation',$id,array('role'=>'MANAGER','branches'=>$branch_ids));
-        return new WP_REST_Response(array('success'=>true,'invitation'=>array('id'=>$id,'tenant_id'=>$tenant_id,'role'=>'MANAGER','branches'=>$branch_ids,'expires_at'=>gmdate('c',strtotime($expires.' UTC'))),'code'=>$tenant_id.'.'.$token),201);
+        $id=(int)$wpdb->insert_id; $this->write_audit($tenant_id,(int)$access['session']['user_id'],'invitation.created','invitation',$id,array('role'=>$role,'branches'=>$branch_ids));
+        return new WP_REST_Response(array('success'=>true,'invitation'=>array('id'=>$id,'tenant_id'=>$tenant_id,'role'=>$role,'branches'=>$branch_ids,'expires_at'=>gmdate('c',strtotime($expires.' UTC'))),'code'=>$tenant_id.'.'.$token),201);
     }
 
     public function invitation_revoke_endpoint($request) {
         $invitation_id=(int)$request['invitation_id']; global $wpdb; $i=$this->table('invitations');
-        $inv=$wpdb->get_row($wpdb->prepare("SELECT id,tenant_id,status FROM {$i} WHERE id=%d",$invitation_id),ARRAY_A);
+        $inv=$wpdb->get_row($wpdb->prepare("SELECT id,tenant_id,status,role,expires_at,branches FROM {$i} WHERE id=%d",$invitation_id),ARRAY_A);
         if(!$inv)return $this->api_error('bta_invitation_not_found','Invitation introuvable.',404);
         $access=$this->tenant_access($request,(int)$inv['tenant_id'],array('OWNER','ADMIN')); if(is_wp_error($access))return $access;
-        if($inv['status']!=='PENDING')return $this->api_error('bta_invitation_not_pending','Cette invitation ne peut plus être révoquée.',409);
-        $wpdb->update($i,array('status'=>'REVOKED'),array('id'=>$invitation_id),array('%s'),array('%d'));
+        foreach(json_decode($inv['branches'],true) ?: array() as $branch){$check=FKC_Branch_Access::allowed($request,(int)$inv['tenant_id'],absint($branch),'members.manage');if(is_wp_error($check))return $check;}
+        if(!self::can_invite_role($access['membership']['role'],$inv['role']))return $this->api_error('bta_invitation_role_forbidden','Révocation non autorisée pour ce rôle.',403);
+        if($inv['status']!=='PENDING'||strtotime($inv['expires_at'].' UTC')<=time())return $this->api_error('bta_invitation_not_pending','Cette invitation ne peut plus être révoquée.',409);
+        $updated=$wpdb->query($wpdb->prepare("UPDATE {$i} SET status='REVOKED' WHERE id=%d AND tenant_id=%d AND status='PENDING' AND expires_at>%s",$invitation_id,(int)$inv['tenant_id'],gmdate('Y-m-d H:i:s')));
+        if($updated!==1)return $this->api_error('bta_invitation_changed','Invitation déjà traitée ou révocation impossible.',409);
         $this->write_audit((int)$inv['tenant_id'],(int)$access['session']['user_id'],'invitation.revoked','invitation',$invitation_id);
         return rest_ensure_response(array('success'=>true,'message'=>'Invitation révoquée.'));
     }
@@ -489,6 +522,7 @@ final class FKC_Core {
             set_transient($rate_key,$attempts+1,15*MINUTE_IN_SECONDS);
             return $this->api_error('bta_invitation_expired','Invitation invalide, expirée ou déjà utilisée.',410);
         }
+        if (!$this->invitation_scope_valid($inv,$tenant_id))return $this->api_error('bta_invitation_invalid','Rôle ou accès de cette invitation devenu invalide.',403);
         if ($wpdb->get_var($wpdb->prepare("SELECT id FROM {$users} WHERE email=%s LIMIT 1",$email))) {
             return $this->api_error('bta_email_exists','Cette adresse possède déjà un compte. Connectez-vous avec ce compte puis acceptez l’invitation.',409);
         }
@@ -505,6 +539,8 @@ final class FKC_Core {
         $members=$this->table('members'); $branch_access=$this->table('branch_access'); $sessions=$this->table('sessions');
         $wpdb->query('START TRANSACTION');
         try {
+            $locked=$wpdb->get_row($wpdb->prepare("SELECT status,expires_at FROM ".$this->table('invitations')." WHERE id=%d FOR UPDATE",(int)$inv['id']),ARRAY_A);
+            if(!$locked||$locked['status']!=='PENDING'||strtotime($locked['expires_at'].' UTC')<=time())throw new RuntimeException('invitation_changed');
             if (!$wpdb->insert($users,array('full_name'=>$name,'email'=>$email,'password_hash'=>$hash,'status'=>'ACTIVE'),array('%s','%s','%s','%s'))) throw new RuntimeException('user_insert');
             $user_id=(int)$wpdb->insert_id;
             if (!$wpdb->insert($members,array('tenant_id'=>$tenant_id,'user_id'=>$user_id,'role'=>$inv['role'],'status'=>'ACTIVE'),array('%d','%d','%s','%s'))) throw new RuntimeException('member_insert');
@@ -536,11 +572,14 @@ final class FKC_Core {
         if($tenant_id<1||!preg_match('/^[a-f0-9]{64}$/i',$token))return $this->api_error('bta_invitation_invalid','Code d’invitation invalide.');
         $i=$this->table('invitations'); $inv=$wpdb->get_row($wpdb->prepare("SELECT * FROM {$i} WHERE tenant_id=%d AND token_hash=%s LIMIT 1",$tenant_id,hash('sha256',$token)),ARRAY_A);
         if(!$inv||$inv['status']!=='PENDING'||strtotime($inv['expires_at'].' UTC')<=time())return $this->api_error('bta_invitation_expired','Invitation invalide, expirée ou déjà utilisée.',410);
+        if(!$this->invitation_scope_valid($inv,$tenant_id))return $this->api_error('bta_invitation_invalid','Rôle ou accès de cette invitation devenu invalide.',403);
         if($this->tenant_membership($tenant_id,(int)$session['user_id']))return $this->api_error('bta_membership_exists','Vous êtes déjà membre de cette entreprise.',409);
         $branch_ids=json_decode($inv['branches'],true); if(!is_array($branch_ids)||!$branch_ids)return $this->api_error('bta_invitation_invalid','Les établissements de cette invitation sont invalides.',409);
         $members=$this->table('members'); $access_table=$this->table('branch_access');
         $wpdb->query('START TRANSACTION');
         try {
+            $locked=$wpdb->get_row($wpdb->prepare("SELECT status,expires_at FROM ".$this->table('invitations')." WHERE id=%d FOR UPDATE",(int)$inv['id']),ARRAY_A);
+            if(!$locked||$locked['status']!=='PENDING'||strtotime($locked['expires_at'].' UTC')<=time())throw new RuntimeException('invitation_changed');
             if(!$wpdb->insert($members,array('tenant_id'=>$tenant_id,'user_id'=>(int)$session['user_id'],'role'=>$inv['role'],'status'=>'ACTIVE'),array('%d','%d','%s','%s')))throw new RuntimeException('member_insert');
             $member_id=(int)$wpdb->insert_id;
             foreach($branch_ids as $branch_id){$branch_id=absint($branch_id);if(!$branch_id)continue;if(!$wpdb->insert($access_table,array('member_id'=>$member_id,'branch_id'=>$branch_id,'permissions'=>wp_json_encode($this->role_defaults[$inv['role']]??array())),array('%d','%d','%s')))throw new RuntimeException('branch_access_insert');}
