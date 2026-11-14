@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CoreCashPanel } from './CoreCashPanel';
 import { AlertTriangle, CheckCircle2, Clock3, RefreshCw, X } from 'lucide-react';
 
 export interface SyncQueueEntry {
@@ -8,6 +9,7 @@ export interface SyncQueueEntry {
 }
 
 interface CoreSyncCenterProps {
+  cashContext?: {tenantId:number; branchId:number; userId:number};
   isOpen: boolean;
   pending: SyncQueueEntry[];
   history: Array<{ id: string; type: string; status: 'DONE'|'FAILED'|'REVIEW'; timestamp: string; error?: string }>;
@@ -19,7 +21,7 @@ const label: Record<SyncQueueEntry['status'], string> = {
   PENDING: 'En attente', PROCESSING: 'En cours', FAILED: 'Échec', REVIEW: 'À vérifier',
 };
 
-export const CoreSyncCenter: React.FC<CoreSyncCenterProps> = ({ isOpen, pending, history, onClose, onRetry }) => {
+export const CoreSyncCenter: React.FC<CoreSyncCenterProps> = ({ isOpen, pending, history, onClose, onRetry, cashContext }) => {
   const [verified, setVerified] = useState<Record<string, boolean>>({});
   if (!isOpen) return null;
   return (
@@ -30,6 +32,7 @@ export const CoreSyncCenter: React.FC<CoreSyncCenterProps> = ({ isOpen, pending,
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10" aria-label="Fermer"><X size={18}/></button>
         </header>
         <div className="overflow-y-auto p-4 space-y-5">
+          {cashContext && <CoreCashPanel key={`${cashContext.tenantId}-${cashContext.branchId}`} {...cashContext}/>}
           {pending.length === 0 && <p className="text-sm text-emerald-800 bg-emerald-50 rounded-xl p-3">Aucune opération en attente.</p>}
           {pending.map((op) => (
             <article key={op.id} className="border border-slate-200 rounded-xl p-3 space-y-2">

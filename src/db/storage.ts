@@ -940,9 +940,12 @@ freeIssues: [],
     const branch_id = ctx.branchId;
     if (type === 'SALE_CREATE') {
       const sale = raw as unknown as Sale;
-      const items = await Promise.all(sale.items.map(async item => ({ product_id: await idOf('products', item.productId), quantity: item.quantity, unit_price: item.unitPriceUSD })));
+      const currency = sale.currency ?? 'USD';
+      const factor = currency === 'CDF' ? sale.exchangeRate : 1;
+      if (!Number.isFinite(factor) || factor <= 0) throw new Error('Taux de change invalide.');
+      const items = await Promise.all(sale.items.map(async item => ({ product_id: await idOf('products', item.productId), quantity: item.quantity, unit_price: item.unitPriceUSD * factor })));
       const customer_id = await idOf('customers', sale.customerId, true);
-      return { branch_id, customer_id, reference: sale.invoiceNumber, currency: 'USD', exchange_rate: sale.exchangeRate, items, discount: sale.discountUSD, paid: sale.amountPaidUSD, payment_method: this.corePaymentMethod(sale.paymentMethod), payment_reference: sale.invoiceNumber, notes: sale.notes, _local_record_id: sale.id };
+      return { branch_id, customer_id, reference: sale.invoiceNumber, currency, exchange_rate: sale.exchangeRate, items, discount: sale.discountUSD * factor, paid: sale.amountPaidUSD * factor, payment_method: this.corePaymentMethod(sale.paymentMethod), payment_reference: sale.invoiceNumber, notes: sale.notes, _local_record_id: sale.id };
     }
     if (type === 'PURCHASE_CREATE') {
       const purchase = raw as unknown as Purchase;
@@ -973,6 +976,7 @@ freeIssues: [],
     if (type === 'PRODUCT_ARCHIVE') return { branch_id, product_id: await idOf('products', raw.id), status: 'ARCHIVED' };
     if (type === 'PRODUCT_CREATE' || type === 'PRODUCT_UPDATE') {
       const product = raw as unknown as Product;
+      if (product.photoUrl?.startsWith('data:')) throw new CoreApiError(409, 'bta_image_upload_required', 'Photo conservée localement. Envoi média Core requis avant synchronisation du produit.');
       const category_id = await idOf('categories', product.categoryId, true);
       const fields: Record<string, unknown> = {
         sku: product.sku, barcode: product.barcode, name: product.name, description: product.description,
@@ -2404,6 +2408,7 @@ freeIssues: [],
     discountUSD: number;
     paymentMethod: PaymentMethod;
     amountPaidUSD: number;
+    currency?: 'USD' | 'CDF';
     notes?: string;
     allowNegativeStock?: boolean;
   }): { success: boolean; sale?: Sale; error?: string } {
@@ -2533,6 +2538,7 @@ freeIssues: [],
 
     // 5. Build Sale record
     const sale: Sale = {
+      currency: saleInput.currency ?? 'USD',
       id: generateUUID(),
       invoiceNumber,
       customerId: saleInput.customerId,

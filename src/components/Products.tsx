@@ -480,6 +480,18 @@ export const Products: React.FC<ProductsProps> = ({
             </div>
 
             <form onSubmit={handleSaveProductSubmit} className="p-4 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              <label className="block text-sm">Photo facultative (galerie)
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) { alert('Choisissez une image JPG, PNG ou WebP de 2 Mo maximum.'); return; }
+                  const reader = new FileReader();
+                  reader.onload = () => setFormData(previous => ({...previous, photoUrl: String(reader.result)}));
+                  reader.onerror = () => alert('Lecture de la photo impossible.');
+                  reader.readAsDataURL(file);
+                }}/>
+              </label>
+              {formData.photoUrl && <div><img src={formData.photoUrl} alt="Photo sélectionnée" className="h-24 w-24 object-cover rounded"/><button type="button" onClick={() => setFormData(previous => ({...previous,photoUrl:''}))}>Retirer la photo</button></div>}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Code SKU *</label>

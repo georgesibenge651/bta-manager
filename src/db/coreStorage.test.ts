@@ -118,3 +118,36 @@ test('Core: effective branch permissions reject a local write before mutation', 
   assert.throws(()=>repo.saveCustomer({name:'Denied customer'}),/Permission Core refusée/);
   assert.equal(JSON.stringify(repo.state.customers),before);
 });
+
+test('Targeted: sale currency conversion and rejected retry preserve stock and local sale', async () => {
+  repo.coreContext={tenantId:7,branchId:4};repo.state.syncInfo.status='OFFLINE';
+  await mapServerId(7,'products','currency-product',931);
+  const sale={id:'currency-sale',invoiceNumber:'FC-1',items:[{productId:'currency-product',quantity:2,unitPriceUSD:3}],exchangeRate:2800,discountUSD:1,amountPaidUSD:5,paymentMethod:'CASH'};
+  const usd=await repo.toCorePayload('SALE_CREATE',sale);
+  const fc=await repo.toCorePayload('SALE_CREATE',{...sale,currency:'CDF'});
+  assert.equal(usd.currency,'USD');assert.equal(usd.items[0].unit_price,3);
+  assert.equal(fc.currency,'CDF');assert.equal(fc.items[0].unit_price,8400);
+  assert.equal(fc.discount,2800);assert.equal(fc.paid,14000);
+  repo.state.sales=[sale];repo.state.products=[{id:'currency-product',currentStock:8}];
+  repo.state.offlineQueue=[{id:'rejected-sale',type:'SALE_CREATE',payload:sale,status:'FAILED',corePayload:usd}];
+  repo.retryFailedCoreOperation('rejected-sale');
+  assert.equal(repo.state.offlineQueue.length,1);assert.notEqual(repo.state.offlineQueue[0].id,'rejected-sale');
+  assert.equal(repo.state.offlineQueue[0].corePayload,undefined);
+  assert.equal(repo.state.sales.length,1);assert.equal(repo.state.products[0].currentStock,8);
+  if(repo.persistTimer)clearTimeout(repo.persistTimer);
+});
+
+test('Targeted: category and customer require resource acknowledgements; optional photo stays empty', async () => {
+  repo.coreContext={tenantId:7,branchId:4};
+  for(const [type,key,id] of [['CATEGORY_CREATE','category',941],['CUSTOMER_CREATE','customer',942]] as const){
+    const op={id:`ack-${key}`,type,payload:{id:`local-${key}`}};
+    await assert.rejects(repo.applyCoreAck(op,{success:true}),{code:'bta_sync_manual_review'});
+    await repo.applyCoreAck(op,{success:true,[key]:{id}});
+    assert.equal(await getServerId(7,key==='category'?'categories':'customers',`local-${key}`),id);
+    assert.ok(repo.getCoreOperationHistory().some((x:any)=>x.id===op.id&&x.status==='DONE'));
+  }
+  const product={id:'no-photo',unit:'pcs',photoUrl:''};
+  assert.equal((await repo.toCorePayload('PRODUCT_CREATE',product)).image_url,'');
+  await assert.rejects(repo.toCorePayload('PRODUCT_CREATE',{...product,photoUrl:'data:image/png;base64,AAAA'}),{code:'bta_image_upload_required'});
+  if(repo.persistTimer)clearTimeout(repo.persistTimer);
+});

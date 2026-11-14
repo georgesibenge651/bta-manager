@@ -87,6 +87,7 @@ export interface SaleItem {
 }
 
 export interface Sale {
+  currency?: 'USD' | 'CDF';
   id: string;
   invoiceNumber: string;
   customerId?: string;
