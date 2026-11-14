@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {coreCashSessions, coreOpenCash, coreCloseCash} from '../core/api';
 
 export function CoreCashPanel({tenantId,branchId,userId}:{tenantId:number;branchId:number;userId:number}) {
@@ -7,25 +7,26 @@ export function CoreCashPanel({tenantId,branchId,userId}:{tenantId:number;branch
   const [amount,setAmount]=useState('0');
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState('');
-  const [uncertain,setUncertain]=useState(false);
+  const [uncertain,setUncertain]=useState(true);
+  const actionLock=useRef(false);
   async function refresh(){
     const response=await coreCashSessions(tenantId,branchId);
     if(response.success!==true)throw new Error('Réponse caisse invalide.');
     setSessions(response.sessions.filter(s=>Number(s.user_id)===userId));
   }
-  useEffect(()=>{void refresh().catch(e=>setMessage(String(e)));},[tenantId,branchId,userId]);
+  useEffect(()=>{void refresh().then(()=>setUncertain(false)).catch(e=>setMessage(String(e)));},[tenantId,branchId,userId]);
   async function act(id?:number){
-    if(busy)return;
+    if(actionLock.current||uncertain)return;
     const value=Number(amount);
     if(!amount.trim()||!Number.isFinite(value)||value<0){setMessage('Montant positif ou nul requis.');return;}
-    setBusy(true);setMessage('');
+    actionLock.current=true;setBusy(true);setMessage('');
     try{
       const response=id ? await coreCloseCash(tenantId,id,value) : await coreOpenCash(tenantId,branchId,currency,value);
       if(response.success!==true)throw new Error('Accusé caisse invalide.');
       setMessage(id?'Clôture confirmée par Core.':'Ouverture confirmée par Core.');
       await refresh();
     }catch(e){setMessage(`${String(e)} Vérifiez les caisses avant toute nouvelle opération.`);setUncertain(true);}
-    finally{setBusy(false);}
+    finally{actionLock.current=false;setBusy(false);}
   }
   return <section className="border rounded-xl p-3 space-y-2">
     <h3 className="font-bold">Mes caisses · établissement actif</h3>

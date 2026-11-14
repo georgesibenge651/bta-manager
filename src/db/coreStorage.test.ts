@@ -151,3 +151,43 @@ test('Targeted: category and customer require resource acknowledgements; optiona
   await assert.rejects(repo.toCorePayload('PRODUCT_CREATE',{...product,photoUrl:'data:image/png;base64,AAAA'}),{code:'bta_image_upload_required'});
   if(repo.persistTimer)clearTimeout(repo.persistTimer);
 });
+
+test('Finalisation: local category/customer creation through durable queue and server history; photo persists locally', async () => {
+  repo.coreContext={tenantId:7,branchId:4};repo.corePermissions=new Set(['stock.manage','customers.manage']);
+  repo.state.coreScope={tenantId:7,branchId:4};repo.state.offlineQueue=[];repo.state.coreSyncHistory=[];
+  repo.state.syncInfo.status='OFFLINE';repo.isBootstrapping=false;
+  repo.sessionUserId='final-manager';repo.state.currentUser={id:'final-manager',role:'GESTIONNAIRE',name:'Manager'};
+  repo.state.categories=[];repo.state.customers=[];repo.state.products=[];
+  const category=repo.addCategory('Final category','');
+  const customer=repo.saveCustomer({name:'Final customer',phone:'',email:'',address:'',city:'',creditLimitUSD:0,debtBalanceUSD:0});
+  assert.deepEqual(repo.state.offlineQueue.map((x:any)=>x.type),['CATEGORY_CREATE','CUSTOMER_CREATE']);
+  await repo.flushDurableAndWait();
+  const disk=await localforage.getItem<any>('bta_business_transform_africa_db_v1');
+  assert.equal(disk.categories[0].id,category.id);assert.equal(disk.customers[0].id,customer.id);
+  assert.equal(disk.offlineQueue.length,2);
+  const originalFetch=globalThis.fetch;const sent:any[]=[];
+  Object.defineProperty(globalThis,'navigator',{configurable:true,value:{onLine:true}});
+  Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{getItem:()=> 'a'.repeat(64)}});
+  globalThis.fetch=async (_input,options)=>{
+    const body=JSON.parse(String(options?.body));sent.push(body);
+    const key=body.type==='category_create'?'category':'customer';
+    return new Response(JSON.stringify({success:true,operation_id:body.operation_id,[key]:{id:key==='category'?951:952}}),{status:201});
+  };
+  try{
+    repo.state.syncInfo.status='ONLINE';assert.equal(await repo.coreSync(),true);
+    assert.equal(sent.length,2);assert.equal(repo.state.offlineQueue.length,0);
+    assert.equal(repo.state.coreSyncHistory.filter((x:any)=>x.status==='DONE').length,2);
+    await repo.flushDurableAndWait();
+    assert.equal((await localforage.getItem<any>('bta_business_transform_africa_db_v1')).coreSyncHistory.length,2);
+    repo.state.syncInfo.status='OFFLINE';
+    const photo='data:image/png;base64,aGVsbG8=';
+    const product=repo.saveProduct({name:'Local photo',sku:'PHOTO-FINAL',barcode:'',categoryId:category.id,brand:'',description:'',photoUrl:photo,buyPriceUSD:1,sellPriceUSD:2,currentStock:0,minStock:0,unit:'pcs',variants:[]});
+    await repo.flushDurableAndWait();
+    const saved=await localforage.getItem<any>('bta_business_transform_africa_db_v1');
+    assert.equal(saved.products.find((x:any)=>x.id===product.id).photoUrl,photo);
+    assert.equal(saved.offlineQueue[0].payload.photoUrl,photo);
+    repo.state.syncInfo.status='ONLINE';assert.equal(await repo.coreSync(),false);
+    assert.equal(sent.length,2);assert.equal(repo.state.offlineQueue[0].status,'FAILED');
+    assert.equal(repo.state.coreSyncHistory.filter((x:any)=>x.type==='PRODUCT_CREATE'&&x.status==='DONE').length,0);
+  }finally{globalThis.fetch=originalFetch;if(repo.persistTimer)clearTimeout(repo.persistTimer);}
+});
