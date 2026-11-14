@@ -1,3 +1,4 @@
+import {displayCompanyName} from '../core/branding';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Building2, Plus, Mail, KeyRound, Store } from 'lucide-react';
 import { getFirebaseUser } from '../firebase/auth';
@@ -151,7 +152,7 @@ export const CompanyPanel: React.FC = () => {
               <button key={m.tenantId} type="button" disabled={busy}
                 onClick={() => { setTenantId(m.tenantId); void setActiveContext({ tenantId: m.tenantId, branchId: null }); }}
                 className={`w-full text-left p-3 rounded-xl border ${m.tenantId === tenantId ? 'border-sky-500 bg-sky-50' : 'border-slate-200'}`}>
-                <b>{m.name}</b> · {ROLE_LABEL[m.role] ?? m.role}
+                <b>{displayCompanyName(m.name)}</b> · {ROLE_LABEL[m.role] ?? m.role}
               </button>
             ))}
           </div>
@@ -172,9 +173,9 @@ export const CompanyPanel: React.FC = () => {
 
           {current && (
             <div className="p-4 rounded-2xl border border-slate-200 space-y-2">
-              <h3 className="font-extrabold flex items-center gap-2"><Store className="w-4 h-4" /> Établissements de {current.name}</h3>
+              <h3 className="font-extrabold flex items-center gap-2"><Store className="w-4 h-4" /> Établissements de {displayCompanyName(current.name)}</h3>
               {branches.map((b) => <div key={b.id} className="p-2 rounded-xl bg-slate-50 flex items-center justify-between gap-2">
-                <span>{b.name}</span>
+                <span>{displayCompanyName(b.name)}</span>
                 {appRepository.isCloudEnabled() && <button className="text-sky-700 font-bold disabled:text-slate-400"
                   disabled={busy || appRepository.getCloudContext()?.tenantId === tenantId && appRepository.getCloudContext()?.branchId === b.id}
                   onClick={() => switchBranch(b.id)}>Utiliser ici</button>}
@@ -192,7 +193,7 @@ export const CompanyPanel: React.FC = () => {
             <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50 space-y-2">
               <h3 className="font-extrabold">Envoyer les données de cet appareil</h3>
               <p className="text-slate-600">
-                Produits, clients, ventes, dettes, stock… seront copiés vers « {branches[0].name} ».
+                Produits, clients, ventes, dettes, stock… seront copiés vers « {displayCompanyName(branches[0].name)} ».
                 Rien n’est supprimé sur ce téléphone. Gardez une connexion stable ; en cas de coupure, relancez : l’envoi reprend sans doublon.
               </p>
               {migrated ? <p className="font-bold text-emerald-700">✔ Déjà migré.</p> :
@@ -207,7 +208,7 @@ export const CompanyPanel: React.FC = () => {
               <p className="text-slate-600">Si les données de l’entreprise sont déjà en ligne, téléchargez-les sur ce téléphone.</p>
               <select className={input} value={joinBranchId} onChange={(e) => setJoinBranchId(e.target.value)}>
                 <option value="">Choisissez un établissement accessible</option>
-                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                {branches.map((b) => <option key={b.id} value={b.id}>{displayCompanyName(b.name)}</option>)}
               </select>
               <button className={btn} disabled={busy || !joinBranchId} onClick={doJoin}>Télécharger les données</button>
             </div>
@@ -239,7 +240,7 @@ export const CompanyPanel: React.FC = () => {
                   .map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
               </select>
               <select className={input} value={inviteBranch} onChange={(e) => setInviteBranch(e.target.value)}>
-                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                {branches.map((b) => <option key={b.id} value={b.id}>{displayCompanyName(b.name)}</option>)}
               </select>
               <button className={btn} disabled={busy || !inviteEmail.includes('@')} onClick={doInvite}>Inviter</button>
               {lastCode && <p className="p-2 rounded-xl bg-amber-50 border border-amber-200 break-all select-all">Code : <b>{lastCode}</b></p>}
@@ -259,7 +260,7 @@ export const CompanyPanel: React.FC = () => {
               onChange={(e) => setInviteBranch(e.target.value)}
             >
               <option value="">Choisir un établissement</option>
-              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              {branches.map((b) => <option key={b.id} value={b.id}>{displayCompanyName(b.name)}</option>)}
             </select>
             <button
               className={btn}

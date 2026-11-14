@@ -61,6 +61,7 @@ class InviteDB {
  }
  function get_results($sql,$mode){
   $this->historyQueries[]=$sql;
+  if(str_contains($sql,'wp_bta_sale_items'))return [['sale_id'=>1,'product_id'=>3,'quantity'=>1,'unit_price'=>2]];
   if(str_contains($sql,'wp_bta_')){check(str_contains($sql,'tenant_id=7')&&str_contains($sql,'branch_id=4'),'Unscoped history SQL');return [['id'=>1,'tenant_id'=>7,'branch_id'=>4,'created_by'=>1]];}
   if(str_contains($sql,'bta_members m')){return array_map(fn($r)=>$r+['name'=>'Tenant'],array_values(array_filter($this->tables['members'],fn($r)=>$r['user_id']==$this->match($sql,'user_id'))));}
   return [];

@@ -1,3 +1,5 @@
+import {displayCompanyName} from './core/branding';
+import {startSharedPolling} from './core/shared';
 import React, { useState, useEffect, useMemo } from 'react';
 import { appRepository } from './db/storage';
 import {
@@ -57,16 +59,23 @@ function guard<T>(fn: () => T): T | undefined {
 
 function BtaApp() {
   // Database reactive state
-  const [dbState, setDbState] = useState(() => appRepository.getState());
+  const [dbState, setDbState] = useState(() => {const state=appRepository.getState();return {...state,settings:{...state.settings,companyName:displayCompanyName(state.settings.companyName)}};});
   const isAuthenticated = appRepository.isAuthenticated();
   const coreSession = useCoreSession();
   const cloudContext = coreSession ? { tenantId: String(coreSession.membership.tenantId), branchId: String(coreSession.branch.id) } : null;
   const remoteAccess = coreSession ? { loading: false, permissions: coreSession.permissions } : { loading: true, permissions: [] as string[] };
 
+  useEffect(()=>{
+    if(!coreSession)return;
+    const expected={tenantId:coreSession.membership.tenantId,branchId:coreSession.branch.id,userId:coreSession.me.user.id};
+    return startSharedPolling(active=>appRepository.refreshSharedCoreData(expected,active));
+  },[coreSession?.membership.tenantId,coreSession?.branch.id,coreSession?.me.user.id,coreSession?.permissions.join('|')]);
+
   // Subscribe to Repository changes
   useEffect(() => {
     const unsubscribe = appRepository.subscribe(() => {
-      setDbState({ ...appRepository.getState() });
+      const state=appRepository.getState();
+      setDbState({...state,settings:{...state.settings,companyName:displayCompanyName(state.settings.companyName)}});
     });
     return () => {
       unsubscribe();
@@ -544,7 +553,7 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
           onDownloadZip={IS_DEV ? handleDownloadZip : undefined}
           onOpenGlobalSearch={(!cloudContext || !!remoteAccess?.permissions.length) ? () => setIsGlobalSearchOpen(true) : undefined}
           onOpenSyncCenter={() => setIsCoreSyncCenterOpen(true)}
-          tenantName={coreSession?.membership.name}
+          tenantName={coreSession ? displayCompanyName(coreSession.membership.name) : undefined}
           activeBranch={coreSession?.branch}
           branches={coreSession?.branches}
           onSelectBranch={(branchId) => { void coreSession?.selectBranch(branchId).catch((error) => alert(error instanceof Error ? error.message : 'Changement d’établissement impossible.')); }}

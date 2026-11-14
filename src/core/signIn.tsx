@@ -11,7 +11,7 @@ export function CoreSignIn({onSignIn,onInvitation,error:parentError}:{onSignIn(e
    else{if(mode==='register'&&password!==confirmation)throw new Error('Les mots de passe diffèrent.');await onInvitation(code.trim(),name,email,password,mode==='accept');}
  }catch(x){setError(x instanceof Error?x.message:'Connexion impossible.');}finally{setBusy(false);}};
  return <main className="min-h-screen bg-[#0B1A30] grid place-items-center p-4"><form onSubmit={submit} className="w-full max-w-sm bg-white rounded-3xl p-6 space-y-4">
-   <h1 className="text-xl font-black">BTA Manager</h1><p className="text-sm">Compte Fondation Kenda Core</p>
+   <h1 className="text-xl font-black">BTA Manager</h1><p className="text-sm">Compte Gestion Entreprise</p>
    <select aria-label="Connexion ou invitation" value={mode} onChange={e=>{setMode(e.target.value as typeof mode);setError('');}} className="w-full border p-3"><option value="login">Se connecter</option><option value="register">Invitation : nouveau compte</option><option value="accept">Invitation : compte existant</option></select>
    {mode!=='login'&&<input required aria-label="Code invitation" value={code} onChange={e=>setCode(e.target.value)} placeholder="Code d’invitation" className="w-full border p-3"/>}
    {mode==='register'&&<input required minLength={2} maxLength={150} value={name} onChange={e=>setName(e.target.value)} placeholder="Nom complet" className="w-full border p-3"/>}

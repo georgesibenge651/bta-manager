@@ -119,7 +119,7 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => me && membership && branch ? { me, membership, branch, branches, permissions, selectBranch, signOut, refresh } : null,
     [me, membership, branch, branches, permissions]);
-  if (busy) return <div className="min-h-screen grid place-items-center">Connexion à Fondation Kenda Core…</div>;
+  if (busy) return <div className="min-h-screen grid place-items-center">Connexion à Gestion Entreprise…</div>;
   if (!me) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} error={error} />;
   if (!membership) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} error="Ce compte n’appartient à aucune entreprise active." />;
   if (!branches.length || !branch) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} error="Aucun établissement actif n’est disponible pour cette entreprise." />;

@@ -1,3 +1,4 @@
+import {displayCompanyName} from './branding';
 import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core';
 
 interface SecureTokenPlugin {
@@ -14,7 +15,7 @@ export const CORE_API_BASE = (buildEnv?.VITE_CORE_API_BASE ||
 
 export class CoreApiError extends Error {
   constructor(public status: number, public code: string, message: string, public data?: unknown) {
-    super(message);
+    super(displayCompanyName(message));
     this.name = 'CoreApiError';
   }
 }

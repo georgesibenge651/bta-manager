@@ -153,7 +153,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={onManualSync}
                 className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition"
-                title="Synchroniser avec Fondation Kenda Core"
+                title="Synchroniser avec Gestion Entreprise"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${syncInfo.status === 'SYNCING' ? 'animate-spin' : ''}`} />
               </button>

@@ -251,7 +251,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           </div>
           <div>
             <h4 className="font-bold text-xs text-slate-900">
-              État synchronisation Fondation Kenda Core :{' '}
+              État synchronisation Gestion Entreprise :{' '}
               <span className={syncInfo.status === 'OFFLINE' ? 'text-amber-700' : 'text-emerald-700'}>
                 {syncInfo.status === 'OFFLINE' ? 'Mode hors ligne (stockage local)' : 'En ligne'}
               </span>

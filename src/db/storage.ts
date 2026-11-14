@@ -913,7 +913,7 @@ freeIssues: [],
         errorMessage: error instanceof Error ? error.message : 'Synchronisation Core impossible.' };
       this.persist();
       return false;
-    } finally { this.isSyncing = false; this.notify(); }
+    } finally { this.isSyncing = false; this.notify(); if(typeof window!=='undefined')window.dispatchEvent?.(new Event('bta-core-sync-finished')); }
   }
 
   private toCoreOperationType(type: string): string {
@@ -1211,6 +1211,28 @@ freeIssues: [],
     };
     this.persist();
     await this.flushDurableAndWait();
+  }
+
+  public async refreshSharedCoreData(expected:{tenantId:number;branchId:number;userId:number},active:()=>boolean):Promise<boolean> {
+    const valid=()=>active()&&this.sessionUserId!==null&&this.state.coreActorId===expected.userId&&this.coreContext?.tenantId===expected.tenantId&&this.coreContext?.branchId===expected.branchId;
+    if(!valid()||this.isSyncing||this.isBootstrapping||this.state.syncInfo.status==='OFFLINE')return false;
+    if(this.state.offlineQueue.length)await this.triggerSync();
+    if(!valid()||this.isSyncing)return false;
+    const revision=this.rev;
+    const {fetchSharedSales,mergeSharedSales}=await import('../core/shared');
+    const permissions=[...this.corePermissions];
+    let historyError:unknown;
+    const [snapshot,sales]=await Promise.all([
+      fetchCoreBootstrap(expected.tenantId,expected.branchId,this.state.settings.exchangeRate,permissions),
+      permissions.includes('sales.read')?fetchSharedSales(expected.tenantId,expected.branchId).catch(e=>{historyError=e;return null;}):Promise.resolve(null),
+    ]);
+    if(!valid()||revision!==this.rev||this.isSyncing||this.isBootstrapping)return false;
+    await this.applyCoreSnapshot(snapshot,'server');
+    if(!valid())return false;
+    if(sales)this.state.sales=mergeSharedSales(sales,this.state.sales,this.state.offlineQueue);
+    if(this.state.offlineQueue.length||historyError)this.state.syncInfo.status='ERROR';
+    if(historyError)this.state.syncInfo.errorMessage=String(historyError);
+    this.persist();this.notify();return !historyError;
   }
 
   public async loadCachedCoreSnapshot(tenantId: number, branchId: number): Promise<CoreBootstrapSnapshot | null> {
