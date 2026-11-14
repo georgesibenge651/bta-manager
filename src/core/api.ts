@@ -174,6 +174,7 @@ export const coreInvitations = (tenantId:number) => coreRequest<{success:true;in
 export const coreCreateInvitation = (tenantId:number,role:InvitationRole,branches:number[]) => coreRequest<{success:true;code:string;invitation:CoreInvitation}>(`tenants/${tenantId}/invitations`,{method:'POST',body:{role,branches}});
 export const coreRevokeInvitation = (id:number) => coreRequest<{success:true}>(`invitations/${id}/revoke`,{method:'POST'});
 export const coreRegisterInvited = (code:string,full_name:string,email:string,password:string) => coreRequest<{success:true;token:string;tenantId:number}>('auth/register-invited',{method:'POST',auth:false,body:{code,full_name,email,password}});
+export const coreRegisterOwner = (full_name:string,email:string,password:string,company_name:string,branch_name:string) => coreRequest<{success:true;token:string;tenantId:number;branchId:number}>('auth/register-owner',{method:'POST',auth:false,body:{full_name,email,password,company_name,branch_name}});
 export const coreAcceptInvitation = (code:string) => coreRequest<{success:true;tenantId:number}>('invitations/accept',{method:'POST',body:{code}});
 export type CoreHistoryResource='sales'|'debts'|'payments'|'refunds';
 export const coreHistoryPage=(tenantId:number,branchId:number,resource:CoreHistoryResource,cursor=0)=>coreRequest<{success:true;tenant_id:number;branch_id:number;resource:CoreHistoryResource;items:Array<Record<string,unknown>>;has_more:boolean;next_cursor:number|null}>(`tenants/${tenantId}/history/${resource}`,{query:{branch_id:branchId,cursor}});

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { appRepository } from '../db/storage';
-import { coreRegisterInvited, coreAcceptInvitation, clearCoreToken, coreBranches, coreBranchPermissions, coreLogin, coreLogout, coreMe, CoreApiError, CoreBranch, CoreMembership, CoreMe, CoreRole, getCoreToken, setCoreToken } from './api';
+import { coreRegisterInvited, coreRegisterOwner, coreAcceptInvitation, clearCoreToken, coreBranches, coreBranchPermissions, coreLogin, coreLogout, coreMe, CoreApiError, CoreBranch, CoreMembership, CoreMe, CoreRole, getCoreToken, setCoreToken } from './api';
 import { CoreSignIn } from './signIn';
 import { Preferences } from '@capacitor/preferences';
 
@@ -90,6 +90,17 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
     await Preferences.remove({ key: CACHED_SESSION_KEY });
     const result = await coreLogin(email, password); await setCoreToken(result.token); await refresh();
   };
+  const ownerSignUp = async (name:string,email:string,password:string,company:string,branch:string) => {
+    await Preferences.remove({key:CACHED_SESSION_KEY});
+    await clearCoreToken();
+    try {
+      const result=await coreRegisterOwner(name,email,password,company,branch);
+      await setCoreToken(result.token);
+      await Preferences.set({key:CONTEXT_KEY,value:JSON.stringify({tenantId:result.tenantId,branchId:result.branchId})});
+      await refresh();
+    } catch(e) { await clearCoreToken(); throw e; }
+  };
+
   const invitationSignIn = async (code:string,name:string,email:string,password:string,existing:boolean) => {
     await Preferences.remove({key:CACHED_SESSION_KEY});
     await clearCoreToken();
@@ -120,9 +131,9 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
   const value = useMemo(() => me && membership && branch ? { me, membership, branch, branches, permissions, selectBranch, signOut, refresh } : null,
     [me, membership, branch, branches, permissions]);
   if (busy) return <div className="min-h-screen grid place-items-center">Connexion à Gestion Entreprise…</div>;
-  if (!me) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} error={error} />;
-  if (!membership) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} error="Ce compte n’appartient à aucune entreprise active." />;
-  if (!branches.length || !branch) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} error="Aucun établissement actif n’est disponible pour cette entreprise." />;
+  if (!me) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} onOwnerSignUp={ownerSignUp} error={error} />;
+  if (!membership) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} onOwnerSignUp={ownerSignUp} error="Ce compte n’appartient à aucune entreprise active." />;
+  if (!branches.length || !branch) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} onOwnerSignUp={ownerSignUp} error="Aucun établissement actif n’est disponible pour cette entreprise." />;
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 

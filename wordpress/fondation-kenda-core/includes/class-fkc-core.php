@@ -244,6 +244,7 @@ final class FKC_Core {
         register_rest_route('bta/v1','/health',array('methods'=>WP_REST_Server::READABLE,'callback'=>array($this,'health_endpoint'),'permission_callback'=>'__return_true'));
         register_rest_route('bta/v1','/auth/login',array('methods'=>WP_REST_Server::CREATABLE,'callback'=>array($this,'login_endpoint'),'permission_callback'=>'__return_true'));
         register_rest_route('bta/v1','/auth/register-invited',array('methods'=>WP_REST_Server::CREATABLE,'callback'=>array($this,'register_invited_endpoint'),'permission_callback'=>'__return_true'));
+        register_rest_route('bta/v1','/auth/register-owner',array('methods'=>WP_REST_Server::CREATABLE,'callback'=>array($this,'register_owner_endpoint'),'permission_callback'=>'__return_true'));
         register_rest_route('bta/v1','/auth/me',array('methods'=>WP_REST_Server::READABLE,'callback'=>array($this,'me_endpoint'),'permission_callback'=>array($this,'require_session')));
         register_rest_route('bta/v1','/auth/logout',array('methods'=>WP_REST_Server::CREATABLE,'callback'=>array($this,'logout_endpoint'),'permission_callback'=>array($this,'require_session')));
 
@@ -492,6 +493,56 @@ final class FKC_Core {
         if($updated!==1)return $this->api_error('bta_invitation_changed','Invitation déjà traitée ou révocation impossible.',409);
         $this->write_audit((int)$inv['tenant_id'],(int)$access['session']['user_id'],'invitation.revoked','invitation',$invitation_id);
         return rest_ensure_response(array('success'=>true,'message'=>'Invitation révoquée.'));
+    }
+
+    /** Inscription autonome : crée un utilisateur, son entreprise, sa branche et une session OWNER. */
+    public function register_owner_endpoint($request) {
+        global $wpdb;
+        if (!$this->tables_ready() || !$this->sessions_table_exists()) return $this->api_error('bta_unavailable','Service temporairement indisponible.',503);
+        $name=sanitize_text_field((string)$request->get_param('full_name'));
+        $email=strtolower(trim(sanitize_email((string)$request->get_param('email'))));
+        $password=(string)$request->get_param('password');
+        $company=sanitize_text_field((string)$request->get_param('company_name'));
+        $branch=sanitize_text_field((string)($request->get_param('branch_name') ?: 'Établissement principal'));
+        if(strlen($name)<2||strlen($name)>150||!is_email($email)||strlen($email)>190||strlen($password)<12||strlen($password)>4096||strlen($company)<2||strlen($company)>190||strlen($branch)<2||strlen($branch)>150)
+            return $this->api_error('bta_invalid_registration','Vérifiez le nom, l’adresse e-mail, l’entreprise et le mot de passe (12 caractères minimum).');
+        $rate_key='fkc_owner_register_'.hash('sha256',$this->client_ip());
+        $attempts=(int)get_transient($rate_key);
+        if($attempts>=5)return $this->api_error('bta_rate_limited','Trop de créations depuis cette connexion. Réessayez dans 15 minutes.',429);
+        $users=$this->table('users'); $tenants=$this->table('tenants'); $branches=$this->table('branches');
+        $members=$this->table('members'); $branch_access=$this->table('branch_access'); $permissions=$this->table('permissions'); $sessions=$this->table('sessions');
+        $lock='fkc_signup_'.substr(hash('sha256',$email),0,32);
+        if((int)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,10)',$lock))!==1)return $this->api_error('bta_registration_busy','Inscription momentanément occupée. Réessayez.',429);
+        $wpdb->query('START TRANSACTION');
+        try {
+            if($wpdb->get_var($wpdb->prepare("SELECT id FROM {$users} WHERE email=%s LIMIT 1 FOR UPDATE",$email)))throw new DomainException('email_exists');
+            $password_hash=password_hash($password,PASSWORD_DEFAULT);
+            if(!$password_hash)throw new RuntimeException('password_hash');
+            if(!$wpdb->insert($users,array('full_name'=>$name,'email'=>$email,'password_hash'=>$password_hash,'status'=>'ACTIVE'),array('%s','%s','%s','%s')))throw new RuntimeException('user_insert');
+            $user_id=(int)$wpdb->insert_id;
+            $slug=sanitize_title($company); if(!$slug)$slug='entreprise'; $base=substr($slug,0,170); $n=1;
+            while($wpdb->get_var($wpdb->prepare("SELECT id FROM {$tenants} WHERE slug=%s",$slug)))$slug=substr($base,0,180).'-'.$n++;
+            if(!$wpdb->insert($tenants,array('name'=>$company,'slug'=>$slug,'status'=>'ACTIVE','created_by'=>$user_id),array('%s','%s','%s','%d')))throw new RuntimeException('tenant_insert');
+            $tenant_id=(int)$wpdb->insert_id;
+            if(!$wpdb->insert($branches,array('tenant_id'=>$tenant_id,'name'=>$branch,'code'=>'MAIN','status'=>'ACTIVE'),array('%d','%s','%s','%s')))throw new RuntimeException('branch_insert');
+            $branch_id=(int)$wpdb->insert_id;
+            if(!$wpdb->insert($members,array('tenant_id'=>$tenant_id,'user_id'=>$user_id,'role'=>'OWNER','status'=>'ACTIVE'),array('%d','%d','%s','%s')))throw new RuntimeException('member_insert');
+            $member_id=(int)$wpdb->insert_id;
+            foreach($this->permissions as $key=>$description){if($wpdb->query($wpdb->prepare("INSERT IGNORE INTO {$permissions} (permission_key,description) VALUES (%s,%s)",$key,$description))===false)throw new RuntimeException('permission_seed');}
+            if(!$wpdb->insert($branch_access,array('member_id'=>$member_id,'branch_id'=>$branch_id,'permissions'=>wp_json_encode($this->role_defaults['OWNER'])),array('%d','%d','%s')))throw new RuntimeException('branch_access_insert');
+            $token=bin2hex(random_bytes(32)); $expires=time()+7*DAY_IN_SECONDS;
+            if(!$wpdb->insert($sessions,array('user_id'=>$user_id,'token_hash'=>hash('sha256',$token),'expires_at'=>gmdate('Y-m-d H:i:s',$expires),'ip_address'=>$this->client_ip(),'user_agent'=>isset($_SERVER['HTTP_USER_AGENT'])?substr(sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])),0,255):''),array('%d','%s','%s','%s','%s')))throw new RuntimeException('session_insert');
+            $wpdb->query('COMMIT'); delete_transient($rate_key);
+            $this->write_audit($tenant_id,$user_id,'tenant.created','tenant',$tenant_id,array('name'=>$company,'main_branch_id'=>$branch_id,'self_service'=>true));
+            return new WP_REST_Response(array('success'=>true,'token'=>$token,'token_type'=>'Bearer','expires_at'=>gmdate('c',$expires),'user'=>array('id'=>$user_id,'name'=>$name,'email'=>$email,'status'=>'ACTIVE'),'tenantId'=>$tenant_id,'branchId'=>$branch_id),201);
+        } catch(DomainException $e) {
+            $wpdb->query('ROLLBACK'); set_transient($rate_key,$attempts+1,15*MINUTE_IN_SECONDS);
+            return $this->api_error('bta_email_exists','Cette adresse e-mail possède déjà un compte. Connectez-vous plutôt.',409);
+        } catch(Throwable $e) {
+            $wpdb->query('ROLLBACK'); set_transient($rate_key,$attempts+1,15*MINUTE_IN_SECONDS);
+            error_log('[FKC] Owner self-registration failed: '.$e->getMessage().' '.$wpdb->last_error);
+            return $this->api_error('bta_registration_failed','Impossible de créer le compte et l’entreprise. Réessayez.',500);
+        } finally { $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock)); }
     }
 
     /** Inscription publique réservée aux personnes possédant un code d'invitation valide. */
