@@ -9,9 +9,17 @@ interface SecureTokenPlugin {
 
 const SecureToken = registerPlugin<SecureTokenPlugin>('BtaSecureToken');
 const TOKEN_KEY = 'bta_core_bearer_v1';
-const buildEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
-export const CORE_API_BASE = (buildEnv?.VITE_CORE_API_BASE ||
-  'https://fondationkenda.com/wp-json/bta/v1').replace(/\/+$/, '');
+const buildEnv = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env;
+const PRODUCTION_CORE_API_BASE = 'https://fondationkenda.com/wp-json/bta/v1';
+/**
+ * En développement Web, les appels passent par le proxy Vite sur la même origine.
+ * En production (APK et site Web), l'API Core reste l'URL HTTPS officielle.
+ */
+export const CORE_API_BASE = (buildEnv?.DEV === true
+  ? '/__bta_core_proxy/wp-json/bta/v1'
+  : (typeof buildEnv?.VITE_CORE_API_BASE === 'string' && buildEnv.VITE_CORE_API_BASE
+    ? buildEnv.VITE_CORE_API_BASE
+    : PRODUCTION_CORE_API_BASE)).replace(/\/+$/, '');
 
 export class CoreApiError extends Error {
   constructor(public status: number, public code: string, message: string, public data?: unknown) {
@@ -39,9 +47,9 @@ export async function clearCoreToken(): Promise<void> {
 type Sent = { ok: boolean; status: number; payload: unknown };
 
 /**
- * Android : le fetch du WebView échoue sur tout POST/préflight CORS vers l'API (diagnostic du 2026-11-11,
- * étapes C/D/E/H/I en échec, N1/N2 natifs OK). On utilise donc le client HTTP natif (TLS système, pas de CORS).
- * Web : fetch inchangé.
+ * Android : CapacitorHttp évite les restrictions CORS du WebView.
+ * Web en développement : le proxy Vite relaie les appels sur la même origine.
+ * Web en production : fetch utilise directement l'API HTTPS officielle.
  */
 async function sendRequest(url: URL, method: string, headers: Record<string, string>, body: unknown, timeoutMs: number, signal: AbortSignal): Promise<Sent> {
   if (Capacitor.isNativePlatform()) {
@@ -62,7 +70,10 @@ export async function coreRequest<T>(path: string, options: {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH'; query?: Record<string, string | number | undefined>;
   body?: unknown; auth?: boolean; timeoutMs?: number;
 } = {}): Promise<T> {
-  const url = new URL(`${CORE_API_BASE}/${path.replace(/^\/+/, '')}`);
+  const base = CORE_API_BASE.startsWith('/')
+    ? `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost'}${CORE_API_BASE}`
+    : CORE_API_BASE;
+  const url = new URL(`${base}/${path.replace(/^\/+/, '')}`);
   for (const [key, value] of Object.entries(options.query ?? {})) if (value !== undefined) url.searchParams.set(key, String(value));
   const token = options.auth === false ? null : await getCoreToken();
   if (options.auth !== false && !token) throw new CoreApiError(401, 'bta_unauthenticated', 'Connexion requise.');

@@ -1,10 +1,16 @@
-BTA test fixture correction
+BTA MANAGER — Caisse et clôture lisible
 
-This changes only src/db/coreStorage.test.ts.
-The test now includes the existing debt in the simulated server snapshot because customer debt records are now server-authoritative.
-No application source or production behavior is changed.
-Apply from the BTA repository root with:
-  unzip -o ~/storage/downloads/BTA_DEBT_SYNC_TEST_FIX_20261114.zip -d .
-Then run:
-  npm run lint
-  npm run test:unit
+Cette mise à jour remplace le champ ambigu « solde initial ou montant compté » par deux parcours distincts : ouverture de caisse et clôture.
+
+À la clôture, le bouton ouvre un formulaire. Le caissier saisit le montant physiquement compté, puis confirme. Après confirmation du serveur, l’écran affiche le solde théorique, le montant compté et l’écart retourné par Core.
+
+Le correctif ne change ni les routes serveur ni les règles comptables. Il corrige également le bouton d’ouverture pour respecter la règle serveur : une seule caisse ouverte par utilisateur à la fois, quelle que soit la devise.
+
+Installation depuis la racine du dépôt :
+1. Copier ce ZIP dans le dossier du projet.
+2. unzip -o BTA_ENTERPRISE_CASH_DESIGN_20261114.zip
+3. git apply --check BTA_ENTERPRISE_CASH_DESIGN.patch
+4. Si le contrôle passe : git apply BTA_ENTERPRISE_CASH_DESIGN.patch
+5. npm run lint && npm run build && npm run test:unit
+
+Ne pas faire de commit/push avant validation sur l’APK.

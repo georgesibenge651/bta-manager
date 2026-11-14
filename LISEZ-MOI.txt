@@ -1,21 +1,24 @@
-BTA Manager — Phase 2 : réservations opérationnelles
+FINALISATION GESTION ENTREPRISE — PATCH 2026-11-14
 
-Fichiers inclus :
-- src/App.tsx
-- src/components/NewOperations.tsx
+Contenu :
+- Nom visible de l'application Android : Gestion Entreprise (identifiant Android inchangé).
+- Personnalisation par entreprise : logo compressé (JPEG data URL, limite de 220 Ko) et couleur de marque.
+- Affichage du logo et de la couleur sur les reçus thermiques et factures A4.
+- Le logo et la couleur sont ajoutés aux paramètres d'entreprise existants. La collection settings est déjà incluse dans le moteur de synchronisation tenant ; aucune nouvelle collection serveur n'est créée.
+- Le workflow APK lance les tests unitaires, fonctions serveur et règles Firestore avant le build.
 
-Fonctionnalités :
-- Création d'une réservation avec client et plusieurs produits.
-- Politique de réservation du stock : blocage immédiat ou au moment de la livraison.
-- Avance initiale avec mode de paiement.
-- Enregistrement d'avances supplémentaires.
-- Enregistrement de livraisons partielles et mise à jour du stock via le dépôt existant.
+APPLICATION :
+Depuis la racine du projet, extraire cette archive en remplaçant les fichiers correspondants.
+Puis lancer :
+  npm run lint
+  npm run test:unit
+  npm run test:functions
+  npm run test:rules
+  npm run test:core
+  npm run build
 
-Installation :
-1. Faire une sauvegarde du projet.
-2. Depuis ~/bta, extraire cette archive avec :
-   unzip -o ~/storage/downloads/bta-reservations-phase2.zip -d .
-3. Vérifier avec npm run build.
-
-Important :
-Cette phase ne génère pas encore de facture de vente pour les livraisons et ne réalise pas l'affectation manuelle des avances à une facture. Ces éléments nécessitent une phase comptable dédiée.
+IMPORTANT :
+Ce patch n'a pas été compilé dans cet environnement : l'installation npm a expiré. Ne pas distribuer l'APK avant que GitHub Actions ait terminé avec succès.
+Le logo est stocké dans le document settings synchronisé du tenant ; il est donc volontairement compressé et limité en taille.
+Le workflow de build signé exige les secrets Android configurés dans GitHub : KEYSTORE_BASE64, KEYSTORE_PASSWORD et KEY_ALIAS. Le mot de passe de clé privée est actuellement supposé identique à KEYSTORE_PASSWORD dans le workflow.
+Aucun commit, push ou déploiement n'est effectué par ce patch.

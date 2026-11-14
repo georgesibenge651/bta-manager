@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">BTA Manager</string>
-    <string name="title_activity_main">BTA Manager</string>
+    <string name="app_name">Gestion Entreprise</string>
+    <string name="title_activity_main">Gestion Entreprise</string>
     <string name="package_name">com.businessafrica.bta.manager</string>
     <string name="custom_url_scheme">com.businessafrica.bta.manager</string>
 </resources>

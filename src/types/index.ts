@@ -221,6 +221,10 @@ export interface DebtRecord {
 
 export interface CompanySettings {
   companyName: string;
+  /** Logo d'entreprise compressé (data URL JPEG), synchronisé avec les paramètres du tenant. */
+  logoDataUrl?: string;
+  /** Couleur de marque utilisée sur les reçus et éléments de profil. */
+  brandColor?: string;
   slogan: string;
   address: string;
   city: string;
