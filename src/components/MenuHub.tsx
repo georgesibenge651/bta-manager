@@ -76,6 +76,13 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           color: 'bg-blue-500/10 text-blue-600',
         },
         {
+          id: 'cargo',
+          title: 'BTA Cargo & Suivi Colis',
+          subtitle: 'Expéditions internationales, suivi et paiements',
+          icon: Truck,
+          color: 'bg-indigo-500/10 text-indigo-600',
+        },
+        {
           id: 'fournisseurs',
           title: 'Fournisseurs & Contacts',
           subtitle: 'Répertoire des distributeurs et solde dû',

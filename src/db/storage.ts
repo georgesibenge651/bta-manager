@@ -27,6 +27,9 @@ ReservationCancellation,
   StockDamageStatus,
   FreeIssue,
   UserRole,
+  CargoPackage,
+  CargoEvent,
+  CargoPayment,
 } from '../types';
 import {
   INITIAL_SETTINGS,
@@ -81,6 +84,7 @@ interface AppDatabaseState {
   reservationDeliveries: ReservationDelivery[];
   stockDamages: StockDamage[];
   freeIssues: FreeIssue[];
+  cargoPackages: CargoPackage[];
   offlineQueue: Array<{ id: string; type: string; payload: unknown; timestamp: string; status?: 'PENDING'|'PROCESSING'|'FAILED'|'REVIEW'; attempts?: number; error?: string; corePayload?: Record<string, unknown> }>;
   coreSyncHistory: Array<{ id:string; type:string; status:'DONE'|'FAILED'|'REVIEW'; timestamp:string; error?:string }>;
   coreScope?: { tenantId: number; branchId: number };
@@ -122,7 +126,7 @@ function validateBackupData(data: Partial<AppDatabaseState>): data is Partial<Ap
   if (!data || typeof data !== 'object' || !data.settings || typeof data.settings !== 'object' ||
     !isNum(data.settings.exchangeRate) || data.settings.exchangeRate < 100 || data.settings.exchangeRate > 100000) return false;
   const required = ['categories', 'products', 'customers', 'suppliers', 'sales', 'purchases', 'stockMovements', 'expenses', 'debts'] as const;
-  const optional = ['reservations', 'reservationCancellations', 'reservationPayments', 'reservationDeliveries', 'stockDamages', 'freeIssues'] as const;
+  const optional = ['reservations', 'reservationCancellations', 'reservationPayments', 'reservationDeliveries', 'stockDamages', 'freeIssues', 'cargoPackages'] as const;
   for (const key of required) if (!Array.isArray(data[key])) return false;
   for (const key of optional) if (data[key] !== undefined && !Array.isArray(data[key])) return false;
   const arrays = [...required, ...optional] as const;
@@ -376,6 +380,7 @@ const cleanState: AppDatabaseState = {
       stockMovements: INITIAL_STOCK_MOVEMENTS,
       expenses: INITIAL_EXPENSES,
       debts: INITIAL_DEBTS,
+      cargoPackages: [],
 reservations: [],
 reservationCancellations: [],
 reservationPayments: [],
@@ -520,12 +525,12 @@ freeIssues: [],
       settings: INITIAL_SETTINGS,
       categories: [], products: [], customers: [], suppliers: [], sales: [], purchases: [],
       stockMovements: [], expenses: [], debts: [], reservations: [], reservationCancellations: [],
-      reservationPayments: [], reservationDeliveries: [], stockDamages: [], freeIssues: [],
+      reservationPayments: [], reservationDeliveries: [], stockDamages: [], freeIssues: [], cargoPackages: [],
       offlineQueue: [],
       cloud: { tenantId, branchId, lastPull: 0, baseline: makeBaseline({
         settings: INITIAL_SETTINGS, categories: [], products: [], customers: [], suppliers: [], sales: [], purchases: [],
         stockMovements: [], expenses: [], debts: [], reservations: [], reservationCancellations: [],
-        reservationPayments: [], reservationDeliveries: [], stockDamages: [], freeIssues: [],
+        reservationPayments: [], reservationDeliveries: [], stockDamages: [], freeIssues: [], cargoPackages: [],
       }), rejections: [], failedOps: [] },
       syncInfo: { ...this.state.syncInfo, pendingCount: 0, errorMessage: undefined },
     };
@@ -571,7 +576,7 @@ freeIssues: [],
       ...this.state,
       categories: [], products: [], customers: [], suppliers: [], sales: [], purchases: [],
       stockMovements: [], expenses: [], debts: [], reservations: [], reservationCancellations: [],
-      reservationPayments: [], reservationDeliveries: [], stockDamages: [], freeIssues: [],
+      reservationPayments: [], reservationDeliveries: [], stockDamages: [], freeIssues: [], cargoPackages: [],
       offlineQueue: [],
     };
     this.state.cloud = { tenantId, branchId, lastPull: 0, baseline: makeBaseline(this.state as unknown as Record<string, unknown>), rejections: [], failedOps: [] };
@@ -2448,6 +2453,137 @@ freeIssues: [],
       this.afterWrite();
       return newSupplier;
     }
+  }
+
+  // Cargo management (local durable storage; server synchronization is not yet implemented).
+  public getCargoPackages(): CargoPackage[] {
+    return this.state.cargoPackages || [];
+  }
+
+  public saveCargoPackage(input: Partial<CargoPackage>): CargoPackage {
+    this.requireManager();
+    const now = new Date().toISOString();
+    const existing = input.id ? this.getCargoPackages().find((item) => item.id === input.id) : undefined;
+    if (input.id && !existing) throw new Error('Colis introuvable.');
+    const customerName = String(input.customerName || existing?.customerName || '').trim();
+    const description = String(input.description || existing?.description || '').trim();
+    if (!customerName) throw new Error('Le nom du client est obligatoire.');
+    if (!description) throw new Error('La description du colis est obligatoire.');
+    const packingNumber = String(input.packingNumber ?? existing?.packingNumber ?? '').trim();
+    if (!packingNumber) throw new Error('Le numéro PKG fourni par le fournisseur est obligatoire.');
+    const duplicatePackingNumber = this.getCargoPackages().some((item) =>
+      item.id !== existing?.id && item.packingNumber.trim().toLowerCase() === packingNumber.toLowerCase()
+    );
+    if (duplicatePackingNumber) throw new Error('Ce numéro PKG est déjà associé à un autre colis.');
+    const piecesCount = Number(input.piecesCount ?? existing?.piecesCount ?? 1);
+    const weightKg = Number(input.weightKg ?? existing?.weightKg ?? 0);
+    const volumeCbm = Number(input.volumeCbm ?? existing?.volumeCbm ?? 0);
+    if (!Number.isFinite(piecesCount) || piecesCount < 1 || !Number.isFinite(weightKg) || weightKg < 0 || !Number.isFinite(volumeCbm) || volumeCbm < 0) {
+      throw new Error('Quantité, poids ou volume invalide.');
+    }
+    const initialCostUSD = Number(input.initialCostUSD ?? existing?.initialCostUSD ?? 0);
+    const transportFeeUSD = Number(input.transportFeeUSD ?? existing?.transportFeeUSD ?? 0);
+    const customsFeeUSD = Number(input.customsFeeUSD ?? existing?.customsFeeUSD ?? 0);
+    const extraFeeUSD = Number(input.extraFeeUSD ?? existing?.extraFeeUSD ?? 0);
+    const amounts = [initialCostUSD, transportFeeUSD, customsFeeUSD, extraFeeUSD];
+    if (amounts.some((amount) => !Number.isFinite(amount) || amount < 0)) throw new Error('Un montant Cargo est invalide.');
+    const totalAmountUSD = r2(amounts.reduce((sum, amount) => sum + amount, 0));
+    const amountPaidUSD = existing?.amountPaidUSD ?? Number(input.amountPaidUSD ?? 0);
+    const pkg: CargoPackage = {
+      id: existing?.id || input.id || generateUUID(),
+      packingNumber,
+      customerId: input.customerId ?? existing?.customerId,
+      customerName,
+      customerPhone: String(input.customerPhone ?? existing?.customerPhone ?? ''),
+      supplierName: String(input.supplierName ?? existing?.supplierName ?? ''),
+      description,
+      originCountry: String(input.originCountry ?? existing?.originCountry ?? 'Chine'),
+      originCity: String(input.originCity ?? existing?.originCity ?? ''),
+      destinationCountry: String(input.destinationCountry ?? existing?.destinationCountry ?? 'RDC'),
+      destinationCity: String(input.destinationCity ?? existing?.destinationCity ?? 'Bunia'),
+      transportMode: input.transportMode ?? existing?.transportMode ?? 'SEA',
+      carrierName: String(input.carrierName ?? existing?.carrierName ?? ''),
+      registrationDate: existing?.registrationDate || input.registrationDate || now,
+      expectedShippingDate: input.expectedShippingDate ?? existing?.expectedShippingDate,
+      piecesCount,
+      weightKg,
+      volumeCbm,
+      photos: input.photos ?? existing?.photos ?? [],
+      documents: input.documents ?? existing?.documents ?? [],
+      currentStatus: existing?.currentStatus || input.currentStatus || 'REGISTERED',
+      initialCostUSD,
+      transportFeeUSD,
+      customsFeeUSD,
+      extraFeeUSD,
+      totalAmountUSD,
+      amountPaidUSD,
+      remainingBalanceUSD: r2(Math.max(0, totalAmountUSD - amountPaidUSD)),
+      currency: input.currency ?? existing?.currency ?? 'USD',
+      exchangeRate: Number(input.exchangeRate ?? existing?.exchangeRate ?? this.state.settings.exchangeRate),
+      events: existing?.events ?? input.events ?? [],
+      payments: existing?.payments ?? input.payments ?? [],
+      createdById: existing?.createdById || this.state.currentUser.id,
+      createdByName: existing?.createdByName || this.state.currentUser.name,
+      syncStatus: existing?.syncStatus || this.syncStatusForNewRecord(),
+    };
+    this.state.cargoPackages = existing
+      ? this.getCargoPackages().map((item) => item.id === pkg.id ? pkg : item)
+      : [pkg, ...this.getCargoPackages()];
+    this.afterWrite();
+    return pkg;
+  }
+
+  public addCargoEvent(packageId: string, input: Partial<CargoEvent>): CargoPackage {
+    this.requireManager();
+    const pkg = this.getCargoPackages().find((item) => item.id === packageId);
+    if (!pkg) throw new Error('Colis introuvable.');
+    if (!input.status) throw new Error('Sélectionnez le nouveau statut du colis.');
+    const event: CargoEvent = {
+      id: generateUUID(),
+      packageId,
+      status: input.status,
+      country: String(input.country || pkg.destinationCountry),
+      city: String(input.city || pkg.destinationCity),
+      location: input.location,
+      date: input.date || new Date().toISOString(),
+      comment: String(input.comment || ''),
+      photoUrl: input.photoUrl,
+      documentUrl: input.documentUrl,
+      recordedBy: this.state.currentUser.id,
+      recordedByName: this.state.currentUser.name,
+    };
+    const updated = { ...pkg, currentStatus: event.status, events: [...(pkg.events || []), event] };
+    this.state.cargoPackages = this.getCargoPackages().map((item) => item.id === packageId ? updated : item);
+    this.afterWrite();
+    return updated;
+  }
+
+  public addCargoPayment(packageId: string, input: Partial<CargoPayment>): CargoPackage {
+    this.requireManager();
+    const pkg = this.getCargoPackages().find((item) => item.id === packageId);
+    if (!pkg) throw new Error('Colis introuvable.');
+    const amountUSD = Number(input.amountUSD || 0);
+    const exchangeRate = Number(input.exchangeRate || this.state.settings.exchangeRate);
+    if (!Number.isFinite(amountUSD) || amountUSD <= 0) throw new Error('Le montant du paiement doit être supérieur à zéro.');
+    if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) throw new Error('Taux de change invalide.');
+    if (amountUSD > pkg.remainingBalanceUSD + 0.005) throw new Error('Le paiement dépasse le solde restant.');
+    const payment: CargoPayment = {
+      id: generateUUID(),
+      packageId,
+      amountUSD: r2(amountUSD),
+      amountCDF: r2(Number(input.amountCDF || amountUSD * exchangeRate)),
+      exchangeRate,
+      paymentMethod: input.paymentMethod || 'CASH',
+      receiptNumber: input.receiptNumber || generateReferenceNumber('REC-CARGO'),
+      date: input.date || new Date().toISOString(),
+      recordedBy: this.state.currentUser.id,
+      notes: input.notes,
+    };
+    const amountPaidUSD = r2(pkg.amountPaidUSD + payment.amountUSD);
+    const updated = { ...pkg, amountPaidUSD, remainingBalanceUSD: r2(Math.max(0, pkg.totalAmountUSD - amountPaidUSD)), payments: [...(pkg.payments || []), payment] };
+    this.state.cargoPackages = this.getCargoPackages().map((item) => item.id === packageId ? updated : item);
+    this.afterWrite();
+    return updated;
   }
 
   // Sales & POS Engine

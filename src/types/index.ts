@@ -398,3 +398,89 @@ export interface FreeIssue {
   issuedByName: string;
   notes?: string;
 }
+
+// ==========================================
+// BTA CARGO TRACKING MODULE
+// ==========================================
+
+export type CargoStatus =
+  | 'REGISTERED'          // 1. Colis enregistré
+  | 'CHINA_WAREHOUSE'     // 2. Arrivé à l'entrepôt en Chine
+  | 'PREPARING'           // 3. En préparation
+  | 'SHIPPED_CHINA'       // 4. Expédié depuis la Chine
+  | 'INTERNATIONAL_TRANSIT' // 5. En transit international
+  | 'TRANSIT_COUNTRY'     // 6. Arrivé dans un pays de transit
+  | 'CUSTOMS'             // 7. En douane
+  | 'ARRIVED_DRC'         // 8. Arrivé en RDC
+  | 'ON_WAY_BUNIA'        // 9. En route vers Bunia
+  | 'ARRIVED_BUNIA'       // 10. Arrivé à Bunia
+  | 'AVAILABLE_PICKUP'    // 11. Disponible pour retrait
+  | 'DELIVERED';          // 12. Livré au client
+
+export type TransportMode = 'AIR' | 'SEA';
+
+export interface CargoEvent {
+  id: string;
+  packageId: string;
+  status: CargoStatus;
+  country: string;
+  city: string;
+  location?: string;
+  date: string;
+  comment: string;
+  photoUrl?: string;
+  documentUrl?: string;
+  recordedBy: string;
+  recordedByName: string;
+}
+
+export interface CargoPayment {
+  id: string;
+  packageId: string;
+  amountUSD: number;
+  amountCDF: number;
+  exchangeRate: number;
+  paymentMethod: PaymentMethod;
+  receiptNumber: string;
+  date: string;
+  recordedBy: string;
+  notes?: string;
+}
+
+export interface CargoPackage {
+  id: string;
+  packingNumber: string; // Numéro PKG réel fourni et inscrit par le fournisseur sur le colis
+  customerId?: string;
+  customerName: string;
+  customerPhone: string;
+  supplierName: string;
+  description: string;
+  originCountry: string;
+  originCity: string;
+  destinationCountry: string;
+  destinationCity: string; // Default 'Bunia'
+  transportMode: TransportMode;
+  carrierName: string;
+  registrationDate: string;
+  expectedShippingDate?: string;
+  piecesCount: number;
+  weightKg: number;
+  volumeCbm: number;
+  photos: string[];
+  documents: string[];
+  currentStatus: CargoStatus;
+  initialCostUSD: number;
+  transportFeeUSD: number;
+  customsFeeUSD: number;
+  extraFeeUSD: number;
+  totalAmountUSD: number;
+  amountPaidUSD: number;
+  remainingBalanceUSD: number;
+  currency: 'USD' | 'CDF';
+  exchangeRate: number;
+  events: CargoEvent[];
+  payments: CargoPayment[];
+  createdById: string;
+  createdByName: string;
+  syncStatus: 'SYNCED' | 'PENDING' | 'ERROR';
+}

@@ -1,0 +1,10 @@
+--- wordpress/fondation-kenda-core/includes/class-fkc-core.php
++++ wordpress/fondation-kenda-core/includes/class-fkc-core.php
+@@ -1,7 +1,5 @@
+             if ($row['tenant_id']) {
+                 $tenant_id=(int)$row['tenant_id'];
+                 $updated=$wpdb->update($this->table('tenants'),array('status'=>'SUSPENDED'),array('id'=>$tenant_id),array('%s'),array('%d'));
+                 if ($updated===false) throw new RuntimeException('tenant_suspend');
+-                $sessions=$this->table('sessions'); $members=$this->table('members');
+-                $wpdb->query("DELETE FROM {$sessions} WHERE user_id IN (SELECT user_id FROM {$members} WHERE tenant_id=".(int)$tenant_id.")");
+             }

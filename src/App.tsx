@@ -38,6 +38,7 @@ import { KotlinSourceModal } from './components/KotlinSourceModal';
 import { ApkExportModal } from './components/ApkExportModal';
 import { GlobalSearch } from './components/GlobalSearch';
 import { NewOperations } from './components/NewOperations';
+import { CargoModule } from './components/cargo/CargoModule';
 import { CoreSyncCenter } from './components/CoreSyncCenter';
 import { ArrowLeft } from 'lucide-react';
 import { generateProjectZip, downloadProjectZip } from './utils/exportZip';
@@ -402,6 +403,17 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
               <ArrowLeft className="w-4 h-4" />
               Retour au Menu
             </button>
+
+            {activeSubModule === 'cargo' && (
+              <CargoModule
+                packages={dbState.cargoPackages}
+                settings={dbState.settings}
+                currentUser={dbState.currentUser}
+                onSavePackage={async (pkg) => appRepository.saveCargoPackage(pkg)}
+                onAddEvent={async (packageId, event) => appRepository.addCargoEvent(packageId, event)}
+                onAddPayment={async (packageId, payment) => appRepository.addCargoPayment(packageId, payment)}
+              />
+            )}
 
             {activeSubModule === 'fournisseurs' && (
               <Suppliers

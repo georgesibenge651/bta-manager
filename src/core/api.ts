@@ -15,11 +15,11 @@ const PRODUCTION_CORE_API_BASE = 'https://fondationkenda.com/wp-json/bta/v1';
  * En développement Web, les appels passent par le proxy Vite sur la même origine.
  * En production (APK et site Web), l'API Core reste l'URL HTTPS officielle.
  */
-export const CORE_API_BASE = (buildEnv?.DEV === true
-  ? '/__bta_core_proxy/wp-json/bta/v1'
-  : (typeof buildEnv?.VITE_CORE_API_BASE === 'string' && buildEnv.VITE_CORE_API_BASE
+export const CORE_API_BASE = (
+  typeof buildEnv?.VITE_CORE_API_BASE === 'string' && buildEnv.VITE_CORE_API_BASE
     ? buildEnv.VITE_CORE_API_BASE
-    : PRODUCTION_CORE_API_BASE)).replace(/\/+$/, '');
+    : PRODUCTION_CORE_API_BASE
+).replace(/\/+$/, '');
 
 export class CoreApiError extends Error {
   constructor(public status: number, public code: string, message: string, public data?: unknown) {
