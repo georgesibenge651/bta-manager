@@ -103,8 +103,13 @@ test('Core: ambiguous network failure retries the same UUID and frozen payload a
   const sent:any[]=[];
   const originalFetch=globalThis.fetch;
   let fail=true;
-  globalThis.fetch=async (_input,options)=>{
-    if(!options?.body)return new Response(JSON.stringify({code:'bta_sync_operation_not_found',message:'Absent'}),{status:404});
+  globalThis.fetch=async (input,options)=>{
+    if(!options?.body) {
+      if (String(input).includes('/cargo/packages')) {
+        return new Response(JSON.stringify({success:true,packages:[],count:0,server_time:new Date().toISOString()}),{status:200});
+      }
+      return new Response(JSON.stringify({code:'bta_sync_operation_not_found',message:'Absent'}),{status:404});
+    }
     const body=JSON.parse(String(options.body));sent.push(body);
     if(fail){fail=false;throw new Error('simulated connection loss');}
     return new Response(JSON.stringify({success:true,operation_id:body.operation_id,customer:{id:83}}),{status:201});
@@ -195,8 +200,14 @@ test('Finalisation: local category/customer creation through durable queue and s
   const originalFetch=globalThis.fetch;const sent:any[]=[];
   Object.defineProperty(globalThis,'navigator',{configurable:true,value:{onLine:true}});
   Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{getItem:()=> 'a'.repeat(64)}});
-  globalThis.fetch=async (_input,options)=>{
-    const body=JSON.parse(String(options?.body));sent.push(body);
+  globalThis.fetch=async (input,options)=>{
+    if (!options?.body) {
+      if (String(input).includes('/cargo/packages')) {
+        return new Response(JSON.stringify({success:true,packages:[],count:0,server_time:new Date().toISOString()}),{status:200});
+      }
+      return new Response(JSON.stringify({code:'bta_sync_operation_not_found',message:'Absent'}),{status:404});
+    }
+    const body=JSON.parse(String(options.body));sent.push(body);
     const key=body.type==='category_create'?'category':'customer';
     return new Response(JSON.stringify({success:true,operation_id:body.operation_id,[key]:{id:key==='category'?951:952}}),{status:201});
   };
