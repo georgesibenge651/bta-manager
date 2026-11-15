@@ -39,8 +39,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({ packages, settings, cu
     packingNumber: '', customerName: '', customerPhone: '', supplierName: '', description: '',
     originCountry: 'Chine', originCity: '', destinationCountry: 'RDC', destinationCity: 'Bunia',
     transportMode: 'SEA' as 'AIR' | 'SEA', carrierName: '', piecesCount: '1',
-    weightKg: '0', volumeCbm: '0', initialCostUSD: '0', transportFeeUSD: '0',
-    customsFeeUSD: '0', extraFeeUSD: '0', expectedShippingDate: '',
+    weightKg: '0', volumeCbm: '0', unitPriceUSD: '', expectedShippingDate: '',
   });
   const [eventForm, setEventForm] = useState({ status: 'CHINA_WAREHOUSE' as CargoStatus, country: 'RDC', city: 'Bunia', location: '', comment: '' });
   const [paymentForm, setPaymentForm] = useState({ amountUSD: '', paymentMethod: 'CASH' as PaymentMethod, notes: '' });
@@ -92,6 +91,12 @@ export const CargoModule: React.FC<CargoModuleProps> = ({ packages, settings, cu
   const balance = packages.reduce((sum, pkg) => sum + pkg.remainingBalanceUSD, 0);
   const set = (key: keyof typeof form, value: string) => setForm((old) => ({ ...old, [key]: value }));
 
+  const billingQuantity = form.transportMode === 'AIR' ? Number(form.weightKg) : Number(form.volumeCbm);
+  const unitPrice = Number(form.unitPriceUSD);
+  const calculatedTotalUSD = Number.isFinite(billingQuantity) && Number.isFinite(unitPrice)
+    ? Math.round(billingQuantity * unitPrice * 100) / 100
+    : 0;
+
   const createPackage = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setBusy(true);
     try {
@@ -101,12 +106,12 @@ export const CargoModule: React.FC<CargoModuleProps> = ({ packages, settings, cu
         packingNumber: form.packingNumber.trim(),
         photos: photoFiles,
         piecesCount: Number(form.piecesCount), weightKg: Number(form.weightKg), volumeCbm: Number(form.volumeCbm),
-        initialCostUSD: Number(form.initialCostUSD), transportFeeUSD: Number(form.transportFeeUSD),
-        customsFeeUSD: Number(form.customsFeeUSD), extraFeeUSD: Number(form.extraFeeUSD),
+        unitPriceUSD: Number(form.unitPriceUSD),
+        initialCostUSD: 0, transportFeeUSD: 0, customsFeeUSD: 0, extraFeeUSD: 0,
         expectedShippingDate: form.expectedShippingDate || undefined,
         exchangeRate: settings.exchangeRate,
       });
-      setForm({ packingNumber: '', customerName: '', customerPhone: '', supplierName: '', description: '', originCountry: 'Chine', originCity: '', destinationCountry: 'RDC', destinationCity: 'Bunia', transportMode: 'SEA', carrierName: '', piecesCount: '1', weightKg: '0', volumeCbm: '0', initialCostUSD: '0', transportFeeUSD: '0', customsFeeUSD: '0', extraFeeUSD: '0', expectedShippingDate: '' });
+      setForm({ packingNumber: '', customerName: '', customerPhone: '', supplierName: '', description: '', originCountry: 'Chine', originCity: '', destinationCountry: 'RDC', destinationCity: 'Bunia', transportMode: 'SEA', carrierName: '', piecesCount: '1', weightKg: '0', volumeCbm: '0', unitPriceUSD: '', expectedShippingDate: '' });
       setTab('list');
     } catch (err) { setError(err instanceof Error ? err.message : 'Impossible d’enregistrer le colis.'); }
     finally { setBusy(false); }
@@ -157,7 +162,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({ packages, settings, cu
           <button className="w-full text-left" onClick={() => setSelected(selected?.id === pkg.id ? null : pkg)}><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-indigo-600">{pkg.packingNumber}</p><h3 className="mt-1 font-bold text-slate-900">{pkg.customerName}</h3><p className="mt-1 text-xs text-slate-500">{pkg.description}</p></div><span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-bold text-indigo-700">{statusLabel(pkg.currentStatus)}</span></div><div className="mt-3 grid grid-cols-3 gap-2 text-xs"><div><span className="text-slate-400">Total</span><b className="block">{money(pkg.totalAmountUSD)}</b></div><div><span className="text-slate-400">Payé</span><b className="block">{money(pkg.amountPaidUSD)}</b></div><div><span className="text-slate-400">Solde</span><b className="block text-amber-700">{money(pkg.remainingBalanceUSD)}</b></div></div></button>
           {selected?.id === pkg.id && <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
             {!!pkg.photos?.length && <div><h4 className="mb-2 text-sm font-bold">Photos du colis</h4><div className="grid grid-cols-3 gap-2">{pkg.photos.map((photo, index) => <a key={index} href={photo} target="_blank" rel="noreferrer"><img src={photo} alt={`Photo du colis ${index + 1}`} className="h-24 w-full rounded-xl border border-slate-200 object-cover" /></a>)}</div></div>}
-            <div className="grid grid-cols-2 gap-2 text-xs text-slate-600"><p>Transport : <b>{pkg.transportMode === 'AIR' ? 'Aérien' : 'Maritime'}</b></p><p>Pièces : <b>{pkg.piecesCount}</b></p><p>Poids : <b>{pkg.weightKg} kg</b></p><p>Volume : <b>{pkg.volumeCbm} m³</b></p><p>Origine : <b>{pkg.originCity}, {pkg.originCountry}</b></p><p>Destination : <b>{pkg.destinationCity}, {pkg.destinationCountry}</b></p></div>
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-600"><p>Transport : <b>{pkg.transportMode === 'AIR' ? 'Aérien' : 'Maritime'}</b></p><p>Pièces : <b>{pkg.piecesCount}</b></p><p>Poids : <b>{pkg.weightKg} kg</b></p><p>Volume : <b>{pkg.volumeCbm} CBM</b></p>{pkg.unitPriceUSD !== undefined && <p>Prix unitaire : <b>{money(pkg.unitPriceUSD)} / {pkg.transportMode === 'AIR' ? 'kg' : 'CBM'}</b></p>}<p>Origine : <b>{pkg.originCity}, {pkg.originCountry}</b></p><p>Destination : <b>{pkg.destinationCity}, {pkg.destinationCountry}</b></p></div>
             <form onSubmit={addEvent} className="space-y-2 rounded-xl bg-slate-50 p-3"><h4 className="text-sm font-bold">Ajouter une étape de suivi</h4><select className={field} value={eventForm.status} onChange={(e) => setEventForm({ ...eventForm, status: e.target.value as CargoStatus })}>{STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select><div className="grid grid-cols-2 gap-2"><input className={field} placeholder="Pays" value={eventForm.country} onChange={(e) => setEventForm({ ...eventForm, country: e.target.value })}/><input className={field} placeholder="Ville" value={eventForm.city} onChange={(e) => setEventForm({ ...eventForm, city: e.target.value })}/></div><input className={field} placeholder="Lieu précis (facultatif)" value={eventForm.location} onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })}/><input className={field} placeholder="Commentaire" value={eventForm.comment} onChange={(e) => setEventForm({ ...eventForm, comment: e.target.value })}/><button disabled={busy} className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-bold text-white disabled:opacity-50">{busy ? 'Enregistrement...' : 'Enregistrer le suivi'}</button></form>
             <form onSubmit={addPayment} className="space-y-2 rounded-xl bg-emerald-50 p-3"><h4 className="text-sm font-bold">Enregistrer un paiement</h4><input className={field} type="number" min="0.01" step="0.01" max={pkg.remainingBalanceUSD} placeholder={`Montant USD (solde ${pkg.remainingBalanceUSD})`} value={paymentForm.amountUSD} onChange={(e) => setPaymentForm({ ...paymentForm, amountUSD: e.target.value })} required/><select className={field} value={paymentForm.paymentMethod} onChange={(e) => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value as PaymentMethod })}><option value="CASH">Espèces</option><option value="MOBILE_MONEY">Mobile Money</option><option value="BANK_TRANSFER">Virement bancaire</option></select><input className={field} placeholder="Note (facultatif)" value={paymentForm.notes} onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}/><button disabled={busy || pkg.remainingBalanceUSD <= 0} className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white disabled:opacity-50">{busy ? 'Enregistrement...' : 'Valider le paiement'}</button></form>
             <div><h4 className="text-sm font-bold">Historique des étapes</h4>{(pkg.events || []).length === 0 ? <p className="mt-2 text-xs text-slate-400">Aucun événement enregistré.</p> : [...pkg.events].reverse().map((ev) => <div key={ev.id} className="border-l-2 border-indigo-200 py-2 pl-3"><b className="text-xs">{statusLabel(ev.status)}</b><p className="text-xs text-slate-500">{ev.city}, {ev.country} · {new Date(ev.date).toLocaleString()}</p>{ev.comment && <p className="text-xs">{ev.comment}</p>}</div>)}</div>
@@ -177,7 +182,14 @@ export const CargoModule: React.FC<CargoModuleProps> = ({ packages, settings, cu
         </div>
         <label className="block text-xs font-semibold text-slate-600">Description du colis<input className={field} value={form.description} onChange={(e) => set('description', e.target.value)} required /></label>
         <div className="grid grid-cols-2 gap-3"><label className="text-xs font-semibold text-slate-600">Pays d'origine<input className={field} value={form.originCountry} onChange={(e) => set('originCountry', e.target.value)} /></label><label className="text-xs font-semibold text-slate-600">Ville d'origine<input className={field} value={form.originCity} onChange={(e) => set('originCity', e.target.value)} /></label><label className="text-xs font-semibold text-slate-600">Pays destination<input className={field} value={form.destinationCountry} onChange={(e) => set('destinationCountry', e.target.value)} /></label><label className="text-xs font-semibold text-slate-600">Ville destination<input className={field} value={form.destinationCity} onChange={(e) => set('destinationCity', e.target.value)} /></label></div>
-        <div className="grid grid-cols-3 gap-2"><label className="text-xs text-slate-600">Pièces<input className={field} type="number" min="1" value={form.piecesCount} onChange={(e) => set('piecesCount', e.target.value)} /></label><label className="text-xs text-slate-600">Poids kg<input className={field} type="number" min="0" step="0.01" value={form.weightKg} onChange={(e) => set('weightKg', e.target.value)} /></label><label className="text-xs text-slate-600">Volume m³<input className={field} type="number" min="0" step="0.001" value={form.volumeCbm} onChange={(e) => set('volumeCbm', e.target.value)} /></label></div>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="text-xs text-slate-600">Nombre de pièces<input className={field} type="number" min="1" step="1" value={form.piecesCount} onChange={(e) => set('piecesCount', e.target.value)} required /></label>
+          {form.transportMode === 'AIR' ? (
+            <label className="text-xs text-slate-600">Poids facturable (kg)<input className={field} type="number" min="0.001" step="0.001" value={form.weightKg} onChange={(e) => set('weightKg', e.target.value)} required /></label>
+          ) : (
+            <label className="text-xs text-slate-600">Volume facturable (CBM/KG)<input className={field} type="number" min="0.001" step="0.001" value={form.volumeCbm} onChange={(e) => set('volumeCbm', e.target.value)} required /></label>
+          )}
+        </div>
         <section className="space-y-2 rounded-xl border border-slate-200 p-3">
           <h4 className="text-sm font-bold">Photos du colis</h4>
           <p className="text-xs text-slate-500">Prenez une photo avec le téléphone ou choisissez des images dans la galerie (6 maximum).</p>
@@ -185,9 +197,15 @@ export const CargoModule: React.FC<CargoModuleProps> = ({ packages, settings, cu
           {photoError && <p className="text-xs text-red-600">{photoError}</p>}
           {photoFiles.length > 0 && <div className="grid grid-cols-3 gap-2">{photoFiles.map((photo, index) => <div key={index} className="relative"><img src={photo} alt={`Aperçu ${index + 1}`} className="h-24 w-full rounded-lg object-cover" /><button type="button" onClick={() => setPhotoFiles((old) => old.filter((_, i) => i !== index))} className="absolute right-1 top-1 rounded-full bg-red-600 px-2 py-1 text-xs text-white">×</button></div>)}</div>}
         </section>
-        <h4 className="pt-2 text-sm font-bold">Facturation (USD)</h4>
-        <div className="grid grid-cols-2 gap-3">{([['initialCostUSD', 'Coût initial'], ['transportFeeUSD', 'Transport'], ['customsFeeUSD', 'Douane'], ['extraFeeUSD', 'Autres frais']] as const).map(([key, label]) => <label key={key} className="text-xs text-slate-600">{label}<input className={field} type="number" min="0" step="0.01" value={form[key]} onChange={(e) => set(key, e.target.value)} /></label>)}</div>
-        <p className="rounded-xl bg-indigo-50 p-3 text-sm font-bold text-indigo-800">Total : {money(Number(form.initialCostUSD) + Number(form.transportFeeUSD) + Number(form.customsFeeUSD) + Number(form.extraFeeUSD))}</p>
+        <section className="space-y-2 rounded-xl border border-indigo-100 bg-indigo-50 p-3">
+          <h4 className="text-sm font-bold text-indigo-900">Facturation automatique (USD)</h4>
+          <label className="block text-xs font-semibold text-indigo-900">
+            Prix unitaire ({form.transportMode === 'AIR' ? 'USD par kg' : 'USD par CBM'})
+            <input className={field} type="number" min="0.01" step="0.01" value={form.unitPriceUSD} onChange={(e) => set('unitPriceUSD', e.target.value)} placeholder={form.transportMode === 'AIR' ? 'Ex. 8.00 USD/kg' : 'Ex. 120.00 USD/CBM'} required />
+          </label>
+          <p className="text-xs text-indigo-800">Calcul : {form.transportMode === 'AIR' ? `${form.weightKg || 0} kg ×` : `${form.volumeCbm || 0} CBM ×`} {form.unitPriceUSD || 0} USD</p>
+          <p className="rounded-lg bg-white p-3 text-base font-black text-indigo-900">Total à facturer : {money(calculatedTotalUSD)}</p>
+        </section>
         <label className="block text-xs text-slate-600">Date d'expédition prévue<input className={field} type="date" value={form.expectedShippingDate} onChange={(e) => set('expectedShippingDate', e.target.value)} /></label>
         <button disabled={busy} className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white disabled:opacity-50">{busy ? 'Enregistrement...' : 'Créer le colis'}</button>
       </form>}

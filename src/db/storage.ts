@@ -2485,7 +2485,7 @@ freeIssues: [],
     }
   }
 
-  // Cargo management (local durable storage with queued BTA Core synchronization).
+  // Cargo management: durable local storage with queued synchronization to Fondation Kenda Core.
   public getCargoPackages(): CargoPackage[] {
     return this.state.cargoPackages || [];
   }
@@ -2512,13 +2512,35 @@ freeIssues: [],
     if (!Number.isFinite(piecesCount) || piecesCount < 1 || !Number.isFinite(weightKg) || weightKg < 0 || !Number.isFinite(volumeCbm) || volumeCbm < 0) {
       throw new Error('Quantité, poids ou volume invalide.');
     }
-    const initialCostUSD = Number(input.initialCostUSD ?? existing?.initialCostUSD ?? 0);
-    const transportFeeUSD = Number(input.transportFeeUSD ?? existing?.transportFeeUSD ?? 0);
-    const customsFeeUSD = Number(input.customsFeeUSD ?? existing?.customsFeeUSD ?? 0);
-    const extraFeeUSD = Number(input.extraFeeUSD ?? existing?.extraFeeUSD ?? 0);
-    const amounts = [initialCostUSD, transportFeeUSD, customsFeeUSD, extraFeeUSD];
-    if (amounts.some((amount) => !Number.isFinite(amount) || amount < 0)) throw new Error('Un montant Cargo est invalide.');
-    const totalAmountUSD = r2(amounts.reduce((sum, amount) => sum + amount, 0));
+    const transportMode = input.transportMode ?? existing?.transportMode ?? 'SEA';
+    const suppliedUnitPrice = input.unitPriceUSD;
+    const unitPriceUSD = suppliedUnitPrice !== undefined
+      ? Number(suppliedUnitPrice)
+      : existing?.unitPriceUSD;
+    const legacyInitialCostUSD = Number(input.initialCostUSD ?? existing?.initialCostUSD ?? 0);
+    const legacyTransportFeeUSD = Number(input.transportFeeUSD ?? existing?.transportFeeUSD ?? 0);
+    const legacyCustomsFeeUSD = Number(input.customsFeeUSD ?? existing?.customsFeeUSD ?? 0);
+    const legacyExtraFeeUSD = Number(input.extraFeeUSD ?? existing?.extraFeeUSD ?? 0);
+    const legacyAmounts = [legacyInitialCostUSD, legacyTransportFeeUSD, legacyCustomsFeeUSD, legacyExtraFeeUSD];
+    if (legacyAmounts.some((amount) => !Number.isFinite(amount) || amount < 0)) throw new Error('Un montant Cargo historique est invalide.');
+    let totalAmountUSD: number;
+    if (unitPriceUSD !== undefined) {
+      if (!Number.isFinite(unitPriceUSD) || unitPriceUSD <= 0) throw new Error('Le prix unitaire doit être supérieur à zéro.');
+      const billableQuantity = transportMode === 'AIR' ? weightKg : volumeCbm;
+      if (!Number.isFinite(billableQuantity) || billableQuantity <= 0) {
+        throw new Error(transportMode === 'AIR' ? 'Le poids en kilogrammes doit être supérieur à zéro.' : 'Le volume en CBM doit être supérieur à zéro.');
+      }
+      totalAmountUSD = r2(billableQuantity * unitPriceUSD);
+    } else if (existing) {
+      // Compatibilité : un ancien colis sans prix unitaire conserve sa facture historique.
+      totalAmountUSD = r2(legacyAmounts.reduce((sum, amount) => sum + amount, 0));
+    } else {
+      throw new Error('Le prix unitaire de facturation est obligatoire.');
+    }
+    const initialCostUSD = unitPriceUSD !== undefined ? 0 : legacyInitialCostUSD;
+    const transportFeeUSD = unitPriceUSD !== undefined ? 0 : legacyTransportFeeUSD;
+    const customsFeeUSD = unitPriceUSD !== undefined ? 0 : legacyCustomsFeeUSD;
+    const extraFeeUSD = unitPriceUSD !== undefined ? 0 : legacyExtraFeeUSD;
     const amountPaidUSD = existing?.amountPaidUSD ?? Number(input.amountPaidUSD ?? 0);
     const pkg: CargoPackage = {
       id: existing?.id || input.id || generateUUID(),
@@ -2532,13 +2554,14 @@ freeIssues: [],
       originCity: String(input.originCity ?? existing?.originCity ?? ''),
       destinationCountry: String(input.destinationCountry ?? existing?.destinationCountry ?? 'RDC'),
       destinationCity: String(input.destinationCity ?? existing?.destinationCity ?? 'Bunia'),
-      transportMode: input.transportMode ?? existing?.transportMode ?? 'SEA',
+      transportMode,
       carrierName: String(input.carrierName ?? existing?.carrierName ?? ''),
       registrationDate: existing?.registrationDate || input.registrationDate || now,
       expectedShippingDate: input.expectedShippingDate ?? existing?.expectedShippingDate,
       piecesCount,
       weightKg,
       volumeCbm,
+      unitPriceUSD,
       photos: input.photos ?? existing?.photos ?? [],
       documents: input.documents ?? existing?.documents ?? [],
       currentStatus: existing?.currentStatus || input.currentStatus || 'REGISTERED',

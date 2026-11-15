@@ -466,6 +466,8 @@ export interface CargoPackage {
   piecesCount: number;
   weightKg: number;
   volumeCbm: number;
+  /** Prix appliqué selon le transport : USD/kg en aérien, USD/CBM en maritime. Absent sur les anciens colis. */
+  unitPriceUSD?: number;
   photos: string[];
   documents: string[];
   currentStatus: CargoStatus;
