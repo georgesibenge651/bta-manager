@@ -2485,7 +2485,7 @@ freeIssues: [],
     }
   }
 
-  // Cargo management (local durable storage; server synchronization is not yet implemented).
+  // Cargo management (local durable storage with queued BTA Core synchronization).
   public getCargoPackages(): CargoPackage[] {
     return this.state.cargoPackages || [];
   }
@@ -2501,6 +2501,7 @@ freeIssues: [],
     if (!description) throw new Error('La description du colis est obligatoire.');
     const packingNumber = String(input.packingNumber ?? existing?.packingNumber ?? '').trim();
     if (!packingNumber) throw new Error('Le numéro PKG fourni par le fournisseur est obligatoire.');
+    if (packingNumber.length > 120) throw new Error('Le numéro PKG ne peut pas dépasser 120 caractères.');
     const duplicatePackingNumber = this.getCargoPackages().some((item) =>
       item.id !== existing?.id && item.packingNumber.trim().toLowerCase() === packingNumber.toLowerCase()
     );
