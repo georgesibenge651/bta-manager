@@ -149,6 +149,11 @@ export const coreReportSummary = (tenantId: number, branchId: number, from?: str
 export const coreStock = (tenantId: number, branchId: number, cursor?: string) => coreRequest<{success:true; resource:'stock'; items:Array<Record<string,unknown>>; count:number; has_more:boolean; next_cursor:string|null; server_time:string}>(`tenants/${tenantId}/sync/pull`, { query: { branch_id: branchId, resource:'stock', limit:250, cursor } });
 export const coreStockMovements = (tenantId: number, branchId: number, cursor?: string) => coreRequest<{success:true; resource:'stock_movements'; items:Array<Record<string,unknown>>; count:number; has_more:boolean; next_cursor:string|null; server_time:string}>(`tenants/${tenantId}/sync/pull`, { query: { branch_id: branchId, resource:'stock_movements', limit:250, cursor } });
 
+export const coreCargoUpsert = (tenantId: number, branchId: number, pkg: Record<string, unknown>) =>
+  coreRequest<{success:true; package_id:string; duplicate:boolean; updated_at:string}>(`tenants/${tenantId}/cargo/packages`, { method:'POST', timeoutMs:60000, body:{ branch_id:branchId, package:pkg } });
+export const coreCargoPull = (tenantId: number, branchId: number) =>
+  coreRequest<{success:true; packages:Array<{id:string;data:Record<string,any>;updated_at:string}>;count:number;server_time:string}>(`tenants/${tenantId}/cargo/packages`, { query:{ branch_id:branchId } });
+
 export interface CoreOperationResponse { success: true; operation_id: string; duplicate: boolean; [key:string]:unknown }
 export interface CoreOperationStatus { success: true; operation_id: string; status: 'PROCESSING'|'DONE'|'FAILED'|'REVIEW'; result?:Record<string,unknown>|null; error?:{code:string;message:string}|null }
 export const corePushOperation = (tenantId:number, operationId:string, type:string, payload:Record<string,unknown>) =>

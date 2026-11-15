@@ -51,7 +51,7 @@ import { Baseline, Effects, PULL_ORDER, applyPulled, diffState, makeBaseline, sp
 import { isTransient, pullAll, pushOps, PullCursor, PulledDoc } from './cloudSync';
 import localforage from 'localforage';
 import { Preferences } from '@capacitor/preferences';
-import { coreOperationStatus, corePushOperation, CoreApiError } from '../core/api';
+import { coreOperationStatus, corePushOperation, coreCargoUpsert, coreCargoPull, CoreApiError } from '../core/api';
 import { getLocalId, getServerId, mapServerId } from '../core/persistence';
 import type { CoreBootstrapSnapshot } from '../core/bootstrap';
 import { fetchCoreBootstrap } from '../core/bootstrap';
@@ -878,6 +878,20 @@ freeIssues: [],
         queued.attempts = (queued.attempts ?? 0) + 1;
         this.persist();
         try {
+          if (queued.type === 'CARGO_PACKAGE_UPSERT') {
+            const packageRecord = queued.payload as CargoPackage;
+            const result = await coreCargoUpsert(ctx.tenantId, ctx.branchId, packageRecord as unknown as Record<string, unknown>);
+            if (result.success !== true || result.package_id !== packageRecord.id) {
+              queued.status = 'REVIEW'; queued.error = 'Accusé Cargo invalide; opération conservée.'; index++; continue;
+            }
+            const local = this.state.cargoPackages.find(item => item.id === packageRecord.id);
+            if (local) local.syncStatus = 'SYNCED';
+            this.state.coreSyncHistory.unshift({ id: queued.id, type: queued.type, status: 'DONE', timestamp: new Date().toISOString() });
+            this.state.coreSyncHistory = this.state.coreSyncHistory.slice(0, 500);
+            this.state.offlineQueue.splice(index, 1);
+            this.persist();
+            continue;
+          }
           const payload = queued.corePayload ?? await this.toCorePayload(queued.type, queued.payload as Record<string, unknown>);
           queued.corePayload = JSON.parse(JSON.stringify(payload));
           this.persist();
@@ -907,6 +921,22 @@ freeIssues: [],
           throw error;
         }
         this.persist();
+      }
+      // Pull the tenant/branch Cargo snapshot after queued writes have been acknowledged.
+      const cargoSnapshot = await coreCargoPull(ctx.tenantId, ctx.branchId);
+      if (cargoSnapshot.success && Array.isArray(cargoSnapshot.packages)) {
+        const pendingCargoIds = new Set(this.state.offlineQueue.filter(item => item.type === 'CARGO_PACKAGE_UPSERT').map(item => String((item.payload as CargoPackage).id)));
+        const remoteIds = new Set<string>();
+        for (const remote of cargoSnapshot.packages) {
+          if (!remote || typeof remote.id !== 'string' || !remote.data || typeof remote.data !== 'object') continue;
+          remoteIds.add(remote.id);
+          if (pendingCargoIds.has(remote.id)) continue;
+          const normalized = { ...(remote.data as unknown as CargoPackage), id: remote.id, syncStatus: 'SYNCED' as const };
+          const at = this.state.cargoPackages.findIndex(item => item.id === remote.id);
+          if (at < 0) this.state.cargoPackages.unshift(normalized);
+          else this.state.cargoPackages[at] = normalized;
+        }
+        this.state.cargoPackages = this.state.cargoPackages.map(item => pendingCargoIds.has(item.id) ? item : (remoteIds.has(item.id) ? item : item));
       }
       const pending = this.state.offlineQueue.length;
       this.state.syncInfo = { status: pending ? 'ERROR' : 'SYNCED', lastSyncTime: pending ? this.state.syncInfo.lastSyncTime : new Date().toISOString(), pendingCount: pending,
@@ -2524,11 +2554,12 @@ freeIssues: [],
       payments: existing?.payments ?? input.payments ?? [],
       createdById: existing?.createdById || this.state.currentUser.id,
       createdByName: existing?.createdByName || this.state.currentUser.name,
-      syncStatus: existing?.syncStatus || this.syncStatusForNewRecord(),
+      syncStatus: this.coreContext ? 'PENDING' : (existing?.syncStatus || this.syncStatusForNewRecord()),
     };
     this.state.cargoPackages = existing
       ? this.getCargoPackages().map((item) => item.id === pkg.id ? pkg : item)
       : [pkg, ...this.getCargoPackages()];
+    if (this.coreContext) this.enqueue('CARGO_PACKAGE_UPSERT', pkg);
     this.afterWrite();
     return pkg;
   }
@@ -2553,7 +2584,9 @@ freeIssues: [],
       recordedByName: this.state.currentUser.name,
     };
     const updated = { ...pkg, currentStatus: event.status, events: [...(pkg.events || []), event] };
+    updated.syncStatus = this.coreContext ? 'PENDING' : updated.syncStatus;
     this.state.cargoPackages = this.getCargoPackages().map((item) => item.id === packageId ? updated : item);
+    if (this.coreContext) this.enqueue('CARGO_PACKAGE_UPSERT', updated);
     this.afterWrite();
     return updated;
   }
@@ -2581,7 +2614,9 @@ freeIssues: [],
     };
     const amountPaidUSD = r2(pkg.amountPaidUSD + payment.amountUSD);
     const updated = { ...pkg, amountPaidUSD, remainingBalanceUSD: r2(Math.max(0, pkg.totalAmountUSD - amountPaidUSD)), payments: [...(pkg.payments || []), payment] };
+    updated.syncStatus = this.coreContext ? 'PENDING' : updated.syncStatus;
     this.state.cargoPackages = this.getCargoPackages().map((item) => item.id === packageId ? updated : item);
+    if (this.coreContext) this.enqueue('CARGO_PACKAGE_UPSERT', updated);
     this.afterWrite();
     return updated;
   }
