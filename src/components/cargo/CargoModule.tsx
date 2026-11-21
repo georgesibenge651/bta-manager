@@ -105,8 +105,11 @@ export const CargoModule: React.FC<CargoModuleProps> = ({ packages, settings, cu
         ...form,
         packingNumber: form.packingNumber.trim(),
         photos: photoFiles,
-        piecesCount: Number(form.piecesCount), weightKg: Number(form.weightKg), volumeCbm: Number(form.volumeCbm),
-        unitPriceUSD: Number(form.unitPriceUSD),
+      piecesCount: Number(form.piecesCount),
+weightKg: Number(form.weightKg),
+volumeCbm: Number(form.volumeCbm),
+unitPriceUSD: Number(form.unitPriceUSD),
+totalAmountUSD: calculatedTotalUSD,
         initialCostUSD: 0, transportFeeUSD: 0, customsFeeUSD: 0, extraFeeUSD: 0,
         expectedShippingDate: form.expectedShippingDate || undefined,
         exchangeRate: settings.exchangeRate,
@@ -185,9 +188,25 @@ export const CargoModule: React.FC<CargoModuleProps> = ({ packages, settings, cu
         <div className="grid grid-cols-2 gap-3">
           <label className="text-xs text-slate-600">Nombre de pièces<input className={field} type="number" min="1" step="1" value={form.piecesCount} onChange={(e) => set('piecesCount', e.target.value)} required /></label>
           {form.transportMode === 'AIR' ? (
-            <label className="text-xs text-slate-600">Poids facturable (kg)<input className={field} type="number" min="0.001" step="0.001" value={form.weightKg} onChange={(e) => set('weightKg', e.target.value)} required /></label>
+            <label className="text-xs text-slate-600">Poids facturable (kg<input
+  className={field}
+  type="text"
+  inputMode="decimal"
+  placeholder="Ex. 0.1224"
+  value={form.weightKg}
+  onChange={(e) => set('weightKg', e.target.value.replace(',', '.').replace(/[^0-9.]/g, ''))}
+  required
+/></label>
           ) : (
-            <label className="text-xs text-slate-600">Volume facturable (CBM/KG)<input className={field} type="number" min="0.001" step="0.001" value={form.volumeCbm} onChange={(e) => set('volumeCbm', e.target.value)} required /></label>
+            <label className="text-xs text-slate-600">Volume facturable (CBM/KG)<input
+  className={field}
+  type="text"
+  inputMode="decimal"
+  placeholder="Ex. 0.1224"
+  value={form.volumeCbm}
+  onChange={(e) => set('volumeCbm', e.target.value.replace(',', '.').replace(/[^0-9.]/g, ''))}
+  required
+/></label>
           )}
         </div>
         <section className="space-y-2 rounded-xl border border-slate-200 p-3">

@@ -15,11 +15,20 @@ const PRODUCTION_CORE_API_BASE = 'https://fondationkenda.com/wp-json/bta/v1';
  * En développement Web, les appels passent par le proxy Vite sur la même origine.
  * En production (APK et site Web), l'API Core reste l'URL HTTPS officielle.
  */
+const isLocalWeb =
+  typeof window !== 'undefined' &&
+  !Capacitor.isNativePlatform() &&
+  (window.location.hostname === 'localhost' ||
+   window.location.hostname === '127.0.0.1');
+
 export const CORE_API_BASE = (
   typeof buildEnv?.VITE_CORE_API_BASE === 'string' && buildEnv.VITE_CORE_API_BASE
     ? buildEnv.VITE_CORE_API_BASE
-    : PRODUCTION_CORE_API_BASE
+    : isLocalWeb
+      ? '/__bta_core_proxy/wp-json/bta/v1'
+      : PRODUCTION_CORE_API_BASE
 ).replace(/\/+$/, '');
+
 
 export class CoreApiError extends Error {
   constructor(public status: number, public code: string, message: string, public data?: unknown) {
@@ -51,20 +60,87 @@ type Sent = { ok: boolean; status: number; payload: unknown };
  * Web en développement : le proxy Vite relaie les appels sur la même origine.
  * Web en production : fetch utilise directement l'API HTTPS officielle.
  */
-async function sendRequest(url: URL, method: string, headers: Record<string, string>, body: unknown, timeoutMs: number, signal: AbortSignal): Promise<Sent> {
+function encodeFormData(data: unknown): string {
+  const params = new URLSearchParams();
+
+  const append = (key: string, value: unknown) => {
+    if (value === undefined || value === null) return;
+
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => append(`${key}[${index}]`, item));
+      return;
+    }
+
+    if (typeof value === 'object') {
+      Object.entries(value as Record<string, unknown>).forEach(
+        ([childKey, childValue]) => append(`${key}[${childKey}]`, childValue)
+      );
+      return;
+    }
+
+    params.append(key, String(value));
+  };
+
+  if (data && typeof data === 'object') {
+    Object.entries(data as Record<string, unknown>).forEach(
+      ([key, value]) => append(key, value)
+    );
+  }
+
+  return params.toString();
+}
+
+async function sendRequest(
+  url: URL,
+  method: string,
+  headers: Record<string, string>,
+  body: unknown,
+  timeoutMs: number,
+  signal: AbortSignal
+): Promise<Sent> {
+  const formBody = body === undefined ? undefined : encodeFormData(body);
+
   if (Capacitor.isNativePlatform()) {
     const r = await CapacitorHttp.request({
-      url: url.toString(), method, headers,
-      ...(body === undefined ? {} : { data: body }),
-      connectTimeout: timeoutMs, readTimeout: timeoutMs,
+      url: url.toString(),
+      method,
+      headers,
+      ...(formBody === undefined ? {} : { data: formBody }),
+      connectTimeout: timeoutMs,
+      readTimeout: timeoutMs,
     });
+
     let payload: unknown = r.data;
-    if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch { payload = null; } }
-    return { ok: r.status >= 200 && r.status < 300, status: r.status, payload };
+
+    if (typeof payload === 'string') {
+      try {
+        payload = JSON.parse(payload);
+      } catch {
+        payload = null;
+      }
+    }
+
+    return {
+      ok: r.status >= 200 && r.status < 300,
+      status: r.status,
+      payload,
+    };
   }
-  const response = await fetch(url, { method, signal, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
-  return { ok: response.ok, status: response.status, payload: await response.json().catch(() => null) };
+
+  const response = await fetch(url, {
+    method,
+    signal,
+    headers,
+    ...(formBody === undefined ? {} : { body: formBody }),
+  });
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    payload: await response.json().catch(() => null),
+  };
 }
+
 
 export async function coreRequest<T>(path: string, options: {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH'; query?: Record<string, string | number | undefined>;
@@ -81,7 +157,11 @@ export async function coreRequest<T>(path: string, options: {
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 20000);
   try {
     const sent = await sendRequest(url, options.method ?? 'GET',
-      { Accept: 'application/json', ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      {
+  Accept: 'application/json',
+  ...(options.body === undefined ? {} : { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }),
+  ...(token ? { Authorization: `Bearer ${token}` } : {})
+},
       options.body, options.timeoutMs ?? 20000, controller.signal);
     const payload = sent.payload;
     if (!sent.ok) {
@@ -153,7 +233,48 @@ export const coreCargoUpsert = (tenantId: number, branchId: number, pkg: Record<
   coreRequest<{success:true; package_id:string; duplicate:boolean; updated_at:string}>(`tenants/${tenantId}/cargo/packages`, { method:'POST', timeoutMs:60000, body:{ branch_id:branchId, package:pkg } });
 export const coreCargoPull = (tenantId: number, branchId: number) =>
   coreRequest<{success:true; packages:Array<{id:string;data:Record<string,any>;updated_at:string}>;count:number;server_time:string}>(`tenants/${tenantId}/cargo/packages`, { query:{ branch_id:branchId } });
+// À ajouter dans src/core/api.ts, juste après coreCargoPull.
+export type CoreImportExportRecordType =
+  | 'supplier'
+  | 'shipment'
+  | 'expense'
+  | 'tracking'
+  | 'payment'
+  | 'document';
 
+export interface CoreImportExportRecord {
+  id: string;
+  type: CoreImportExportRecordType;
+  data: Record<string, unknown>;
+  updated_at?: string;
+}
+
+export const coreImportExportUpsert = (
+  tenantId: number,
+  branchId: number,
+  record: CoreImportExportRecord,
+) =>
+  coreRequest<{
+    success: true;
+    record_id: string;
+    record_type: CoreImportExportRecordType;
+    duplicate: boolean;
+    updated_at: string;
+  }>(`tenants/${tenantId}/import-export/records`, {
+    method: 'POST',
+    timeoutMs: 60000,
+    body: { branch_id: branchId, record },
+  });
+
+export const coreImportExportPull = (tenantId: number, branchId: number) =>
+  coreRequest<{
+    success: true;
+    records: CoreImportExportRecord[];
+    count: number;
+    server_time: string;
+  }>(`tenants/${tenantId}/import-export/records`, {
+    query: { branch_id: branchId },
+  });
 export interface CoreOperationResponse { success: true; operation_id: string; duplicate: boolean; [key:string]:unknown }
 export interface CoreOperationStatus { success: true; operation_id: string; status: 'PROCESSING'|'DONE'|'FAILED'|'REVIEW'; result?:Record<string,unknown>|null; error?:{code:string;message:string}|null }
 export const corePushOperation = (tenantId:number, operationId:string, type:string, payload:Record<string,unknown>) =>

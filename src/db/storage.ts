@@ -30,6 +30,7 @@ ReservationCancellation,
   CargoPackage,
   CargoEvent,
   CargoPayment,
+  ImportSupplier, ImportShipment, ImportExpense, ImportTrackingEvent, ImportPayment, ImportExportDocument,
 } from '../types';
 import {
   INITIAL_SETTINGS,
@@ -51,7 +52,7 @@ import { Baseline, Effects, PULL_ORDER, applyPulled, diffState, makeBaseline, sp
 import { isTransient, pullAll, pushOps, PullCursor, PulledDoc } from './cloudSync';
 import localforage from 'localforage';
 import { Preferences } from '@capacitor/preferences';
-import { coreOperationStatus, corePushOperation, coreCargoUpsert, coreCargoPull, CoreApiError } from '../core/api';
+import { coreOperationStatus, corePushOperation, coreCargoUpsert, coreCargoPull, coreImportExportUpsert, coreImportExportPull, CoreApiError } from '../core/api';
 import { getLocalId, getServerId, mapServerId } from '../core/persistence';
 import type { CoreBootstrapSnapshot } from '../core/bootstrap';
 import { fetchCoreBootstrap } from '../core/bootstrap';
@@ -85,6 +86,12 @@ interface AppDatabaseState {
   stockDamages: StockDamage[];
   freeIssues: FreeIssue[];
   cargoPackages: CargoPackage[];
+  importSuppliers: ImportSupplier[];
+  importShipments: ImportShipment[];
+  importExpenses: ImportExpense[];
+  importTrackingEvents: ImportTrackingEvent[];
+  importPayments: ImportPayment[];
+  importDocuments: ImportExportDocument[];
   offlineQueue: Array<{ id: string; type: string; payload: unknown; timestamp: string; status?: 'PENDING'|'PROCESSING'|'FAILED'|'REVIEW'; attempts?: number; error?: string; corePayload?: Record<string, unknown> }>;
   coreSyncHistory: Array<{ id:string; type:string; status:'DONE'|'FAILED'|'REVIEW'; timestamp:string; error?:string }>;
   coreScope?: { tenantId: number; branchId: number };
@@ -126,7 +133,7 @@ function validateBackupData(data: Partial<AppDatabaseState>): data is Partial<Ap
   if (!data || typeof data !== 'object' || !data.settings || typeof data.settings !== 'object' ||
     !isNum(data.settings.exchangeRate) || data.settings.exchangeRate < 100 || data.settings.exchangeRate > 100000) return false;
   const required = ['categories', 'products', 'customers', 'suppliers', 'sales', 'purchases', 'stockMovements', 'expenses', 'debts'] as const;
-  const optional = ['reservations', 'reservationCancellations', 'reservationPayments', 'reservationDeliveries', 'stockDamages', 'freeIssues', 'cargoPackages'] as const;
+  const optional = ['reservations', 'reservationCancellations', 'reservationPayments', 'reservationDeliveries', 'stockDamages', 'freeIssues', 'cargoPackages', 'importSuppliers', 'importShipments', 'importExpenses', 'importTrackingEvents', 'importPayments', 'importDocuments'] as const;
   for (const key of required) if (!Array.isArray(data[key])) return false;
   for (const key of optional) if (data[key] !== undefined && !Array.isArray(data[key])) return false;
   const arrays = [...required, ...optional] as const;
@@ -381,6 +388,7 @@ const cleanState: AppDatabaseState = {
       expenses: INITIAL_EXPENSES,
       debts: INITIAL_DEBTS,
       cargoPackages: [],
+      importSuppliers: [], importShipments: [], importExpenses: [], importTrackingEvents: [], importPayments: [], importDocuments: [],
 reservations: [],
 reservationCancellations: [],
 reservationPayments: [],
@@ -526,6 +534,7 @@ freeIssues: [],
       categories: [], products: [], customers: [], suppliers: [], sales: [], purchases: [],
       stockMovements: [], expenses: [], debts: [], reservations: [], reservationCancellations: [],
       reservationPayments: [], reservationDeliveries: [], stockDamages: [], freeIssues: [], cargoPackages: [],
+      importSuppliers: [], importShipments: [], importExpenses: [], importTrackingEvents: [], importPayments: [], importDocuments: [],
       offlineQueue: [],
       cloud: { tenantId, branchId, lastPull: 0, baseline: makeBaseline({
         settings: INITIAL_SETTINGS, categories: [], products: [], customers: [], suppliers: [], sales: [], purchases: [],
@@ -577,6 +586,7 @@ freeIssues: [],
       categories: [], products: [], customers: [], suppliers: [], sales: [], purchases: [],
       stockMovements: [], expenses: [], debts: [], reservations: [], reservationCancellations: [],
       reservationPayments: [], reservationDeliveries: [], stockDamages: [], freeIssues: [], cargoPackages: [],
+      importSuppliers: [], importShipments: [], importExpenses: [], importTrackingEvents: [], importPayments: [], importDocuments: [],
       offlineQueue: [],
     };
     this.state.cloud = { tenantId, branchId, lastPull: 0, baseline: makeBaseline(this.state as unknown as Record<string, unknown>), rejections: [], failedOps: [] };
@@ -855,7 +865,7 @@ freeIssues: [],
       for (let index = 0; index < this.state.offlineQueue.length;) {
         const queued = this.state.offlineQueue[index] as AppDatabaseState['offlineQueue'][number];
         if (queued.status === 'FAILED' || queued.status === 'REVIEW') { index++; continue; }
-        if (queued.status === 'PROCESSING') {
+        if (queued.status === 'PROCESSING' && queued.type !== 'IMPORT_EXPORT_RECORD_UPSERT') {
           try {
             const status = await coreOperationStatus(ctx.tenantId, queued.id);
             if (status.status === 'PROCESSING') break;
@@ -878,6 +888,18 @@ freeIssues: [],
         queued.attempts = (queued.attempts ?? 0) + 1;
         this.persist();
         try {
+          if (queued.type === 'IMPORT_EXPORT_RECORD_UPSERT') {
+            const record = queued.payload as { id:string; type:'supplier'|'shipment'|'expense'|'tracking'|'payment'|'document'; data:Record<string,unknown> };
+            const result = await coreImportExportUpsert(ctx.tenantId, ctx.branchId, record);
+            if (result.success !== true || result.record_id !== record.id || result.record_type !== record.type) {
+              queued.status = 'REVIEW'; queued.error = 'Accusé Import-Export invalide; opération conservée.'; index++; continue;
+            }
+            this.state.coreSyncHistory.unshift({ id: queued.id, type: queued.type, status: 'DONE', timestamp: new Date().toISOString() });
+            this.state.coreSyncHistory = this.state.coreSyncHistory.slice(0, 500);
+            this.state.offlineQueue.splice(index, 1);
+            this.persist();
+            continue;
+          }
           if (queued.type === 'CARGO_PACKAGE_UPSERT') {
             const packageRecord = queued.payload as CargoPackage;
             const result = await coreCargoUpsert(ctx.tenantId, ctx.branchId, packageRecord as unknown as Record<string, unknown>);
@@ -937,6 +959,29 @@ freeIssues: [],
           else this.state.cargoPackages[at] = normalized;
         }
         this.state.cargoPackages = this.state.cargoPackages.map(item => pendingCargoIds.has(item.id) ? item : (remoteIds.has(item.id) ? item : item));
+      }
+      // Import-Export uses its own idempotent record endpoint, separate from Cargo and sync/push.
+      const importSnapshot = await coreImportExportPull(ctx.tenantId, ctx.branchId);
+      if (importSnapshot.success && Array.isArray(importSnapshot.records)) {
+        const pendingKeys = new Set(this.state.offlineQueue
+          .filter(item => item.type === 'IMPORT_EXPORT_RECORD_UPSERT')
+          .map(item => { const row = item.payload as {id?:string;type?:string}; return `${row.type}:${row.id}`; }));
+        const collections: Record<string, keyof Pick<AppDatabaseState,'importSuppliers'|'importShipments'|'importExpenses'|'importTrackingEvents'|'importPayments'|'importDocuments'>> = {
+          supplier:'importSuppliers', shipment:'importShipments', expense:'importExpenses', tracking:'importTrackingEvents', payment:'importPayments', document:'importDocuments',
+        };
+        for (const remote of importSnapshot.records) {
+          const collection = collections[remote.type];
+          if (!collection || !remote.id || pendingKeys.has(`${remote.type}:${remote.id}`)) continue;
+          const rows = this.state[collection] as Array<{id:string}>;
+          const at = rows.findIndex(row => row.id === remote.id);
+          if (remote.data && (remote.data as Record<string,unknown>)._deletedAt) {
+            if (at >= 0) rows.splice(at, 1);
+          } else {
+            const normalized = { ...remote.data, id: remote.id } as {id:string};
+            if (at >= 0) rows[at] = normalized;
+            else rows.unshift(normalized);
+          }
+        }
       }
       const pending = this.state.offlineQueue.length;
       this.state.syncInfo = { status: pending ? 'ERROR' : 'SYNCED', lastSyncTime: pending ? this.state.syncInfo.lastSyncTime : new Date().toISOString(), pendingCount: pending,
@@ -1162,10 +1207,12 @@ freeIssues: [],
         debts: this.state.debts, reservations: this.state.reservations, reservationCancellations: this.state.reservationCancellations,
         reservationPayments: this.state.reservationPayments, reservationDeliveries: this.state.reservationDeliveries,
         stockDamages: this.state.stockDamages, freeIssues: this.state.freeIssues,
+        importSuppliers: this.state.importSuppliers, importShipments: this.state.importShipments, importExpenses: this.state.importExpenses,
+        importTrackingEvents: this.state.importTrackingEvents, importPayments: this.state.importPayments, importDocuments: this.state.importDocuments,
       };
       await localforage.setItem(backupKey, backup);
     }
-    const businessKeys = ['categories','products','customers','suppliers','sales','purchases','stockMovements','expenses','debts','reservations','reservationCancellations','reservationPayments','reservationDeliveries','stockDamages','freeIssues','offlineQueue','coreSyncHistory'] as const;
+    const businessKeys = ['categories','products','customers','suppliers','sales','purchases','stockMovements','expenses','debts','reservations','reservationCancellations','reservationPayments','reservationDeliveries','stockDamages','freeIssues','importSuppliers','importShipments','importExpenses','importTrackingEvents','importPayments','importDocuments','offlineQueue','coreSyncHistory'] as const;
     const previous = this.state.coreScope;
     const scopeChanged = !previous || previous.tenantId !== tenantId || previous.branchId !== branchId;
     if (this.isSyncing) throw new Error('Synchronisation en cours. Réessayez après sa fin.');
@@ -2485,6 +2532,59 @@ freeIssues: [],
     }
   }
 
+  // Import-Export: independent local collections and dedicated Fondation Kenda Core record API.
+  public getImportExportData() {
+    return {
+      suppliers: this.state.importSuppliers || [], shipments: this.state.importShipments || [],
+      expenses: this.state.importExpenses || [], events: this.state.importTrackingEvents || [],
+      payments: this.state.importPayments || [], documents: this.state.importDocuments || [],
+    };
+  }
+
+  public saveImportExportRecord(type: 'supplier'|'shipment'|'expense'|'tracking'|'payment'|'document', input: Record<string, unknown>) {
+    this.requireManager();
+    const now = new Date().toISOString();
+    const id = typeof input.id === 'string' && input.id ? input.id : generateUUID();
+    const data: Record<string, unknown> = { ...input, id, updatedAt: now };
+    if (!data.createdAt) data.createdAt = now;
+    const collections = {
+      supplier: 'importSuppliers', shipment: 'importShipments', expense: 'importExpenses',
+      tracking: 'importTrackingEvents', payment: 'importPayments', document: 'importDocuments',
+    } as const;
+    const key = collections[type];
+    const rows = this.state[key] as Array<{id:string}>;
+    const index = rows.findIndex(row => row.id === id);
+    if (index >= 0) rows[index] = data as {id:string};
+    else rows.unshift(data as {id:string});
+    if (this.coreContext) this.enqueue('IMPORT_EXPORT_RECORD_UPSERT', { id, type, data });
+    this.afterWrite();
+    return data;
+  }
+
+  public deleteImportExportRecord(type: 'supplier'|'shipment'|'expense'|'tracking'|'payment'|'document', id: string) {
+    this.requireManager();
+    const data = this.getImportExportData();
+    const collections = { supplier: data.suppliers, shipment: data.shipments, expense: data.expenses, tracking: data.events, payment: data.payments, document: data.documents };
+    const current = collections[type].find(row => row.id === id) as unknown as Record<string,unknown> | undefined;
+    if (!current) return;
+    const tombstone = { ...current, id, _deletedAt: new Date().toISOString() };
+    const keys = { supplier:'importSuppliers', shipment:'importShipments', expense:'importExpenses', tracking:'importTrackingEvents', payment:'importPayments', document:'importDocuments' } as const;
+    const key = keys[type];
+    (this.state[key] as Array<{id:string}>).splice(0, (this.state[key] as Array<{id:string}>).length, ...(this.state[key] as Array<{id:string}>).filter(row => row.id !== id));
+    if (this.coreContext) this.enqueue('IMPORT_EXPORT_RECORD_UPSERT', { id, type, data: tombstone });
+    this.afterWrite();
+  }
+
+  public deleteImportExportShipment(id: string) {
+    this.requireManager();
+    for (const [type, rows] of [
+      ['expense', this.state.importExpenses], ['tracking', this.state.importTrackingEvents], ['payment', this.state.importPayments],
+    ] as const) {
+      for (const row of rows.filter(item => item.shipmentId === id)) this.deleteImportExportRecord(type, row.id);
+    }
+    this.deleteImportExportRecord('shipment', id);
+  }
+
   // Cargo management: durable local storage with queued synchronization to Fondation Kenda Core.
   public getCargoPackages(): CargoPackage[] {
     return this.state.cargoPackages || [];
@@ -3150,7 +3250,7 @@ freeIssues: [],
         // Legacy unwrapped backups remain readable; the next export uses version 3.
         payload = parsed as Partial<AppDatabaseState>;
       } else return false;
-      for (const key of ['reservations', 'reservationCancellations', 'reservationPayments', 'reservationDeliveries', 'stockDamages', 'freeIssues'] as const) {
+      for (const key of ['reservations', 'reservationCancellations', 'reservationPayments', 'reservationDeliveries', 'stockDamages', 'freeIssues', 'importSuppliers', 'importShipments', 'importExpenses', 'importTrackingEvents', 'importPayments', 'importDocuments'] as const) {
         if (payload[key] === undefined) (payload as Record<string, unknown>)[key] = [];
       }
       if (!validateBackupData(payload)) return false;
@@ -3203,6 +3303,7 @@ reservationCancellations: [],
       reservationDeliveries: [],
       stockDamages: [],
       freeIssues: [],
+      importSuppliers: [], importShipments: [], importExpenses: [], importTrackingEvents: [], importPayments: [], importDocuments: [],
       offlineQueue: [],
       syncInfo: { ...this.state.syncInfo, pendingCount: 0 },
     };

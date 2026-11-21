@@ -22,6 +22,7 @@ import {
   ClipboardList,
   AlertTriangle,
   Gift,
+  Ship,
 } from 'lucide-react';
 import { User, CompanySettings, SyncStatusInfo } from '../types';
 
@@ -89,6 +90,13 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           icon: Building,
           color: 'bg-emerald-500/10 text-emerald-600',
         },
+        {
+        id: 'import-export',
+        title: 'Import-Export & Suivi des Colis',
+        subtitle: 'Gestion des colis clients, frais de transport et facturation',
+        icon: Ship,
+        color: 'bg-amber-500/10 text-amber-600',
+      },
       ],
     },
     {
@@ -211,7 +219,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
   return (
     <div className="space-y-4 pb-20 max-w-4xl mx-auto px-3 sm:px-4 pt-3">
       {/* Profile & Business Header */}
-      <div className="bg-gradient-to-r from-[#0F2444] to-[#1E3E62] rounded-3xl p-4 sm:p-5 text-white shadow-lg flex items-center justify-between">
+      <div className="bg-linear-to-r from-[#0F2444] to-[#1E3E62] rounded-3xl p-4 sm:p-5 text-white shadow-lg flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-sky-500 flex items-center justify-center text-lg font-black text-white shadow-md">
             {currentUser.name.charAt(0)}

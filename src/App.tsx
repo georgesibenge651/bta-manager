@@ -47,6 +47,7 @@ import { ForcePinChange } from './components/LockScreen';
 import { IS_DEV } from './utils/config';
 import { saveTextFile } from './utils/files';
 import { CoreSessionGate, useCoreSession } from './core/session';
+import ImportExportModule from './components/import-export/ImportExportModule';
 
 /** Runs a repository action; permission/validation errors are shown to the user instead of crashing. */
 function guard<T>(fn: () => T): T | undefined {
@@ -414,7 +415,9 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
                 onAddPayment={async (packageId, payment) => appRepository.addCargoPayment(packageId, payment)}
               />
             )}
-
+{activeSubModule === 'import-export' && (
+  <ImportExportModule />
+)}
             {activeSubModule === 'fournisseurs' && (
               <Suppliers
                 suppliers={dbState.suppliers}

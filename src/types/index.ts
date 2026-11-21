@@ -486,3 +486,122 @@ export interface CargoPackage {
   createdByName: string;
   syncStatus: 'SYNCED' | 'PENDING' | 'ERROR';
 }
+
+
+// ============================================================
+// IMPORT-EXPORT & SUIVI DES COLIS
+// Données indépendantes du module Cargo.
+// ============================================================
+
+export type ImportExportCurrency = 'USD' | 'CDF' | 'EUR' | 'TZS' | 'KES';
+
+export type ImportShipmentStatus =
+  | 'Préparation fournisseur'
+  | 'Expédié'
+  | 'Arrivé en Tanzanie'
+  | 'En attente de transport'
+  | 'En transit vers Bunia'
+  | 'Arrivé à Bunia'
+  | 'Réceptionné / Clôturé';
+
+export type ImportExportPaymentMethod =
+  | 'Espèces'
+  | 'Mobile Money'
+  | 'Virement bancaire'
+  | 'Autre';
+
+export interface ImportSupplier {
+  id: string;
+  name: string;
+  company: string;
+  country: string;
+  city: string;
+  address: string;
+  phone: string;
+  whatsapp: string;
+  email: string;
+  goodsType: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImportShipment {
+  id: string;
+  /** Numéro de suivi fourni par le transporteur. */
+  trackingNumber?: string;
+  reference: string;
+  customer: string;
+  customerPhone: string;
+  supplierId: string;
+  description: string;
+  quantity: number;
+  weight: number;
+  volume: number;
+  origin: string;
+  destination: string;
+  transportMode: 'Maritime' | 'Aérien' | 'Routier';
+  status: ImportShipmentStatus;
+  departureDate: string;
+  expectedDate: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  transportPriceUSD: number;
+  photos: string[];
+  documents: string[];
+}
+
+export interface ImportExpense {
+  id: string;
+  shipmentId: string;
+  category: string;
+  description: string;
+  date: string;
+  location: string;
+  amount: number;
+  currency: ImportExportCurrency;
+  exchangeRate: number;
+  amountUSD: number;
+  payer: string;
+  paymentMethod: ImportExportPaymentMethod;
+  receiptPhoto?: string;
+  createdAt: string;
+}
+
+export interface ImportTrackingEvent {
+  id: string;
+  shipmentId: string;
+  status: ImportShipmentStatus;
+  date: string;
+  country: string;
+  city: string;
+  location: string;
+  observation: string;
+  recordedBy?: string;
+  photos?: string[];
+  documents?: string[];
+}
+
+export interface ImportPayment {
+  id: string;
+  shipmentId: string;
+  date: string;
+  amount: number;
+  currency: ImportExportCurrency;
+  exchangeRate: number;
+  amountUSD: number;
+  method: ImportExportPaymentMethod;
+  reference: string;
+  notes: string;
+  receiptPhoto?: string;
+}
+
+export interface ImportExportDocument {
+  id: string;
+  shipmentId: string;
+  documentType: 'TRANSPORT_INVOICE' | 'PAYMENT_RECEIPT' | 'SHIPMENT_STATEMENT' | 'EXPENSES_SUMMARY' | 'OTHER';
+  title: string;
+  fileUrl?: string;
+  createdAt: string;
+}
