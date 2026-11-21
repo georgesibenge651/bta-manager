@@ -8,6 +8,7 @@ interface CargoModuleProps {
   onSavePackage: (pkg: Partial<CargoPackage>) => Promise<any>;
   onAddEvent: (packageId: string, event: Partial<{ status: CargoStatus; country: string; city: string; location: string; comment: string }>) => Promise<any>;
   onAddPayment: (packageId: string, payment: Partial<{ amountUSD: number; amountCDF: number; exchangeRate: number; paymentMethod: PaymentMethod; notes: string }>) => Promise<any>;
+  onDeletePackage: (packageId: string) => Promise<void>;
 }
 
 const STATUS: Array<{ value: CargoStatus; label: string }> = [
@@ -29,7 +30,15 @@ const money = (value: number) => new Intl.NumberFormat('en-US', { style: 'curren
 const statusLabel = (status: CargoStatus) => STATUS.find((item) => item.value === status)?.label || status;
 const field = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500';
 
-export const CargoModule: React.FC<CargoModuleProps> = ({ packages, settings, currentUser, onSavePackage, onAddEvent, onAddPayment }) => {
+export const CargoModule: React.FC<CargoModuleProps> = ({
+  packages,
+  settings,
+  currentUser,
+  onSavePackage,
+  onAddEvent,
+  onAddPayment,
+  onDeletePackage,
+}) => {
   const [tab, setTab] = useState<'dashboard' | 'list' | 'new'>('dashboard');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<CargoPackage | null>(null);
@@ -129,9 +138,36 @@ totalAmountUSD: calculatedTotalUSD,
 
   const addPayment = async (e: React.FormEvent) => {
     e.preventDefault(); if (!selected) return; setError(''); setBusy(true);
-    try { await onAddPayment(selected.id, { amountUSD: Number(paymentForm.amountUSD), amountCDF: Number(paymentForm.amountUSD) * settings.exchangeRate, exchangeRate: settings.exchangeRate, paymentMethod: paymentForm.paymentMethod, notes: paymentForm.notes }); setPaymentForm({ amountUSD: '', paymentMethod: 'CASH', notes: '' }); setSelected(null); }
+    try { await onAddPayment(selected.id, { amountUSD: Number(paymentForm.amountUSD), amountCDF: Number(paymentForm.amountUSD) * settings.exchangeRate, exchangeRate: settings.exchangeRate, paymentMethod: paymentForm.paymentMethod, notes: paymentForm.notes });
+     setPaymentForm({ amountUSD: '', paymentMethod: 'CASH', notes: '' }); setSelected(null); }
     catch (err) { setError(err instanceof Error ? err.message : 'Impossible d’enregistrer le paiement.'); }
     finally { setBusy(false); }
+  };
+
+  const deletePackage = async (pkg: CargoPackage) => {
+    const confirmed = window.confirm(
+      `Voulez-vous vraiment supprimer définitivement le colis ${pkg.packingNumber} de ${pkg.customerName} ?`
+    );
+
+    if (!confirmed) return;
+
+    setError('');
+    setBusy(true);
+
+    try {
+      await onDeletePackage(pkg.id);
+      setSelected(null);
+      setError('');
+      window.alert('Colis supprimé avec succès.');
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Impossible de supprimer le colis.'
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -171,6 +207,14 @@ totalAmountUSD: calculatedTotalUSD,
             <div><h4 className="text-sm font-bold">Historique des étapes</h4>{(pkg.events || []).length === 0 ? <p className="mt-2 text-xs text-slate-400">Aucun événement enregistré.</p> : [...pkg.events].reverse().map((ev) => <div key={ev.id} className="border-l-2 border-indigo-200 py-2 pl-3"><b className="text-xs">{statusLabel(ev.status)}</b><p className="text-xs text-slate-500">{ev.city}, {ev.country} · {new Date(ev.date).toLocaleString()}</p>{ev.comment && <p className="text-xs">{ev.comment}</p>}</div>)}</div>
             <div><h4 className="text-sm font-bold">Paiements</h4>{(pkg.payments || []).map((payment) => <p key={payment.id} className="flex justify-between border-b border-slate-100 py-2 text-xs"><span>{new Date(payment.date).toLocaleDateString()} · {payment.receiptNumber}</span><b>{money(payment.amountUSD)}</b></p>)}</div>
           </div>}
+          <button
+  type="button"
+  disabled={busy}
+  onClick={() => deletePackage(pkg)}
+  className="w-full rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"
+>
+  {busy ? 'Suppression en cours...' : 'Supprimer définitivement ce colis'}
+</button>
         </article>)}
       </section>}
 

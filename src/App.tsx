@@ -413,6 +413,9 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
                 onSavePackage={async (pkg) => appRepository.saveCargoPackage(pkg)}
                 onAddEvent={async (packageId, event) => appRepository.addCargoEvent(packageId, event)}
                 onAddPayment={async (packageId, payment) => appRepository.addCargoPayment(packageId, payment)}
+                onDeletePackage={async (packageId) =>
+  appRepository.deleteCargoPackage(packageId)
+}
               />
             )}
 {activeSubModule === 'import-export' && (

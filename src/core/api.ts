@@ -143,7 +143,7 @@ async function sendRequest(
 
 
 export async function coreRequest<T>(path: string, options: {
-  method?: 'GET' | 'POST' | 'PUT' | 'PATCH'; query?: Record<string, string | number | undefined>;
+ method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';  query?: Record<string, string | number | undefined>;
   body?: unknown; auth?: boolean; timeoutMs?: number;
 } = {}): Promise<T> {
   const base = CORE_API_BASE.startsWith('/')
@@ -234,6 +234,15 @@ export const coreCargoUpsert = (tenantId: number, branchId: number, pkg: Record<
 export const coreCargoPull = (tenantId: number, branchId: number) =>
   coreRequest<{success:true; packages:Array<{id:string;data:Record<string,any>;updated_at:string}>;count:number;server_time:string}>(`tenants/${tenantId}/cargo/packages`, { query:{ branch_id:branchId } });
 // À ajouter dans src/core/api.ts, juste après coreCargoPull.
+export const coreCargoDelete = (tenantId: number, branchId: number, packageId: string) =>
+  coreRequest<{ success: true; package_id: string; deleted: true }>(
+    `tenants/${tenantId}/cargo/packages`,
+    {
+      method: 'DELETE',
+      query: { branch_id: branchId, package_id: packageId },
+      timeoutMs: 60000,
+    }
+  );
 export type CoreImportExportRecordType =
   | 'supplier'
   | 'shipment'

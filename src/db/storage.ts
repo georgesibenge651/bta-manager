@@ -858,14 +858,18 @@ freeIssues: [],
     this.state.syncInfo.status = 'SYNCING';
     this.notify();
     try {
-      const { getCoreToken } = await import('../core/api');
+   const { getCoreToken, coreCargoDelete } = await import('../core/api');
       if (!(await getCoreToken())) throw new CoreApiError(401, 'bta_unauthenticated', 'Session Core absente ou expirée.');
       const ctx = this.coreContext;
       if (!this.state.coreScope || this.state.coreScope.tenantId !== ctx.tenantId || this.state.coreScope.branchId !== ctx.branchId) throw new Error('Contexte de synchronisation incohérent.');
       for (let index = 0; index < this.state.offlineQueue.length;) {
         const queued = this.state.offlineQueue[index] as AppDatabaseState['offlineQueue'][number];
         if (queued.status === 'FAILED' || queued.status === 'REVIEW') { index++; continue; }
-        if (queued.status === 'PROCESSING' && queued.type !== 'IMPORT_EXPORT_RECORD_UPSERT') {
+       if (
+  queued.status === 'PROCESSING' &&
+  queued.type !== 'IMPORT_EXPORT_RECORD_UPSERT' &&
+  queued.type !== 'CARGO_PACKAGE_DELETE'
+) {
           try {
             const status = await coreOperationStatus(ctx.tenantId, queued.id);
             if (status.status === 'PROCESSING') break;
@@ -887,8 +891,43 @@ freeIssues: [],
         queued.status = 'PROCESSING';
         queued.attempts = (queued.attempts ?? 0) + 1;
         this.persist();
-        try {
-          if (queued.type === 'IMPORT_EXPORT_RECORD_UPSERT') {
+       try {
+  if (queued.type === 'CARGO_PACKAGE_DELETE') {
+    const payload = queued.payload as { id: string };
+
+    const result = await coreCargoDelete(
+      ctx.tenantId,
+      ctx.branchId,
+      payload.id
+    );
+
+    if (
+      result.success !== true ||
+      result.package_id !== payload.id ||
+      result.deleted !== true
+    ) {
+      queued.status = 'REVIEW';
+      queued.error = 'Confirmation de suppression Cargo invalide.';
+      index++;
+      continue;
+    }
+
+    this.state.coreSyncHistory.unshift({
+      id: queued.id,
+      type: queued.type,
+      status: 'DONE',
+      timestamp: new Date().toISOString(),
+    });
+
+    this.state.coreSyncHistory =
+      this.state.coreSyncHistory.slice(0, 500);
+
+    this.state.offlineQueue.splice(index, 1);
+    this.persist();
+    continue;
+  }
+
+  if (queued.type === 'IMPORT_EXPORT_RECORD_UPSERT') {
             const record = queued.payload as { id:string; type:'supplier'|'shipment'|'expense'|'tracking'|'payment'|'document'; data:Record<string,unknown> };
             const result = await coreImportExportUpsert(ctx.tenantId, ctx.branchId, record);
             if (result.success !== true || result.record_id !== record.id || result.record_type !== record.type) {
@@ -947,10 +986,21 @@ freeIssues: [],
       // Pull the tenant/branch Cargo snapshot after queued writes have been acknowledged.
       const cargoSnapshot = await coreCargoPull(ctx.tenantId, ctx.branchId);
       if (cargoSnapshot.success && Array.isArray(cargoSnapshot.packages)) {
-        const pendingCargoIds = new Set(this.state.offlineQueue.filter(item => item.type === 'CARGO_PACKAGE_UPSERT').map(item => String((item.payload as CargoPackage).id)));
+const pendingCargoIds = new Set(
+  this.state.offlineQueue
+    .filter(item => item.type === 'CARGO_PACKAGE_UPSERT')
+    .map(item => String((item.payload as CargoPackage).id))
+);
+
+const pendingCargoDeleteIds = new Set(
+  this.state.offlineQueue
+    .filter(item => item.type === 'CARGO_PACKAGE_DELETE')
+    .map(item => String((item.payload as { id: string }).id))
+);
         const remoteIds = new Set<string>();
         for (const remote of cargoSnapshot.packages) {
           if (!remote || typeof remote.id !== 'string' || !remote.data || typeof remote.data !== 'object') continue;
+           if (pendingCargoDeleteIds.has(remote.id)) continue;
           remoteIds.add(remote.id);
           if (pendingCargoIds.has(remote.id)) continue;
           const normalized = { ...(remote.data as unknown as CargoPackage), id: remote.id, syncStatus: 'SYNCED' as const };
@@ -958,6 +1008,9 @@ freeIssues: [],
           if (at < 0) this.state.cargoPackages.unshift(normalized);
           else this.state.cargoPackages[at] = normalized;
         }
+        this.state.cargoPackages = this.state.cargoPackages.filter(
+  item => !pendingCargoDeleteIds.has(item.id)
+);
         this.state.cargoPackages = this.state.cargoPackages.map(item => pendingCargoIds.has(item.id) ? item : (remoteIds.has(item.id) ? item : item));
       }
       // Import-Export uses its own idempotent record endpoint, separate from Cargo and sync/push.
@@ -2743,6 +2796,30 @@ freeIssues: [],
     if (this.coreContext) this.enqueue('CARGO_PACKAGE_UPSERT', updated);
     this.afterWrite();
     return updated;
+  }
+
+  public deleteCargoPackage(packageId: string): void {
+    this.requireManager();
+
+    const pkg = this.getCargoPackages().find(
+      (item) => item.id === packageId
+    );
+
+    if (!pkg) {
+      throw new Error('Colis introuvable.');
+    }
+
+    // Enregistrer la demande pour synchronisation avec le serveur.
+    if (this.coreContext) {
+      this.enqueue('CARGO_PACKAGE_DELETE', { id: packageId });
+    }
+
+    // Retirer immédiatement le colis de la liste locale.
+    this.state.cargoPackages = this.getCargoPackages().filter(
+      (item) => item.id !== packageId
+    );
+
+    this.afterWrite();
   }
 
   // Sales & POS Engine
