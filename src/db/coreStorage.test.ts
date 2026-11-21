@@ -104,14 +104,34 @@ test('Core: ambiguous network failure retries the same UUID and frozen payload a
   const originalFetch=globalThis.fetch;
   let fail=true;
   globalThis.fetch=async (input,options)=>{
-    if(!options?.body) {
-      if (String(input).includes('/cargo/packages')) {
-        return new Response(JSON.stringify({success:true,packages:[],count:0,server_time:new Date().toISOString()}),{status:200});
-      }
-      return new Response(JSON.stringify({code:'bta_sync_operation_not_found',message:'Absent'}),{status:404});
-    }
-    const body=JSON.parse(String(options.body));sent.push(body);
-    if(fail){fail=false;throw new Error('simulated connection loss');}
+if (!options?.body) {
+  if (String(input).includes('/cargo/packages')) {
+    return new Response(JSON.stringify({
+      success: true,
+      packages: [],
+      count: 0,
+      server_time: new Date().toISOString()
+    }), { status: 200 });
+  }
+
+  if (String(input).includes('/import-export/records')) {
+    return new Response(JSON.stringify({
+      success: true,
+      records: [],
+      count: 0,
+      server_time: new Date().toISOString()
+    }), { status: 200 });
+  }
+
+  return new Response(JSON.stringify({
+    code: 'bta_sync_operation_not_found',
+    message: 'Absent'
+  }), { status: 404 });
+}
+  const body=Object.fromEntries(new URLSearchParams(String(options.body)));
+sent.push(body);
+console.log('[TEST CORE REQUEST]', String(input), body);
+if(fail){fail=false;throw new Error('simulated connection loss');}
     return new Response(JSON.stringify({success:true,operation_id:body.operation_id,customer:{id:83}}),{status:201});
   };
   try {
@@ -201,14 +221,34 @@ test('Finalisation: local category/customer creation through durable queue and s
   Object.defineProperty(globalThis,'navigator',{configurable:true,value:{onLine:true}});
   Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{getItem:()=> 'a'.repeat(64)}});
   globalThis.fetch=async (input,options)=>{
-    if (!options?.body) {
+     if (!options?.body) {
       if (String(input).includes('/cargo/packages')) {
-        return new Response(JSON.stringify({success:true,packages:[],count:0,server_time:new Date().toISOString()}),{status:200});
+        return new Response(JSON.stringify({
+          success: true,
+          packages: [],
+          count: 0,
+          server_time: new Date().toISOString()
+        }), { status: 200 });
       }
-      return new Response(JSON.stringify({code:'bta_sync_operation_not_found',message:'Absent'}),{status:404});
+
+      if (String(input).includes('/import-export/records')) {
+        return new Response(JSON.stringify({
+          success: true,
+          records: [],
+          count: 0,
+          server_time: new Date().toISOString()
+        }), { status: 200 });
+      }
+
+      return new Response(JSON.stringify({
+        code: 'bta_sync_operation_not_found',
+        message: 'Absent'
+      }), { status: 404 });
     }
-    const body=JSON.parse(String(options.body));sent.push(body);
-    const key=body.type==='category_create'?'category':'customer';
+   const body=Object.fromEntries(new URLSearchParams(String(options.body)));
+sent.push(body);
+console.log('[TEST CORE REQUEST]', String(input), body);
+const key=body.type==='category_create'?'category':'customer';
     return new Response(JSON.stringify({success:true,operation_id:body.operation_id,[key]:{id:key==='category'?951:952}}),{status:201});
   };
   try{
@@ -238,7 +278,7 @@ test('Photos: lost upload acknowledgement preserves image; retry replaces it onl
   const original=globalThis.fetch;let attempts=0;
   Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{getItem:()=> 'a'.repeat(64)}});
   globalThis.fetch=async (_input,options)=>{
-    attempts++;const body=JSON.parse(String(options?.body));assert.equal(body.data_url,photo);assert.equal(body.branch_id,4);
+    attempts++;const body=Object.fromEntries(new URLSearchParams(String(options?.body)));assert.equal(body.data_url,photo);assert.equal(body.branch_id,'4');
     if(attempts===1)throw new Error('lost upload ACK');
     return new Response(JSON.stringify({success:true,sha256:'2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',image_url:'https://example.test/photo.png'}));
   };
