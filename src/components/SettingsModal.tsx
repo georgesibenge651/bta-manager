@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { CompanySettings, User, UserRole } from '../types';
 import { CompanyPanel } from './CompanyPanel';
+import {CoreInvitations} from './CoreInvitations';
+import {useCoreSession} from '../core/session';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -50,6 +52,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateUserProfile,
   currentUserRole,
 }) => {
+  const coreSession = useCoreSession();
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'CURRENCY' | 'USERS' | 'COMPANY' | 'BACKUP'>('GENERAL');
   const [formData, setFormData] = useState<CompanySettings>(settings);
   const [successMsg, setSuccessMsg] = useState('');
@@ -238,6 +241,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
                 />
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 p-3 space-y-2">
+                <label className="text-xs font-bold text-slate-700 block">Logo de l’entreprise</label>
+                {formData.logoDataUrl && <img src={formData.logoDataUrl} alt="Logo entreprise" className="h-16 max-w-40 object-contain rounded-lg border border-slate-200 p-1 bg-white" />}
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="w-full text-xs" onChange={(e) => {
+                  const file = e.target.files?.[0]; if (!file) return;
+                  if (file.size > 8 * 1024 * 1024) { alert('Image trop volumineuse (maximum 8 Mo).'); e.currentTarget.value = ''; return; }
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const image = new Image(); image.onload = () => {
+                      const canvas = document.createElement('canvas'); const scale = Math.min(1, 480 / Math.max(image.width, image.height));
+                      canvas.width = Math.max(1, Math.round(image.width * scale)); canvas.height = Math.max(1, Math.round(image.height * scale));
+                      const ctx = canvas.getContext('2d'); if (!ctx) { alert('Impossible de traiter cette image.'); return; }
+                      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+                      const data = canvas.toDataURL('image/jpeg', 0.78);
+                      if (data.length > 220000) { alert('Logo trop lourd après compression. Choisissez une image plus simple.'); return; }
+                      setFormData((old) => ({ ...old, logoDataUrl: data }));
+                    }; image.onerror = () => alert('Image illisible.'); image.src = String(reader.result || '');
+                  }; reader.readAsDataURL(file); e.currentTarget.value = '';
+                }} />
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-xs font-bold text-slate-700">Couleur de marque</label>
+                  <input aria-label="Couleur de marque" type="color" value={formData.brandColor || '#0F2444'} onChange={(e) => setFormData({ ...formData, brandColor: e.target.value })} className="h-9 w-14 rounded border border-slate-300" />
+                </div>
+                <button type="button" onClick={() => setFormData({ ...formData, logoDataUrl: undefined, brandColor: '#0F2444' })} className="text-[11px] text-red-600 underline">Retirer le logo / réinitialiser la couleur</button>
+                <p className="text-[10px] text-slate-500">Le logo est compressé pour limiter la taille des données synchronisées entre les appareils.</p>
               </div>
 
               <div>
@@ -440,7 +470,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
-          {activeTab === 'USERS' && (
+          {activeTab === 'USERS' && (coreSession ? <CoreInvitations key={`${coreSession.me.user.id}-${coreSession.membership.tenantId}`} tenantId={coreSession.membership.tenantId} role={coreSession.membership.role} branches={coreSession.branches}/> :
             <div className="space-y-4">
               {currentUserRole === 'ADMIN' && (
                 <form onSubmit={handleCreateUser} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">

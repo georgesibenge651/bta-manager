@@ -1,0 +1,263 @@
+--- a/src/core/bootstrap.ts
++++ b/src/core/bootstrap.ts
+@@ -1,6 +1,6 @@
+-import type { Category, Customer, Product, StockMovement, Supplier, UnitOfMeasure } from '../types';
++import type { Category, Customer, DebtPaymentEntry, DebtRecord, PaymentMethod, Product, StockMovement, Supplier, UnitOfMeasure } from '../types';
+ import {
+-  coreCategories, coreCustomers, coreDebts, coreProducts, coreStock, coreStockMovements, coreSuppliers,
++  coreCategories, coreCustomers, coreDebts, coreHistoryPage, coreProducts, coreSales, coreStock, coreStockMovements, coreSuppliers,
+ } from './api';
+ 
+ export interface CoreBootstrapSnapshot {
+@@ -11,6 +11,7 @@
+   products: Product[];
+   customers: Customer[];
+   suppliers: Supplier[];
++  debts: DebtRecord[];
+   stockMovements: StockMovement[];
+ }
+ 
+@@ -39,6 +40,28 @@
+   throw new Error(`Pagination Core anormale pour ${key}.`);
+ }
+ 
++
++async function allNumericCursorPages(read: (cursor: number) => Promise<{ items: Array<Record<string, unknown>>; has_more: boolean; next_cursor: number | null }>): Promise<Array<Record<string, unknown>>> {
++  const output: Array<Record<string, unknown>> = [];
++  let cursor = 0;
++  for (let page = 0; page < 10000; page += 1) {
++    const response = await read(cursor);
++    if (!Array.isArray(response.items)) throw new Error('Réponse historique Core invalide.');
++    output.push(...response.items);
++    if (!response.has_more) return output;
++    if (!Number.isSafeInteger(response.next_cursor) || Number(response.next_cursor) <= cursor) throw new Error('Curseur historique Core invalide.');
++    cursor = Number(response.next_cursor);
++  }
++  throw new Error('Pagination historique Core anormale.');
++}
++
++const paymentMethodOf = (value: unknown): PaymentMethod => {
++  const method = str(value).toUpperCase();
++  if (method === 'BANK' || method === 'BANK_TRANSFER') return 'BANK_TRANSFER';
++  if (method === 'MOBILE_MONEY') return 'MOBILE_MONEY';
++  return 'CASH';
++};
++
+ async function allCursorPages(read: (cursor?: string) => Promise<{ items: Array<Record<string, unknown>>; has_more: boolean; next_cursor: string | null }>): Promise<Array<Record<string, unknown>>> {
+   const output: Array<Record<string, unknown>> = [];
+   let cursor: string | undefined;
+@@ -54,12 +77,14 @@
+ }
+ 
+ export async function fetchCoreBootstrap(tenantId: number, branchId: number, usdToCdfRate: number, permissions: string[]): Promise<CoreBootstrapSnapshot> {
+-  const [categoryRows, productRows, customerResponse, supplierResponse, debtResponse, stockRows, movementRows] = await Promise.all([
++  const [categoryRows, productRows, customerResponse, supplierResponse, debtResponse, salesRows, paymentRows, stockRows, movementRows] = await Promise.all([
+     allPages<Record<string, unknown>>(page => coreCategories(tenantId, branchId, page), 'categories'),
+     allPages<Record<string, unknown>>(page => coreProducts(tenantId, branchId, page), 'products'),
+     permissions.includes('customers.read') ? allPages<Record<string,unknown>>(page => coreCustomers(tenantId, branchId, page), 'customers').then(customers => ({success:true as const,customers})) : Promise.resolve({success:true as const,customers:[]}),
+     permissions.includes('suppliers.read') && permissions.includes('purchases.read') ? allPages<Record<string,unknown>>(page => coreSuppliers(tenantId, branchId, page), 'suppliers').then(suppliers => ({success:true as const,suppliers})) : Promise.resolve({success:true as const,suppliers:[]}),
+     permissions.includes('debts.read') ? allPages<Record<string,unknown>>(page => coreDebts(tenantId, branchId, page), 'debts').then(debts => ({success:true as const,debts})) : Promise.resolve({success:true as const,debts:[]}),
++    permissions.includes('debts.read') && permissions.includes('sales.read') ? allPages<Record<string,unknown>>(page => coreSales(tenantId, page, branchId), 'sales') : Promise.resolve([]),
++    permissions.includes('debts.read') ? allNumericCursorPages(cursor => coreHistoryPage(tenantId, branchId, 'payments', cursor)) : Promise.resolve([]),
+     allCursorPages(cursor => coreStock(tenantId, branchId, cursor)),
+     allCursorPages(cursor => coreStockMovements(tenantId, branchId, cursor)),
+   ]);
+@@ -86,10 +111,53 @@
+       createdAt: str(row.created_at, new Date().toISOString()), updatedAt: str(row.updated_at, new Date().toISOString()),
+     };
+   }).filter(product => product.name);
++  const customersByServerId = new Map<number, Record<string, unknown>>((customerResponse.customers as Array<Record<string, unknown>>).map(row => [num(row.id), row]));
++  const salesByServerId = new Map<number, Record<string, unknown>>(salesRows.map(row => [num(row.id), row]));
++  const paymentsByDebt = new Map<number, DebtPaymentEntry[]>();
++  for (const payment of paymentRows) {
++    if (str(payment.entity_type).toUpperCase() !== 'DEBT' || str(payment.payment_type).toUpperCase() !== 'DEBT_PAYMENT') continue;
++    const debtId = num(payment.entity_id);
++    if (!debtId) continue;
++    const debtRow = (debtResponse.debts as Array<Record<string, unknown>>).find(row => num(row.id) === debtId);
++    if (!debtRow) continue;
++    const sale = salesByServerId.get(num(debtRow.sale_id));
++    const paymentRate = num(sale?.exchange_rate, rate) > 0 ? num(sale?.exchange_rate, rate) : rate;
++    const isCdf = str(payment.currency, str(debtRow.currency, 'USD')).toUpperCase() === 'CDF';
++    const amount = num(payment.amount);
++    const amountUSD = isCdf ? amount / paymentRate : amount;
++    const entry: DebtPaymentEntry = {
++      id: localId('debt-payment', payment.id), date: str(payment.created_at, new Date().toISOString()),
++      amountUSD: amountUSD, amountCDF: isCdf ? amount : amountUSD * paymentRate, exchangeRate: paymentRate,
++      paymentMethod: paymentMethodOf(payment.method), receiptNumber: str(payment.reference, `REC-CORE-${payment.id}`),
++      recordedBy: str(payment.created_by, 'Utilisateur Core'), ...(payment.notes ? { notes: str(payment.notes) } : {}),
++    };
++    const bucket = paymentsByDebt.get(debtId) ?? []; bucket.push(entry); paymentsByDebt.set(debtId, bucket);
++  }
++  const debts: DebtRecord[] = (debtResponse.debts as Array<Record<string, unknown>>).map(row => {
++    const id = num(row.id);
++    const customerId = num(row.customer_id);
++    const customer = customersByServerId.get(customerId);
++    const sale = salesByServerId.get(num(row.sale_id));
++    const debtRate = num(sale?.exchange_rate, rate) > 0 ? num(sale?.exchange_rate, rate) : rate;
++    const isCdf = str(row.currency, 'USD').toUpperCase() === 'CDF';
++    const convert = (value: unknown) => { const amount = num(value); return Math.round((isCdf ? amount / debtRate : amount) * 100) / 100; };
++    const history = (paymentsByDebt.get(id) ?? []).sort((a,b) => a.date.localeCompare(b.date));
++    return {
++      id: localId('debt', id), type: 'CUSTOMER', partyId: localId('customer', customerId),
++      partyName: str(customer?.name, str(row.customer_name, 'Client')), partyPhone: str(customer?.phone),
++      initialAmountUSD: convert(row.original_amount), paidAmountUSD: convert(row.paid_amount),
++      remainingBalanceUSD: convert(row.balance), dueDate: str(row.due_at, str(row.created_at, new Date().toISOString())),
++      ...(history.length ? { lastPaymentDate: history[history.length - 1].date } : {}), history,
++      referenceInvoice: str(sale?.reference, `CORE-DEBT-${id}`),
++    };
++  }).filter(debt => debt.id !== 'core-debt-0' && debt.partyId !== 'core-customer-0');
+   const debtByCustomer = new Map<number, number>();
+   for (const row of debtResponse.debts as Array<Record<string, unknown>>) {
+     const customerId = num(row.customer_id);
+-    if (customerId) debtByCustomer.set(customerId, (debtByCustomer.get(customerId) ?? 0) + toUsd(row.balance, row.currency));
++    const sale = salesByServerId.get(num(row.sale_id));
++    const debtRate = num(sale?.exchange_rate, rate) > 0 ? num(sale?.exchange_rate, rate) : rate;
++    const balance = str(row.currency, 'USD').toUpperCase() === 'CDF' ? num(row.balance) / debtRate : num(row.balance);
++    if (customerId) debtByCustomer.set(customerId, (debtByCustomer.get(customerId) ?? 0) + balance);
+   }
+   const customers: Customer[] = (customerResponse.customers as Array<Record<string, unknown>>).map(row => ({
+     id: localId('customer', row.id), name: str(row.name), phone: str(row.phone), address: str(row.address), email: str(row.email), city: '',
+@@ -111,5 +179,5 @@
+       referenceNumber: str(row.reference_id), previousStock: 0, newStock: quantity,
+     };
+   });
+-  return { tenantId, branchId, downloadedAt: new Date().toISOString(), categories, products, customers, suppliers, stockMovements };
++  return { tenantId, branchId, downloadedAt: new Date().toISOString(), categories, products, customers, suppliers, debts, stockMovements };
+ }
+--- a/src/core/bootstrap.test.ts
++++ b/src/core/bootstrap.test.ts
+@@ -23,7 +23,9 @@
+     else if (url.pathname.endsWith('/products')) data = { success:true, products:[{id:'11',category_id:'2',sku:'EAU-1',name:'Eau',unit:'piece',purchase_price:'280000',sale_price:'560000',currency:'CDF',min_stock:'2',created_at:'2026-01-01',updated_at:'2026-01-02'}], pagination:{pages:1} };
+     else if (url.pathname.endsWith('/customers')) data = { success:true, customers:[url.searchParams.get('page') === '2' ? {id:'22',name:'Deuxième page'} : {id:'21',name:'Amina',phone:'123',credit_limit:'50000',created_at:'2026-01-01'}], pagination:{pages:2} };
+     else if (url.pathname.endsWith('/suppliers')) data = { success:true, suppliers:[{id:'31',name:'Grossiste',notes:'Farine',created_at:'2026-01-01'}] };
+-    else if (url.pathname.endsWith('/debts')) data = { success:true, debts:[{customer_id:'21',balance:'28000',currency:'CDF'}] };
++    else if (url.pathname.endsWith('/debts')) data = { success:true, debts:[{id:'90',customer_id:'21',sale_id:'50',original_amount:'56000',paid_amount:'28000',balance:'28000',currency:'CDF',status:'PARTIAL',due_at:'2026-02-01 00:00:00',created_at:'2026-01-01 00:00:00'}] };
++    else if (url.pathname.endsWith('/sales')) data = { success:true, sales:[{id:'50',reference:'INV-50',currency:'CDF',exchange_rate:'2800'}], pagination:{pages:1} };
++    else if (url.pathname.endsWith('/history/payments')) data = {success:true,tenant_id:4,branch_id:8,resource:'payments',items:[{id:'91',tenant_id:'4',branch_id:'8',entity_type:'DEBT',entity_id:'90',payment_type:'DEBT_PAYMENT',amount:'28000',currency:'CDF',method:'MOBILE_MONEY',reference:'REC-91',created_by:'6',created_at:'2026-01-15 10:00:00'}],has_more:false,next_cursor:null};
+     else if (url.pathname.endsWith('/sync/pull') && url.searchParams.get('resource') === 'stock') data = {success:true,items:[{product_id:'11',quantity:'7'}],has_more:false,next_cursor:null};
+     else if (url.pathname.endsWith('/sync/pull') && url.searchParams.get('resource') === 'stock_movements') data = {success:true,items:[{id:'81',product_id:'11',quantity:'3',movement_type:'PURCHASE_RECEIPT',created_at:'2026-01-02',notes:'Réception'}],has_more:false,next_cursor:null};
+     else throw new Error(`Route inattendue ${url}`);
+@@ -35,6 +37,14 @@
+   assert.equal(result.products[0].currentStock, 7);
+   assert.equal(result.products[0].sellPriceUSD, 200);
+   assert.equal(result.customers[0].debtBalanceUSD, 10);
++  assert.equal(result.debts.length, 1);
++  assert.equal(result.debts[0].id, 'core-debt-90');
++  assert.equal(result.debts[0].partyId, 'core-customer-21');
++  assert.equal(result.debts[0].referenceInvoice, 'INV-50');
++  assert.equal(result.debts[0].remainingBalanceUSD, 10);
++  assert.equal(result.debts[0].history[0].amountUSD, 10);
++  assert.equal(result.debts[0].history[0].amountCDF, 28000);
++  assert.equal(result.debts[0].history[0].paymentMethod, 'MOBILE_MONEY');
+   assert.equal(result.customers.length, 2);
+   assert.equal(result.customers[1].name, 'Deuxième page');
+   assert.equal(result.suppliers[0].companyName, 'Grossiste');
+@@ -51,6 +61,8 @@
+     else if (url.pathname.endsWith('/products')) data = {success:true,products:[],pagination:{pages:1}};
+     else if (url.pathname.endsWith('/customers')) data = {success:true,customers:[]};
+     else if (url.pathname.endsWith('/debts')) data = {success:true,debts:[]};
++    else if (url.pathname.endsWith('/sales')) data = {success:true,sales:[],pagination:{pages:1}};
++    else if (url.pathname.endsWith('/history/payments')) data = {success:true,tenant_id:4,branch_id:8,resource:'payments',items:[],has_more:false,next_cursor:null};
+     else if (url.pathname.endsWith('/sync/pull')) data = {success:true,items:[],has_more:false,next_cursor:null};
+     else throw new Error(`Route inattendue ${url}`);
+     return new Response(JSON.stringify(data), {status:200});
+--- a/src/db/storage.ts
++++ b/src/db/storage.ts
+@@ -1162,6 +1162,16 @@
+       if (kind === 'category') for (const item of snapshot.products) item.categoryId = translations.get(item.categoryId) ?? item.categoryId;
+       if (kind === 'product') for (const item of snapshot.stockMovements) item.productId = translations.get(item.productId) ?? item.productId;
+     }
++    for (const debt of snapshot.debts ?? []) {
++      const serverId = Number(debt.id.split('-').at(-1));
++      if (!Number.isSafeInteger(serverId) || serverId <= 0) continue;
++      debt.id = await getLocalId(tenantId, 'debts', serverId) ?? debt.id;
++      await mapServerId(tenantId, 'debts', debt.id, serverId);
++      const customerServerId = Number(debt.partyId.split('-').at(-1));
++      if (Number.isSafeInteger(customerServerId) && customerServerId > 0) {
++        debt.partyId = await getLocalId(tenantId, 'customers', customerServerId) ?? debt.partyId;
++      }
++    }
+ 
+     const pendingByType = new Map<string, Set<string>>();
+     for (const op of this.state.offlineQueue) {
+@@ -1203,7 +1213,33 @@
+     this.state.customers = await keepPending(snapshot.customers, this.state.customers, ['CUSTOMER_CREATE','CUSTOMER_UPDATE'], 'customers');
+     this.state.suppliers = await keepPending(snapshot.suppliers, this.state.suppliers, ['SUPPLIER_CREATE','SUPPLIER_UPDATE'], 'suppliers');
+     this.state.stockMovements = await keepPending(snapshot.stockMovements, this.state.stockMovements, ['STOCK_ADJUSTMENT']);
+-    // Bootstrap only contains catalogue and stock. It cannot replace transaction histories.
++    const pendingDebtIds = new Set<string>();
++    const pendingSaleReferences = new Set<string>();
++    for (const op of this.state.offlineQueue) {
++      if (op.status === 'DONE' || op.status === 'FAILED' || op.status === 'REVIEW') continue;
++      const payload = op.payload as Record<string, unknown>;
++      if (op.type === 'DEBT_PAYMENT' && typeof payload.debtId === 'string') pendingDebtIds.add(payload.debtId);
++      if (op.type === 'SALE_CREATE' && typeof payload.invoiceNumber === 'string') pendingSaleReferences.add(payload.invoiceNumber);
++    }
++    const mergedDebts = [...(snapshot.debts ?? [])];
++    for (const localDebt of this.state.debts) {
++      const preserve = localDebt.type === 'SUPPLIER' || pendingDebtIds.has(localDebt.id) || pendingSaleReferences.has(localDebt.referenceInvoice);
++      if (!preserve) continue;
++      const index = mergedDebts.findIndex(remote => remote.id === localDebt.id || (remote.type === localDebt.type && remote.referenceInvoice === localDebt.referenceInvoice));
++      if (index >= 0) mergedDebts[index] = localDebt;
++      else mergedDebts.unshift(localDebt);
++    }
++    this.state.debts = mergedDebts;
++    // Keep each customer's summary consistent with the merged debt ledger, including protected offline repayments.
++    const customerDebtTotals = new Map<string, number>();
++    for (const debt of mergedDebts) {
++      if (debt.type !== 'CUSTOMER') continue;
++      customerDebtTotals.set(debt.partyId, (customerDebtTotals.get(debt.partyId) ?? 0) + debt.remainingBalanceUSD);
++    }
++    for (const customer of this.state.customers) {
++      if (customerDebtTotals.has(customer.id)) customer.debtBalanceUSD = Math.round((customerDebtTotals.get(customer.id)! + Number.EPSILON) * 100) / 100;
++    }
++    // Sales and debt ledgers are now refreshed from confirmed Core records; local pending entries stay protected above.
+     this.state.syncInfo = {
+       ...this.state.syncInfo, status: source === 'cache' ? 'OFFLINE' : 'SYNCED', lastSyncTime: snapshot.downloadedAt,
+       pendingCount: this.state.offlineQueue.length,
+--- a/src/db/coreStorage.test.ts
++++ b/src/db/coreStorage.test.ts
+@@ -39,6 +39,30 @@
+   assert.equal(repo.state.syncInfo.status,'OFFLINE');
+ });
+ 
++test('Core: shared debts refresh across devices while pending repayments remain protected', async () => {
++  repo.state.coreScope={tenantId:7,branchId:4};
++  repo.state.offlineQueue=[{id:'pending-debt-payment',type:'DEBT_PAYMENT',payload:{id:'payment-local',debtId:'debt-local'},status:'PENDING'}];
++  await mapServerId(7,'customers','customer-local',21);
++  await mapServerId(7,'debts','debt-local',99);
++  const localDebt={id:'debt-local',type:'CUSTOMER',partyId:'customer-local',partyName:'Amina',partyPhone:'123',initialAmountUSD:30,paidAmountUSD:22,remainingBalanceUSD:8,dueDate:'2026-02-01',history:[],referenceInvoice:'INV-99'};
++  repo.state.debts=[localDebt];
++  const remote=snapshot();
++  remote.customers=[{id:'core-customer-21',name:'Amina',phone:'123',debtBalanceUSD:9,creditLimitUSD:0,registeredAt:'2026-01-01'}];
++  remote.debts=[{id:'core-debt-99',type:'CUSTOMER',partyId:'core-customer-21',partyName:'Amina',partyPhone:'123',initialAmountUSD:30,paidAmountUSD:21,remainingBalanceUSD:9,dueDate:'2026-02-01',history:[],referenceInvoice:'INV-99'}];
++  await repo.applyCoreSnapshot(remote,'server');
++  assert.equal(repo.state.debts.length,1);
++  assert.equal(repo.state.debts[0].id,'debt-local');
++  assert.equal(repo.state.debts[0].remainingBalanceUSD,8);
++  assert.equal(repo.state.customers[0].debtBalanceUSD,8);
++  repo.state.offlineQueue=[];
++  remote.debts[0].remainingBalanceUSD=7;
++  remote.debts[0].paidAmountUSD=23;
++  await repo.applyCoreSnapshot(remote,'server');
++  assert.equal(repo.state.debts[0].id,'debt-local');
++  assert.equal(repo.state.debts[0].remainingBalanceUSD,7);
++  if(repo.persistTimer)clearTimeout(repo.persistTimer);
++});
++
+ test('Core: queue copies values, missing relationship blocks, personal PIN profile survives activation', async () => {
+   repo.coreContext={tenantId:7,branchId:4};
+   repo.state.syncInfo.status='OFFLINE';
+--- a/src/components/Customers.tsx
++++ b/src/components/Customers.tsx
+@@ -700,8 +700,8 @@
+                 </label>
+                 <input
+                   type="number"
+-                  step="0.5"
+-                  min="0.1"
++                  step="0.01"
++                  min="0.01"
+                   max={repaymentDebtRecord.remainingBalanceUSD}
+                   required
+                   value={repaymentAmountUSD}

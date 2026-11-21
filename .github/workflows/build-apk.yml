@@ -3,7 +3,7 @@ name: Build APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches: [main, master, feature/bta-anonymous-manager]
 
 jobs:
   apk:
@@ -17,6 +17,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -24,15 +25,47 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Accept Android SDK licenses
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+
+      - name: Install Android SDK platforms
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund
+        run: |
+          npm ci --legacy-peer-deps --no-audit --no-fund
+          npm --prefix functions ci --no-audit --no-fund
 
-      - name: Unit tests (sync engine)
-        run: npm run test:unit
+      - name: Full application and backend tests
+        run: |
+          npm run test:unit
+          npm run test:functions
+          npm run test:rules
+
+      - name: TypeScript check
+        run: npm run lint
+
+      - name: Validate and test WordPress Core
+        run: |
+          command -v php || (sudo apt-get update && sudo apt-get install -y php-cli)
+          find wordpress/fondation-kenda-core -name '*.php' -exec php -l {} \;
+          npm run test:core
+          python3 scripts/package-core.py
 
       - name: Build web application
         run: npm run build
@@ -44,12 +77,14 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD_SECRET: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD_SECRET: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS_SECRET: ${{ secrets.KEY_ALIAS }}
         run: |
           set -euo pipefail
 
           if [ -z "$KEYSTORE_BASE64" ] || \
              [ -z "$KEYSTORE_PASSWORD_SECRET" ] || \
+             [ -z "$KEY_PASSWORD_SECRET" ] || \
              [ -z "$KEY_ALIAS_SECRET" ]; then
             echo "ERROR: Permanent Android signing secrets are missing."
             exit 1
@@ -67,12 +102,13 @@ jobs:
           keytool -list \
             -keystore "$KEYSTORE_FILE" \
             -storepass "$KEYSTORE_PASSWORD_SECRET" \
+            -keypass "$KEY_PASSWORD_SECRET" \
             -alias "$KEY_ALIAS_SECRET" > /dev/null
 
           {
             echo "KEYSTORE_PATH=$KEYSTORE_FILE"
             echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD_SECRET"
-            echo "KEY_PASSWORD=$KEYSTORE_PASSWORD_SECRET"
+            echo "KEY_PASSWORD=$KEY_PASSWORD_SECRET"
             echo "KEY_ALIAS=$KEY_ALIAS_SECRET"
           } >> "$GITHUB_ENV"
 
@@ -89,4 +125,11 @@ jobs:
         with:
           name: bta-manager-apk
           path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Upload WordPress Core ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: fondation-kenda-core
+          path: artifacts/fondation-kenda-core-*.zip
           if-no-files-found: error

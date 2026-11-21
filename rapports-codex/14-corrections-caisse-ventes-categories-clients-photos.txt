@@ -1,0 +1,42 @@
+Problèmes constatés
+- Sources Core 0.5.33 : caisse ouverte exigée pour le même utilisateur, établissement et devise ; interface absente. Permission cashbox.manage (OWNER, ADMIN, MANAGER, CASHIER).
+- Paiements FC envoyés en USD ; devise de paiement non conservée dans les ventes.
+- Catégories/clients : création locale, file automatique, correspondance ID serveur et historique DONE déjà présents. Fonctionnement conservé ; présence en production non vérifiable sans session.
+- Sélecteur photo absent. Core utilise esc_url_raw : une image data: ne peut pas être synchronisée telle quelle.
+
+Fichiers modifiés
+src/App.tsx ; src/components/{CoreCashPanel,CoreSyncCenter,Products,SalesPOS}.tsx ; src/core/api.ts ; src/db/{storage.ts,coreStorage.test.ts} ; src/types/index.ts ; présent rapport.
+
+Corrections effectuées
+- Accès « Mes caisses » dans le centre de synchronisation : ouverture FC/CDF ou USD, solde initial, montant de clôture, actualisation et liste des sessions personnelles. Confirmation uniquement après réponse Core. Actions bloquées après erreur jusqu’à actualisation.
+- Association des ventes inchangée : Core choisit la caisse par utilisateur/établissement/devise. Aucun contournement financier.
+- Nouvelles ventes : devise conservée et conversion prix/remise/paiement vers CDF si FC sélectionné.
+- Reprise existante conservée : commande refusée recréée sans rejouer la vente locale ; transmission incertaine réconciliée avec le même UUID.
+- Galerie facultative JPG/PNG/WebP, conservation locale et aperçu ; aucune image automatique. Sans photo : image_url vide.
+- Produit avec photo locale explicitement bloqué en synchronisation plutôt que déclaré synchronisé avec photo perdue.
+
+Tests exécutés / résultats
+- npm run lint : réussi.
+- tsx --test --test-name-pattern='Targeted:|ambiguous network' src/db/coreStorage.test.ts : 3 tests réussis.
+- Vérifiés avec serveur simulé : reprise réseau UUID/payload identiques ; conversion USD/CDF ; reprise refusée sans nouveau débit stock ni nouvelle vente locale ; accusés catégories/clients et historique ; image_url vide ; blocage photo locale.
+
+Problèmes restants
+- Livraison partielle : arrêt avant investigation backend supplémentaire pour respecter le budget.
+- Aucun test connecté au serveur de production, aucune vente réelle déclarée synchronisée.
+- Ouverture/clôture, galerie et persistance après redémarrage à tester sur APK ; aucun test interactif exécuté.
+- Historique détaillé des mouvements absent : route Core de lecture non présente ; seule la liste des sessions est intégrée.
+- Téléversement média à intégrer au backend puis au client ; produit avec photo reste en échec explicite en attendant.
+- Core autorise actuellement une seule caisse ouverte par utilisateur/établissement, toutes devises confondues. Fermer avant de changer de devise.
+- Anciennes ventes sans devise conservée restent en USD : impossible de reconstituer sûrement leur devise d’origine. Aucune modification automatique de leurs montants.
+- Pas de publication, pas de téléversement WordPress, version maintenue à 2.0.1 (travail incomplet).
+
+Complément de finalisation
+- CoreCashPanel.tsx : actions interdites avant la première liste Core valide ; verrou immédiat contre les clics concurrents.
+- Products.tsx : sauvegarde, nouvelle sélection et retrait interdits pendant la lecture du fichier photo.
+- Tests ajoutés : tests/php/cash-sales.php ; parcours « Finalisation: » dans src/db/coreStorage.test.ts.
+- php tests/php/cash-sales.php : réussi. Handlers Core 0.5.33 réels avec DB simulée : ouverture/clôture CDF et USD, caisse de mauvaise devise refusée, rollback après rejet, reprise acceptée après ouverture, rejeu UUID sans nouvelle vente ni second débit stock, rôle interdit refusé.
+- tsx --test --test-name-pattern='Finalisation:' src/db/coreStorage.test.ts : 1 test réussi. Créations locales catégorie/client, file durable, envois et historique après accusés simulés ; photo durable locale ; produit avec photo non déclaré synchronisé.
+- tsc --noEmit après les changements des formulaires : réussi. Aucun ancien test du rapport relancé.
+- Mécanismes ventes/catégories/clients conservés ; aucune correction backend requise par ces tests. Plugin et version inchangés.
+- Production et galerie Android non testées. Limites précédentes conservées : média non téléversé, mouvements détaillés absents, anciennes ventes sans devise restent USD.
+- APK non généré : Gradle wrapper et Java présents, mais ni android/local.properties ni variables ANDROID_HOME/ANDROID_SDK_ROOT configurés. Génération sans téléchargement supplémentaire non confirmée ; aucun téléchargement ni build Android lancé.

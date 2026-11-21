@@ -1,0 +1,10 @@
+--- a/src/core/api.ts
++++ b/src/core/api.ts
+@@ -113,6 +113,7 @@
+ 
+ export const coreMe = () => coreRequest<CoreMe>('auth/me');
+ export const coreLogout = () => coreRequest<{success: true; message: string}>('auth/logout', { method: 'POST' });
++export const coreLogout = () => coreRequest<{success: true; message: string}>('auth/logout', { method: 'POST' });
+ export async function coreBranches(tenantId: number): Promise<{success:true; branches:CoreBranch[]}> {
+   const response = await coreRequest<{success:true; branches:Array<Record<string,unknown>>}>(`tenants/${tenantId}/branches`);
+   return { ...response, branches: response.branches.map(row => ({

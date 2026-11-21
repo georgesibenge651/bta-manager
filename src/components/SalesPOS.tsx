@@ -39,6 +39,7 @@ interface SalesPOSProps {
     }>;
     discountUSD: number;
     paymentMethod: PaymentMethod;
+    currency?: 'USD' | 'CDF';
     amountPaidUSD: number;
     notes?: string;
     allowNegativeStock?: boolean;
@@ -247,6 +248,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
       })),
       discountUSD: discountUSD || 0,
       paymentMethod,
+      currency: currencyPaidType,
       amountPaidUSD: finalAmountPaidUSD,
       notes: notes.trim() || undefined,
       allowNegativeStock: allowNegative,

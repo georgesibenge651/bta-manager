@@ -12,8 +12,10 @@ import {
   Building2,
   Download,
   Search,
+  ListChecks,
 } from 'lucide-react';
 import { User, CompanySettings, SyncStatusInfo, UserRole } from '../types';
+import type { CoreBranch } from '../core/api';
 
 interface NavbarProps {
   currentUser: User;
@@ -28,6 +30,11 @@ interface NavbarProps {
   onOpenSettings: () => void;
   onDownloadZip?: () => void;
   onOpenGlobalSearch?: () => void;
+  onOpenSyncCenter?: () => void;
+  tenantName?: string;
+  activeBranch?: CoreBranch;
+  branches?: CoreBranch[];
+  onSelectBranch?: (branchId: number) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -43,13 +50,19 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSettings,
   onDownloadZip,
   onOpenGlobalSearch,
+  onOpenSyncCenter,
+  tenantName,
+  activeBranch,
+  branches = [],
+  onSelectBranch,
 }) => {
   const getRoleBadge = (role: UserRole) => {
     if (role === "ADMIN") {
       return <span className="bg-red-500/20 text-red-200 border border-red-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">ADMIN</span>;
     }
 
-    return <span className="bg-amber-500/20 text-amber-200 border border-amber-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">GESTION</span>;
+    if (role === 'CASHIER') return <span className="bg-sky-500/20 text-sky-200 border border-sky-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">CAISSE</span>;
+    return <span className="bg-amber-500/20 text-amber-200 border border-amber-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">MANAGER</span>;
   };
 
   return (
@@ -69,8 +82,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {settings.timezone.replace('Africa/', '')}
               </span>
             </div>
-            <p className="text-[11px] text-slate-300 truncate max-w-[140px] sm:max-w-xs font-normal">
-              {settings.companyName}
+            <p className="text-[11px] text-slate-300 truncate max-w-[160px] sm:max-w-xs font-normal">
+              {tenantName || settings.companyName}{activeBranch ? ` · ${activeBranch.name}` : ''}
             </p>
           </div>
         </div>
@@ -90,6 +103,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Sync & Connectivity Controller */}
           <div className="flex items-center gap-1.5">
+            {onOpenSyncCenter && (
+              <button onClick={onOpenSyncCenter} className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition" title="Historique et résolution des opérations Core" aria-label="Ouvrir le centre de synchronisation">
+                <ListChecks className="w-3.5 h-3.5" />
+              </button>
+            )}
             <button
               onClick={onToggleOffline}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold transition border ${
@@ -135,7 +153,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={onManualSync}
                 className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition"
-                title="Synchroniser avec Firebase"
+                title="Synchroniser avec Gestion Entreprise"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${syncInfo.status === 'SYNCING' ? 'animate-spin' : ''}`} />
               </button>
@@ -145,6 +163,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right: Global Search, Download ZIP, User Switcher & Mobile Frame Toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {activeBranch && branches.length > 1 && onSelectBranch && (
+            <select aria-label="Établissement actif" value={activeBranch.id} onChange={e => onSelectBranch(Number(e.target.value))} className="max-w-28 sm:max-w-44 rounded-lg border border-white/15 bg-[#102744] px-2 py-2 text-[11px] text-white">
+              {branches.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          )}
           {onOpenGlobalSearch && (
             <button
               onClick={onOpenGlobalSearch}

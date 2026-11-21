@@ -111,7 +111,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               className="bg-white text-slate-900 w-[340px] p-5 rounded-2xl shadow-md font-mono text-xs border border-slate-300 leading-tight space-y-3"
             >
               <div className="text-center border-b border-dashed border-slate-400 pb-3">
-                <h2 className="font-black text-sm uppercase tracking-wide">{settings.companyName}</h2>
+                {settings.logoDataUrl && <img src={settings.logoDataUrl} alt="Logo" className="mx-auto mb-2 max-h-14 max-w-28 object-contain" />}
+                <h2 className="font-black text-sm uppercase tracking-wide" style={{ color: settings.brandColor || undefined }}>{settings.companyName}</h2>
                 <p className="text-[11px] text-slate-600">{settings.slogan}</p>
                 <p className="text-[10px] text-slate-500 mt-1">{settings.address}</p>
                 <p className="text-[10px] text-slate-500">{settings.city}</p>
@@ -268,14 +269,14 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               {/* Header */}
               <div className="flex justify-between items-start border-b-2 border-[#0F2444] pb-4">
                 <div>
-                  <h1 className="text-xl font-black text-[#0F2444]">{settings.companyName}</h1>
+                  <div className="flex items-start gap-3">{settings.logoDataUrl && <img src={settings.logoDataUrl} alt="Logo" className="max-h-20 max-w-28 object-contain" />}<div><h1 className="text-xl font-black" style={{ color: settings.brandColor || "#0F2444" }}>{settings.companyName}</h1>
                   <p className="text-xs text-sky-600 font-semibold">{settings.slogan}</p>
                   <p className="text-slate-500 mt-1">{settings.address}</p>
                   <p className="text-slate-500">{settings.city}</p>
                   <p className="text-slate-500">Tél: {settings.phone} | Email: {settings.email}</p>
                   <p className="text-slate-400 text-[10px] mt-1">
                     RCCM: {settings.rccm} • ID.NAT: {settings.idNat} • NIF: {settings.nif}
-                  </p>
+                  </p></div></div>
                 </div>
                 <div className="text-right">
                   <span className="bg-[#0F2444] text-white px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider inline-block">

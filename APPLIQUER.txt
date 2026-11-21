@@ -1,0 +1,50 @@
+BTA MANAGER — LICENCES OBLIGATOIRES (PATCH 0.5.34)
+
+OBJECTIF
+- Une licence BTA est obligatoire pour créer une nouvelle entreprise.
+- Une licence est utilisable une seule fois et liée à l'entreprise créée.
+- Les employés continuent d'être ajoutés par invitation, sans licence individuelle.
+- Les connexions des entreprises existantes ne demandent pas de nouvelle licence.
+- L'administrateur WordPress peut générer et révoquer les licences.
+- La révocation d'une licence déjà utilisée suspend l'entreprise et ferme les sessions de ses membres.
+
+FICHIERS
+- wordpress/fondation-kenda-core/fondation-kenda-core.php
+- wordpress/fondation-kenda-core/includes/class-fkc-core.php
+- src/core/api.ts
+- src/core/session.tsx
+- src/core/signIn.tsx
+
+APPLICATION DANS LE PROJET (TERMUX)
+1. Extraire ce ZIP à la racine du dépôt BTA Manager en conservant les dossiers.
+2. Lancer : npm run lint
+3. Lancer : npm run build
+4. Lancer : npm run test:core
+5. Lancer les tests PHP habituels si PHP est disponible.
+6. Ne pas pousser avant d'avoir vérifié `git status --short`.
+
+MISE À JOUR WORDPRESS / LWS
+- Remplacer le fichier du plugin :
+  wp-content/plugins/fondation-kenda-core/fondation-kenda-core.php
+- Remplacer le fichier du plugin :
+  wp-content/plugins/fondation-kenda-core/includes/class-fkc-core.php
+- Ne pas désactiver le plugin.
+- Ne supprimer aucune table ni aucune donnée.
+- Au premier chargement WordPress, le plugin crée automatiquement bta_licenses.
+- Vérifier ensuite /wp-json/bta/v1/health : version 0.5.34 et licenses_table_ready=true.
+
+GÉRER LES LICENCES
+Dans WordPress : Fondation Kenda Core > Licences entreprises.
+- Cliquer « Générer une nouvelle licence ».
+- Copier le code affiché immédiatement : il n'est révélé qu'une seule fois.
+- Remettre ce code au propriétaire de l'entreprise.
+- Dans l'application mise à jour, choisir « Créer une nouvelle entreprise » et saisir le code.
+- Une licence utilisée passe à REDEEMED et ne peut plus servir.
+- « Révoquer » une licence non utilisée l'invalide.
+- Révoquer une licence utilisée suspend l'entreprise liée et ferme les sessions des membres.
+
+IMPORTANT
+- Le backend doit être mis à jour avant d'activer la nouvelle version de l'application.
+- Tant que l'APK mise à jour n'est pas distribuée, l'ancienne application ne sait pas envoyer le code de licence et l'inscription autonome sera refusée par le serveur mis à jour.
+- Les comptes existants et les invitations ne sont pas soumis à une nouvelle licence.
+- Aucun APK n'est généré par ce patch. La génération reste exclusivement via GitHub Actions.

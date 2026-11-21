@@ -1,21 +1,17 @@
-BTA Manager — Phase 2 : réservations opérationnelles
+BTA CARGO - PATCH 01
 
-Fichiers inclus :
-- src/App.tsx
-- src/components/NewOperations.tsx
+Contenu:
+- src/components/cargo/CargoModule.tsx
+- src/db/storage.ts
+- src/types/index.ts
 
-Fonctionnalités :
-- Création d'une réservation avec client et plusieurs produits.
-- Politique de réservation du stock : blocage immédiat ou au moment de la livraison.
-- Avance initiale avec mode de paiement.
-- Enregistrement d'avances supplémentaires.
-- Enregistrement de livraisons partielles et mise à jour du stock via le dépôt existant.
+Changements:
+- Le numéro PKG saisi correspond désormais au numéro réel fourni par le fournisseur.
+- Le numéro PKG est obligatoire et doit être unique (insensible à la casse).
+- Ajout de la prise/sélection de photos (maximum 6), compression JPEG côté navigateur et aperçu avant création.
+- Affichage des photos dans la fiche du colis.
+- Les photos sont stockées dans le champ photos[] déjà présent dans CargoPackage et conservées par le stockage local existant.
 
-Installation :
-1. Faire une sauvegarde du projet.
-2. Depuis ~/bta, extraire cette archive avec :
-   unzip -o ~/storage/downloads/bta-reservations-phase2.zip -d .
-3. Vérifier avec npm run build.
-
-Important :
-Cette phase ne génère pas encore de facture de vente pour les livraisons et ne réalise pas l'affectation manuelle des avances à une facture. Ces éléments nécessitent une phase comptable dédiée.
+Important:
+Ce patch ne prétend pas activer la synchronisation distante ni le lien public de suivi.
+L'archive source fournie ne contient pas le code serveur WordPress/Fondation Kenda Core ni les routes publiques Cargo. Ces deux fonctionnalités nécessitent d'inspecter et modifier aussi le backend, dans un patch ultérieur.

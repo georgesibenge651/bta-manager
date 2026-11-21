@@ -1,3 +1,5 @@
+import {displayCompanyName} from './core/branding';
+import {startSharedPolling} from './core/shared';
 import React, { useState, useEffect, useMemo } from 'react';
 import { appRepository } from './db/storage';
 import {
@@ -36,14 +38,16 @@ import { KotlinSourceModal } from './components/KotlinSourceModal';
 import { ApkExportModal } from './components/ApkExportModal';
 import { GlobalSearch } from './components/GlobalSearch';
 import { NewOperations } from './components/NewOperations';
+import { CargoModule } from './components/cargo/CargoModule';
+import { CoreSyncCenter } from './components/CoreSyncCenter';
 import { ArrowLeft } from 'lucide-react';
 import { generateProjectZip, downloadProjectZip } from './utils/exportZip';
 import { App as CapacitorApp } from '@capacitor/app';
-import { FirstAdminSetup, LockScreen, ForcePinChange } from './components/LockScreen';
+import { ForcePinChange } from './components/LockScreen';
 import { IS_DEV } from './utils/config';
 import { saveTextFile } from './utils/files';
-import { getFirebaseUser } from './firebase/auth';
-import { getBranchPermissions } from './firebase/tenancy';
+import { CoreSessionGate, useCoreSession } from './core/session';
+import ImportExportModule from './components/import-export/ImportExportModule';
 
 /** Runs a repository action; permission/validation errors are shown to the user instead of crashing. */
 function guard<T>(fn: () => T): T | undefined {
@@ -55,17 +59,25 @@ function guard<T>(fn: () => T): T | undefined {
   }
 }
 
-export default function App() {
+function BtaApp() {
   // Database reactive state
-  const [dbState, setDbState] = useState(() => appRepository.getState());
+  const [dbState, setDbState] = useState(() => {const state=appRepository.getState();return {...state,settings:{...state.settings,companyName:displayCompanyName(state.settings.companyName)}};});
   const isAuthenticated = appRepository.isAuthenticated();
-  const cloudContext = appRepository.getCloudContext();
-  const [remoteAccess, setRemoteAccess] = useState<{ loading: boolean; permissions: string[]; error?: string } | null>(null);
+  const coreSession = useCoreSession();
+  const cloudContext = coreSession ? { tenantId: String(coreSession.membership.tenantId), branchId: String(coreSession.branch.id) } : null;
+  const remoteAccess = coreSession ? { loading: false, permissions: coreSession.permissions } : { loading: true, permissions: [] as string[] };
+
+  useEffect(()=>{
+    if(!coreSession)return;
+    const expected={tenantId:coreSession.membership.tenantId,branchId:coreSession.branch.id,userId:coreSession.me.user.id};
+    return startSharedPolling(active=>appRepository.refreshSharedCoreData(expected,active));
+  },[coreSession?.membership.tenantId,coreSession?.branch.id,coreSession?.me.user.id,coreSession?.permissions.join('|')]);
 
   // Subscribe to Repository changes
   useEffect(() => {
     const unsubscribe = appRepository.subscribe(() => {
-      setDbState({ ...appRepository.getState() });
+      const state=appRepository.getState();
+      setDbState({...state,settings:{...state.settings,companyName:displayCompanyName(state.settings.companyName)}});
     });
     return () => {
       unsubscribe();
@@ -73,23 +85,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!cloudContext || !isAuthenticated) { setRemoteAccess(null); return; }
-    let cancelled = false;
-    setRemoteAccess({ loading: true, permissions: [] });
-    (async () => {
-      try {
-        const account = await getFirebaseUser();
-        if (!account || account.uid !== dbState.currentUser.firebaseUid) {
-          throw new Error('Le compte Firebase connecté ne correspond pas à cet utilisateur local. Verrouillez l’application et associez le bon compte.');
-        }
-        const access = await getBranchPermissions(cloudContext.tenantId, cloudContext.branchId);
-        if (!cancelled) setRemoteAccess({ loading: false, permissions: access.permissions });
-      } catch (e) {
-        if (!cancelled) setRemoteAccess({ loading: false, permissions: [], error: e instanceof Error ? e.message : 'Accès Firebase refusé.' });
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [cloudContext?.tenantId, cloudContext?.branchId, dbState.currentUser.firebaseUid, isAuthenticated]);
+    if (coreSession && !isAuthenticated) appRepository.activateCoreUser({ id: coreSession.me.user.id, name: coreSession.me.user.name, email: coreSession.me.user.email, role: coreSession.membership.role, tenantId: coreSession.membership.tenantId, branchId: coreSession.branch.id });
+  }, [coreSession, isAuthenticated]);
 
   // Authentication: the app is locked until a PIN is verified
   const [pinChangeDone, setPinChangeDone] = useState(false);
@@ -115,7 +112,7 @@ export default function App() {
     const arm = () => {
       if (timer) clearTimeout(timer);
       if (autoLogoutMinutes > 0) {
-        timer = setTimeout(() => appRepository.logout(), autoLogoutMinutes * 60_000);
+        timer = setTimeout(() => { void coreSession?.signOut(); }, autoLogoutMinutes * 60_000);
       }
     };
     const events = ['pointerdown', 'keydown', 'touchstart', 'scroll'];
@@ -125,7 +122,7 @@ export default function App() {
       if (timer) clearTimeout(timer);
       events.forEach((e) => window.removeEventListener(e, arm));
     };
-  }, [isAuthenticated, autoLogoutMinutes]);
+  }, [isAuthenticated, autoLogoutMinutes, coreSession]);
 
   // UI Navigation states
   const [currentTab, setCurrentTab] = useState<MainTab>('accueil');
@@ -142,7 +139,7 @@ export default function App() {
   // Modals state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 const handleOpenSettings = () => {
-  if (dbState.currentUser.role !== 'ADMIN') {
+  if (!coreSession || !['OWNER', 'ADMIN'].includes(coreSession.membership.role) || !coreSession.permissions.includes('branch.settings')) {
     return;
   }
   setIsSettingsOpen(true);
@@ -151,6 +148,7 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
   const [isKotlinModalOpen, setIsKotlinModalOpen] = useState(false);
   const [isApkModalOpen, setIsApkModalOpen] = useState(false);
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
+  const [isCoreSyncCenterOpen, setIsCoreSyncCenterOpen] = useState(false);
 
   // Receipt Modal state
   const [receiptModalProps, setReceiptModalProps] = useState<{
@@ -306,8 +304,8 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
 
   // Render current content view
   const renderContent = () => {
-    if (cloudContext && (!remoteAccess || remoteAccess.loading)) return <div className="p-8 text-center text-sm text-slate-600">Vérification des autorisations Firebase…</div>;
-    if (cloudContext && remoteAccess?.error) return <div role="alert" className="m-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">{remoteAccess.error} Les données locales restent intactes ; aucune nouvelle opération distante ne sera acceptée sans l’identité et les droits correspondants.</div>;
+    if (cloudContext && (!remoteAccess || remoteAccess.loading)) return <div className="p-8 text-center text-sm text-slate-600">Vérification des autorisations Core…</div>;
+    if (cloudContext && !coreSession) return <div role="alert" className="m-4 p-4">Session Core indisponible.</div>;
     if (currentTab === 'produits' && !hasRemotePermission('stock.read')) return <div className="p-8 text-center text-sm text-slate-600">Accès de lecture du stock non accordé pour cet établissement.</div>;
     if (currentTab === 'ventes' && !hasRemotePermission('sales.read', 'sales.create')) return <div className="p-8 text-center text-sm text-slate-600">Accès aux ventes non accordé pour cet établissement.</div>;
     if (currentTab === 'clients' && !hasRemotePermission('customers.read', 'customers.manage', 'debts.read', 'debts.pay')) return <div className="p-8 text-center text-sm text-slate-600">Accès aux clients et dettes non accordé pour cet établissement.</div>;
@@ -407,6 +405,22 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
               Retour au Menu
             </button>
 
+            {activeSubModule === 'cargo' && (
+              <CargoModule
+                packages={dbState.cargoPackages}
+                settings={dbState.settings}
+                currentUser={dbState.currentUser}
+                onSavePackage={async (pkg) => appRepository.saveCargoPackage(pkg)}
+                onAddEvent={async (packageId, event) => appRepository.addCargoEvent(packageId, event)}
+                onAddPayment={async (packageId, payment) => appRepository.addCargoPayment(packageId, payment)}
+                onDeletePackage={async (packageId) =>
+  appRepository.deleteCargoPackage(packageId)
+}
+              />
+            )}
+{activeSubModule === 'import-export' && (
+  <ImportExportModule />
+)}
             {activeSubModule === 'fournisseurs' && (
               <Suppliers
                 suppliers={dbState.suppliers}
@@ -511,11 +525,7 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
     return null;
   };
 
-  if (appRepository.isBootstrapRequired()) return <FirstAdminSetup />;
-
-  if (!isAuthenticated) {
-    return <LockScreen users={dbState.users} companyName={dbState.settings.companyName} />;
-  }
+  if (!isAuthenticated) return <div className="p-8">Initialisation de la session Core…</div>;
 
   return (
     <div className={`min-h-screen bg-slate-100 font-sans text-slate-900 ${isMobileFrame ? 'p-2 sm:p-6 flex justify-center items-center bg-slate-900/95' : ''}`}>
@@ -549,7 +559,7 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
         {/* Top Navbar */}
         <Navbar
           currentUser={dbState.currentUser}
-          onSwitchUser={() => appRepository.logout()}
+          onSwitchUser={() => { void coreSession?.signOut(); }}
           users={dbState.users}
           settings={dbState.settings}
           syncInfo={dbState.syncInfo}
@@ -560,6 +570,22 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
           onOpenSettings={handleOpenSettings}
           onDownloadZip={IS_DEV ? handleDownloadZip : undefined}
           onOpenGlobalSearch={(!cloudContext || !!remoteAccess?.permissions.length) ? () => setIsGlobalSearchOpen(true) : undefined}
+          onOpenSyncCenter={() => setIsCoreSyncCenterOpen(true)}
+          tenantName={coreSession ? displayCompanyName(coreSession.membership.name) : undefined}
+          activeBranch={coreSession?.branch}
+          branches={coreSession?.branches}
+          onSelectBranch={(branchId) => { void coreSession?.selectBranch(branchId).catch((error) => alert(error instanceof Error ? error.message : 'Changement d’établissement impossible.')); }}
+        />
+
+        <CoreSyncCenter
+          historyContext={coreSession ? {tenantId:coreSession.membership.tenantId,branchId:coreSession.branch.id,userId:coreSession.me.user.id} : undefined}
+          permissions={coreSession?.permissions}
+          cashContext={coreSession?.permissions.includes('cashbox.manage') ? {tenantId:coreSession.membership.tenantId,branchId:coreSession.branch.id,userId:coreSession.me.user.id} : undefined}
+          isOpen={isCoreSyncCenterOpen}
+          pending={appRepository.getCorePendingOperations()}
+          history={dbState.coreSyncHistory}
+          onClose={() => setIsCoreSyncCenterOpen(false)}
+          onRetry={(id, confirmedNotApplied) => guard(() => appRepository.retryFailedCoreOperation(id, undefined, confirmedNotApplied))}
         />
 
         {/* Main Content Area */}
@@ -578,9 +604,7 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
         />
       </div>
 
-      {mustChangePin && (
-        <ForcePinChange onDone={() => setPinChangeDone(true)} onLogout={() => appRepository.logout()} />
-      )}
+      {mustChangePin && <ForcePinChange onDone={() => setPinChangeDone(true)} onLogout={() => { void coreSession?.signOut(); }} />}
 
       {/* Global search across all business modules */}
       <GlobalSearch
@@ -668,3 +692,5 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
     </div>
   );
 }
+
+export default function App() { return <CoreSessionGate><BtaApp /></CoreSessionGate>; }

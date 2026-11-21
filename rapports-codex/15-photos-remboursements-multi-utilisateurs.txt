@@ -1,0 +1,27 @@
+Corrections
+- Photos : nouvelle route Core POST /tenants/{tenant_id}/products/image (absente des sources 0.5.33). Authentification Core, permission stock.manage et établissement vérifiés via le garde existant. JPG/PNG/WebP limités à 2 Mo, MIME réel contrôlé. Fichier dans uploads/bta-products/{tenant}/{branch}, nommé par SHA-256 : reprise sans doublon de fichier. Pas de pièce jointe dans la médiathèque WordPress ; aucune suppression distante automatique.
+- Application : téléversement avant le produit, URL acceptée uniquement après succès + empreinte concordante, sauvegarde durable et notification de l’affichage. Coupure : photo locale conservée, reprise via la file existante. Remplacement/retrait locaux conservés ; une ancienne réponse ne remplace pas une sélection plus récente.
+- Déployer manuellement le correctif Core avant cette application. Reprendre ensuite les anciens produits refusés avec le bouton existant du centre de synchronisation. Aucune file supprimée ou migration destructive.
+- Remboursements : step 0.01, min 0.01, inputMode decimal, saisie conservée comme texte jusqu’à validation ; suppression de la tolérance de dépassement de 0.01 USD. Validation du taux et du minimum arrondi. Créances liées à une vente CDF : envoi du montant converti au taux conservé de cette vente. Core conserve son refus strict des montants supérieurs au solde sous verrou transactionnel.
+
+Multi-utilisateur : constats ciblés
+- addUser crée un profil/PIN local, aucun compte serveur. En contexte Core, ce formulaire est désormais refusé avec explication pour éviter de promettre un accès sur un autre téléphone.
+- Core possède invitations, auth/register-invited et acceptation : compte avec mot de passe, membership, accès aux branches, session propre. Invitation actuellement créée avec rôle MANAGER fixe.
+- Connexion BTA : auth/me puis membership, branches autorisées et permissions. PIN personnel indexé core:{id}. Changement d’acteur : opérations en attente mises en REVIEW. Auteur serveur obtenu du bearer, pas d’un nom fourni par le client.
+- Manquent dans BTA : interface admin de création/partage/révocation d’invitation et inscription du nouvel utilisateur avec mot de passe. Prévoir le choix de rôle sécurisé dans Core si nécessaire. Aucun compte Firebase n’est créé par ce parcours Core ; ne pas mélanger les deux authentifications.
+- Bootstrap actuel : catégories, produits, clients, fournisseurs, stock et mouvements ; dettes consultées pour soldes clients, mais pas d’import complet de l’historique ventes/dossiers de dettes. Le scénario « opération sur téléphone B visible intégralement sur A » n’est donc pas garanti. Nécessite lecture/actualisation de ces historiques côté application, avec permissions, sans écraser les opérations locales.
+
+Fichiers
+Core : fondation-kenda-core.php ; includes/class-fkc-product-images-api.php ; test tests/php/product-images.php.
+Application : src/core/api.ts ; src/db/storage.ts ; src/components/Debts.tsx ; src/db/coreStorage.test.ts ; présent rapport.
+
+Tests
+- php tests/php/product-images.php : réussi ; stockage PNG réel temporaire, rejeu/empreinte, séparation des chemins, refus auth/branche simulés, faux fichier et MIME incorrect refusés. Garde de permissions WordPress simulé, pas de serveur WordPress exécuté.
+- tsx --test --test-name-pattern='^Photos:|^Repayments:|^Multi-user:' src/db/coreStorage.test.ts : 3 réussis. Perte de réponse média/reprise, URL durable ; 25/25.5/25.50/24.60, dépassements et conversion CDF ; profil local refusé et changement d’acteur sécurisé.
+- Premier contrôle TypeScript : échec après une insertion trop large, corrigé dans le même travail. Contrôle final tsc --noEmit réussi ; php -l réussi pour les deux fichiers du plugin modifiés.
+- Aucun ancien test relancé. Aucun test réel avec deux comptes/deux téléphones. Aucun APK généré, push ou publication.
+
+À tester réellement
+- Plugin modifié + application ensemble sur WordPress de test : permissions, JPG/PNG/WebP, remplacement/retrait, coupure pendant/après envoi, accusés et rendu sur deux appareils.
+- Clavier décimal Android et remboursement jusqu’au serveur, caisse CDF/USD et solde concurrent.
+- Multi-utilisateur complet : reste bloqué par les interfaces d’invitation/inscription et la récupération des historiques ci-dessus. Arrêt de ce chantier pour respecter le crédit.
