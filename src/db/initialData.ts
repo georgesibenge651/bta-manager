@@ -13,8 +13,8 @@ import {
 } from '../types';
 
 export const INITIAL_SETTINGS: CompanySettings = {
-  companyName: 'BTA Business Transform Africa',
-  slogan: 'Commerce Général & Quincaillerie Moderne',
+  companyName: 'CHIEF ALPHONS COMPANY LTD',
+  slogan: 'International Cargo & Logistics',
   address: '345 Avenue Kilela Balanda, Q. Makutano',
   city: 'Lubumbashi, Haut-Katanga (RDC)',
   phone: '+243 82 000 1234 / +243 99 888 5678',

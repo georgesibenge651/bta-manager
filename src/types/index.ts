@@ -434,12 +434,16 @@ export interface CargoEvent {
   recordedByName: string;
 }
 
+
 export interface CargoPayment {
   id: string;
   packageId: string;
   amountUSD: number;
-  amountCDF: number;
-  exchangeRate: number;
+
+  // Champs conservés uniquement pour les anciennes données.
+  amountCDF?: number;
+  exchangeRate?: number;
+
   paymentMethod: PaymentMethod;
   receiptNumber: string;
   date: string;

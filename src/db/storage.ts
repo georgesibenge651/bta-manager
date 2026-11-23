@@ -2768,35 +2768,63 @@ const pendingCargoDeleteIds = new Set(
     return updated;
   }
 
-  public addCargoPayment(packageId: string, input: Partial<CargoPayment>): CargoPackage {
-    this.requireManager();
-    const pkg = this.getCargoPackages().find((item) => item.id === packageId);
-    if (!pkg) throw new Error('Colis introuvable.');
-    const amountUSD = Number(input.amountUSD || 0);
-    const exchangeRate = Number(input.exchangeRate || this.state.settings.exchangeRate);
-    if (!Number.isFinite(amountUSD) || amountUSD <= 0) throw new Error('Le montant du paiement doit être supérieur à zéro.');
-    if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) throw new Error('Taux de change invalide.');
-    if (amountUSD > pkg.remainingBalanceUSD + 0.005) throw new Error('Le paiement dépasse le solde restant.');
-    const payment: CargoPayment = {
-      id: generateUUID(),
-      packageId,
-      amountUSD: r2(amountUSD),
-      amountCDF: r2(Number(input.amountCDF || amountUSD * exchangeRate)),
-      exchangeRate,
-      paymentMethod: input.paymentMethod || 'CASH',
-      receiptNumber: input.receiptNumber || generateReferenceNumber('REC-CARGO'),
-      date: input.date || new Date().toISOString(),
-      recordedBy: this.state.currentUser.id,
-      notes: input.notes,
-    };
-    const amountPaidUSD = r2(pkg.amountPaidUSD + payment.amountUSD);
-    const updated = { ...pkg, amountPaidUSD, remainingBalanceUSD: r2(Math.max(0, pkg.totalAmountUSD - amountPaidUSD)), payments: [...(pkg.payments || []), payment] };
-    updated.syncStatus = this.coreContext ? 'PENDING' : updated.syncStatus;
-    this.state.cargoPackages = this.getCargoPackages().map((item) => item.id === packageId ? updated : item);
-    if (this.coreContext) this.enqueue('CARGO_PACKAGE_UPSERT', updated);
-    this.afterWrite();
-    return updated;
+public addCargoPayment(packageId: string, input: Partial<CargoPayment>): CargoPackage {
+  this.requireManager();
+
+  const pkg = this.getCargoPackages().find(
+    (item) => item.id === packageId
+  );
+
+  if (!pkg) {
+    throw new Error('Colis introuvable.');
   }
+
+  const amountUSD = Number(input.amountUSD || 0);
+
+  if (!Number.isFinite(amountUSD) || amountUSD <= 0) {
+    throw new Error('Le montant du paiement doit être supérieur à zéro.');
+  }
+
+  if (amountUSD > pkg.remainingBalanceUSD + 0.005) {
+    throw new Error('Le paiement dépasse le solde restant.');
+  }
+
+  const payment: CargoPayment = {
+    id: generateUUID(),
+    packageId,
+    amountUSD: r2(amountUSD),
+    paymentMethod: input.paymentMethod || 'CASH',
+    receiptNumber: input.receiptNumber || generateReferenceNumber('REC-CARGO'),
+    date: input.date || new Date().toISOString(),
+    recordedBy: this.state.currentUser.id,
+    notes: input.notes,
+  };
+
+  const amountPaidUSD = r2(pkg.amountPaidUSD + payment.amountUSD);
+
+  const updated = {
+    ...pkg,
+    amountPaidUSD,
+    remainingBalanceUSD: r2(
+      Math.max(0, pkg.totalAmountUSD - amountPaidUSD)
+    ),
+    payments: [...(pkg.payments || []), payment],
+  };
+
+  updated.syncStatus = this.coreContext ? 'PENDING' : updated.syncStatus;
+
+  this.state.cargoPackages = this.getCargoPackages().map(
+    (item) => item.id === packageId ? updated : item
+  );
+
+  if (this.coreContext) {
+    this.enqueue('CARGO_PACKAGE_UPSERT', updated);
+  }
+
+  this.afterWrite();
+
+  return updated;
+}
 
   public deleteCargoPackage(packageId: string): void {
     this.requireManager();
