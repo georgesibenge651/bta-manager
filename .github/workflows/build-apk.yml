@@ -1,3 +1,4 @@
+
 name: BTA Manager - CI & APK Release
 
 on:
@@ -39,12 +40,10 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK platforms
-        run: |
-          set -euo pipefail
-          yes | sdkmanager --licenses >/dev/null
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+        with:
+          packages: 'platform-tools,platforms;android-36,build-tools;36.0.0'
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -103,7 +102,7 @@ jobs:
              [ -z "$KEYSTORE_PASSWORD_SECRET" ] || \
              [ -z "$KEY_PASSWORD_SECRET" ] || \
              [ -z "$KEY_ALIAS_SECRET" ]; then
-            echo "ERROR: Android signing secrets are missing. Configure KEYSTORE_BASE64, KEYSTORE_PASSWORD and KEY_ALIAS in GitHub repository secrets."
+            echo "ERROR: Android signing secrets are missing."
             exit 1
           fi
 
