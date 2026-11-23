@@ -133,7 +133,7 @@ export const Reports: React.FC<ReportsProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-sky-600" />
+            <BarChart3 className="w-5 h-5 text-amber-600" />
             Rapports & États Comptables
           </h3>
           <p className="text-xs text-slate-500">
@@ -144,7 +144,7 @@ export const Reports: React.FC<ReportsProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[180px] flex-1 sm:flex-none">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-            <input value={reportSearch} onChange={(event) => setReportSearch(event.target.value)} placeholder="Filtrer les rapports..." className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500" />
+            <input value={reportSearch} onChange={(event) => setReportSearch(event.target.value)} placeholder="Filtrer les rapports..." className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
             {reportSearch && <button onClick={() => setReportSearch('')} className="absolute right-2.5 top-2.5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
           </div>
           {/* Period filter */}
@@ -204,7 +204,7 @@ export const Reports: React.FC<ReportsProps> = ({
             <p className="text-[10px] text-slate-400">RCCM: {settings.rccm} | ID.NAT: {settings.idNat}</p>
           </div>
           <div className="text-right">
-            <span className="text-xs font-bold uppercase bg-sky-100 text-sky-800 px-3 py-1 rounded-full">
+            <span className="text-xs font-bold uppercase bg-amber-100 text-amber-800 px-3 py-1 rounded-full">
               Bilan d'Exploitation ({period})
             </span>
             <p className="text-xs text-slate-500 mt-1">
@@ -233,7 +233,7 @@ export const Reports: React.FC<ReportsProps> = ({
             <div
               className={`flex justify-between p-3 font-bold transition ${
                 grossProfitUSD >= 0
-                  ? 'bg-sky-50 text-sky-900'
+                  ? 'bg-amber-50 text-amber-900'
                   : 'bg-red-50 text-red-900 border-l-4 border-red-500'
               }`}
             >
@@ -245,7 +245,7 @@ export const Reports: React.FC<ReportsProps> = ({
                   </span>
                 )}
               </span>
-              <span className={`font-black text-sm ${grossProfitUSD >= 0 ? 'text-sky-950' : 'text-red-700'}`}>
+              <span className={`font-black text-sm ${grossProfitUSD >= 0 ? 'text-amber-950' : 'text-red-700'}`}>
                 {formatUSD(grossProfitUSD)}
               </span>
             </div>
@@ -284,7 +284,7 @@ export const Reports: React.FC<ReportsProps> = ({
               Valeur Comptable du Stock (Coût PAMP)
             </span>
             <p className="text-lg font-black text-[#0F2444]">{formatUSD(stockInventoryValueUSD)}</p>
-            <p className="text-[10px] text-sky-700">{formatCDF(usdToCdf(stockInventoryValueUSD, settings.exchangeRate))}</p>
+            <p className="text-[10px] text-amber-700">{formatCDF(usdToCdf(stockInventoryValueUSD, settings.exchangeRate))}</p>
           </div>
 
           <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 space-y-1">

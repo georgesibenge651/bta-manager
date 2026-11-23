@@ -148,7 +148,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Truck className="w-5 h-5 text-sky-600" />
+            <Truck className="w-5 h-5 text-amber-600" />
             Approvisionnements & Achats Fournisseurs
           </h3>
           <p className="text-xs text-slate-500">
@@ -158,7 +158,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
 
         {canCreate && <button
           onClick={handleOpenNewPurchase}
-          className="px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md self-start sm:self-auto"
+          className="px-4 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           Nouvelle Réception Stock
@@ -173,7 +173,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
 
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-          <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher par numéro, fournisseur, produit ou statut..." className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500" />
+          <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher par numéro, fournisseur, produit ou statut..." className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
           {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
         </div>
         <div className="divide-y divide-slate-100 overflow-x-auto">
@@ -199,7 +199,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
 
               <div className="text-right shrink-0">
                 <p className="text-sm font-black text-slate-900">{formatUSD(p.totalUSD)}</p>
-                <p className="text-[10px] text-sky-700 font-bold">{formatCDF(p.totalCDF)}</p>
+                <p className="text-[10px] text-amber-700 font-bold">{formatCDF(p.totalCDF)}</p>
                 <p className="text-[10px] text-slate-400">Payé: {formatUSD(p.amountPaidUSD)}</p>
               </div>
             </div>
@@ -215,7 +215,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base">Nouvel Approvisionnement Fournisseur</h3>
-                <p className="text-xs text-sky-300">Entrée automatique en stock</p>
+                <p className="text-xs text-amber-300">Entrée automatique en stock</p>
               </div>
               <button
                 onClick={() => setIsNewPurchaseModalOpen(false)}
@@ -385,7 +385,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
                     max={totalUSD}
                     value={amountPaidUSD}
                     onChange={(e) => setAmountPaidUSD(parseFloat(e.target.value) || 0)}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-black text-sky-800"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-black text-amber-800"
                   />
                 </div>
               )}
@@ -397,8 +397,8 @@ export const Purchases: React.FC<PurchasesProps> = ({
                   <p className="text-xl font-black">{formatUSD(totalUSD)}</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-sky-300">Équivalent CDF :</span>
-                  <p className="text-sm font-bold text-sky-300">{formatCDF(totalCDF)}</p>
+                  <span className="text-xs text-amber-300">Équivalent CDF :</span>
+                  <p className="text-sm font-bold text-amber-300">{formatCDF(totalCDF)}</p>
                 </div>
               </div>
 
@@ -413,7 +413,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
                 <button
                   type="submit"
                   disabled={items.length === 0}
-                  className="px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md disabled:opacity-50"
                 >
                   Valider Réception & Entrée Stock
                 </button>

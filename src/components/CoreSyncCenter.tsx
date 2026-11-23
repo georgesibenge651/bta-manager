@@ -109,8 +109,8 @@ export const CoreSyncCenter: React.FC<CoreSyncCenterProps> = ({
               <span className="text-[11px] text-slate-500">État actuel</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-              {stat('En attente',counts.pending,'bg-sky-50 text-sky-700',<Clock3 size={18}/>)}
-              {stat('En cours',counts.processing,'bg-indigo-50 text-indigo-700',<RefreshCw size={18}/>)}
+              {stat('En attente',counts.pending,'bg-amber-50 text-amber-700',<Clock3 size={18}/>)}
+              {stat('En cours',counts.processing,'bg-amber-50 text-amber-700',<RefreshCw size={18}/>)}
               {stat('Échecs',counts.failed,'bg-rose-50 text-rose-700',<AlertTriangle size={18}/>)}
               {stat('À vérifier',counts.review,'bg-amber-50 text-amber-700',<AlertTriangle size={18}/>)}
             </div>
@@ -125,8 +125,8 @@ export const CoreSyncCenter: React.FC<CoreSyncCenterProps> = ({
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button type="button" onClick={()=>setTab('history')} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-sky-300">
-                <span className="flex items-center gap-2 font-bold text-sm text-slate-900"><History size={18} className="text-sky-700"/>Historiques reçus de Core</span>
+              <button type="button" onClick={()=>setTab('history')} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-amber-300">
+                <span className="flex items-center gap-2 font-bold text-sm text-slate-900"><History size={18} className="text-amber-700"/>Historiques reçus de Core</span>
                 <span className="mt-1 block text-xs text-slate-500">Consulter ventes, dettes, paiements et remboursements.</span>
               </button>
               {cashContext && <button type="button" onClick={()=>setTab('cash')} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-emerald-300">
@@ -161,7 +161,7 @@ export const CoreSyncCenter: React.FC<CoreSyncCenterProps> = ({
               <article key={op.id} className="border border-slate-200 bg-white rounded-2xl p-3 sm:p-4 space-y-3 shadow-sm min-w-0">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0 flex-1"><div className="font-bold text-sm text-slate-900 break-words">{op.type}</div><div className="text-[11px] text-slate-500 break-all mt-1">UUID {op.id}</div></div>
-                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${op.status === 'REVIEW' ? 'bg-amber-100 text-amber-900' : op.status === 'FAILED' ? 'bg-rose-100 text-rose-800' : op.status === 'PROCESSING' ? 'bg-indigo-100 text-indigo-800' : 'bg-sky-100 text-sky-900'}`}>{statusLabel[op.status]}</span>
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${op.status === 'REVIEW' ? 'bg-amber-100 text-amber-900' : op.status === 'FAILED' ? 'bg-rose-100 text-rose-800' : op.status === 'PROCESSING' ? 'bg-amber-100 text-amber-800' : 'bg-amber-100 text-amber-900'}`}>{statusLabel[op.status]}</span>
                 </div>
                 {op.error && <p className="text-xs text-rose-700 break-words rounded-lg bg-rose-50 p-2">{op.error}</p>}
                 {op.status === 'REVIEW' && <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-950 space-y-3">

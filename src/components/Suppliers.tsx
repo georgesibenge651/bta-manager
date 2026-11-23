@@ -94,7 +94,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Truck className="w-5 h-5 text-sky-600" />
+            <Truck className="w-5 h-5 text-amber-600" />
             Répertoire des Fournisseurs
           </h3>
           <p className="text-xs text-slate-500">
@@ -112,7 +112,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
           {canEdit && (
             <button
               onClick={handleOpenAdd}
-              className="px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md"
+              className="px-4 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md"
             >
               <Plus className="w-4 h-4" />
               Nouveau Fournisseur
@@ -140,7 +140,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                   {canEdit && (
                     <button
                       onClick={() => handleOpenEdit(supplier)}
-                      className="p-1 text-slate-400 hover:text-sky-600"
+                      className="p-1 text-slate-400 hover:text-amber-600"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
@@ -180,7 +180,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
 
               <div className="text-[11px] text-slate-400 border-t border-slate-100 pt-2 flex justify-between">
                 <span>{supplierPurchases.length} commandes livrées</span>
-                <span className="text-sky-600 font-medium">Actif</span>
+                <span className="text-amber-600 font-medium">Actif</span>
               </div>
             </div>
           );
@@ -212,7 +212,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                   placeholder="Ex: Congo Construction Supplies Ltd..."
                   value={formData.companyName}
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 font-semibold"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-semibold"
                 />
               </div>
 
@@ -223,7 +223,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                     type="text"
                     value={formData.contactName}
                     onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
                 <div>
@@ -233,7 +233,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                     required
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 font-mono"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-mono"
                   />
                 </div>
               </div>
@@ -245,7 +245,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                   placeholder="Ex: Zone Industrielle, Route Likasi..."
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 
@@ -256,7 +256,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                   placeholder="Ex: Ciment Dangote, Fers à béton, Câbles électriques..."
                   value={formData.suppliedProducts}
                   onChange={(e) => setFormData({ ...formData, suppliedProducts: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 
@@ -270,7 +270,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md"
+                  className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md"
                 >
                   Enregistrer
                 </button>

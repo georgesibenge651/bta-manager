@@ -130,12 +130,12 @@ const ImportExportModule: React.FC = () => {
           <h2 className="text-xl font-bold">Import-Export</h2>
           <p className="text-sm !text-slate-500">Enregistrement et suivi simplifié des colis</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+        <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-white hover:bg-amber-700">
           <Plus size={18} /> Nouveau colis
         </button>
       </div>
 
-      {notice && <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800">{notice}</div>}
+      {notice && <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">{notice}</div>}
 
       {showForm && (
         <section className="rounded-xl border border-slate-200 !bg-white p-4 !text-slate-900 shadow-sm">
@@ -170,7 +170,7 @@ const ImportExportModule: React.FC = () => {
           {photos.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{photos.map((src, i) => <div key={i} className="relative"><img src={src} alt={`Photo ${i + 1}`} className="h-20 w-20 rounded-lg object-cover" /><button onClick={() => setPhotos(p => p.filter((_, index) => index !== i))} className="absolute -right-2 -top-2 rounded-full bg-red-600 p-1 text-white"><Trash2 size={12} /></button></div>)}</div>}
           <div className="mt-4 flex justify-end gap-2">
             <button onClick={resetForm} className="rounded-lg border px-4 py-2">Annuler</button>
-            <button disabled={saving} onClick={saveShipment} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-50"><Save size={16} /> {saving ? 'Enregistrement…' : 'Enregistrer'}</button>
+            <button disabled={saving} onClick={saveShipment} className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-white disabled:opacity-50"><Save size={16} /> {saving ? 'Enregistrement…' : 'Enregistrer'}</button>
           </div>
         </section>
       )}
@@ -182,7 +182,7 @@ const ImportExportModule: React.FC = () => {
 
       <div className="flex items-center justify-between text-sm !text-slate-500">
         <span>{filteredShipments.length} colis</span>
-        <button onClick={refresh} className="inline-flex items-center gap-1 hover:text-blue-600"><RefreshCw size={14} /> Actualiser</button>
+        <button onClick={refresh} className="inline-flex items-center gap-1 hover:text-amber-600"><RefreshCw size={14} /> Actualiser</button>
       </div>
 
       {filteredShipments.length === 0 ? (

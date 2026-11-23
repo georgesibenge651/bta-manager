@@ -278,12 +278,12 @@ service cloud.firestore {
         {/* Header */}
         <div className="bg-[#0B1A30] p-4 flex items-center justify-between border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2.5">
-            <Smartphone className="w-5 h-5 text-sky-400" />
+            <Smartphone className="w-5 h-5 text-amber-400" />
             <div>
               <h3 className="font-bold text-sm sm:text-base text-white">
                 Architecture Android Kotlin & Jetpack Compose
               </h3>
-              <p className="text-xs text-sky-300">
+              <p className="text-xs text-amber-300">
                 Code source natif conforme MVVM, Room DB, WorkManager & Firestore
               </p>
             </div>
@@ -315,7 +315,7 @@ service cloud.firestore {
               onClick={() => setActiveFile(key)}
               className={`px-3 py-1.5 rounded-xl text-xs font-mono font-semibold transition shrink-0 ${
                 activeFile === key
-                  ? 'bg-sky-600 text-white shadow-xs'
+                  ? 'bg-amber-600 text-white shadow-xs'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
@@ -325,7 +325,7 @@ service cloud.firestore {
         </div>
 
         {/* Code View Area */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 font-mono text-xs bg-slate-950 text-sky-300">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 font-mono text-xs bg-slate-950 text-amber-300">
           <div className="flex items-center justify-between mb-3 text-slate-400">
             <span>{currentFile.category}</span>
             <div className="flex items-center gap-2">
@@ -338,7 +338,7 @@ service cloud.firestore {
               </button>
               <button
                 onClick={handleDownload}
-                className="px-3 py-1.5 bg-sky-700 hover:bg-sky-600 text-white rounded-xl flex items-center gap-1.5 text-xs font-sans transition"
+                className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-xl flex items-center gap-1.5 text-xs font-sans transition"
               >
                 <Download className="w-3.5 h-3.5" />
                 Télécharger .kt

@@ -316,7 +316,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
           onClick={onOpenBarcodeScanner}
           className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs hover:bg-slate-800 transition"
         >
-          <Barcode className="w-4 h-4 text-sky-400" />
+          <Barcode className="w-4 h-4 text-amber-400" />
           <span className="hidden sm:inline">Scanner</span> Douchette
         </button>
       </div>
@@ -333,7 +333,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                 placeholder="Chercher article par nom, SKU ou code-barres..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-2xl shadow-xs focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-2xl shadow-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
               />
               {searchTerm && (
                 <button
@@ -356,11 +356,11 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     key={p.id}
                     onClick={() => handleAddToCart(p)}
                     className={`bg-white rounded-2xl border p-2.5 flex flex-col justify-between shadow-xs hover:shadow-md transition cursor-pointer relative overflow-hidden group ${
-                      inCart ? 'border-sky-500 ring-2 ring-sky-200' : 'border-slate-200 hover:border-sky-300'
+                      inCart ? 'border-amber-500 ring-2 ring-amber-200' : 'border-slate-200 hover:border-amber-300'
                     }`}
                   >
                     {inCart && (
-                      <span className="absolute top-1.5 right-1.5 bg-sky-600 text-white font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-xs">
+                      <span className="absolute top-1.5 right-1.5 bg-amber-600 text-white font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-xs">
                         {inCart.quantity}
                       </span>
                     )}
@@ -384,7 +384,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                         <span className="font-black text-xs text-[#0F2444] block">
                           {formatUSD(p.sellPriceUSD)}
                         </span>
-                        <span className="text-[9px] text-sky-700 font-semibold block">
+                        <span className="text-[9px] text-amber-700 font-semibold block">
                           {formatCDF(p.sellPriceUSD * exchangeRate)}
                         </span>
                       </div>
@@ -412,9 +412,9 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
               {/* Cart Header */}
               <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5 text-sky-600" />
+                  <ShoppingCart className="w-5 h-5 text-amber-600" />
                   <h3 className="font-bold text-sm text-slate-800">Panier de Vente</h3>
-                  <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">
                     {cart.reduce((sum, i) => sum + i.quantity, 0)} articles
                   </span>
                 </div>
@@ -435,7 +435,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                 <select
                   value={selectedCustomerId}
                   onChange={(e) => setSelectedCustomerId(e.target.value)}
-                  className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500"
                 >
                   <option value="">Client Comptoir (Vente Directe Anonyme)</option>
                   {customers.map((c) => (
@@ -483,7 +483,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                             onChange={(e) =>
                               handleUpdateUnitPrice(item.product.id, parseFloat(e.target.value))
                             }
-                            className="w-20 px-2 py-0.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 text-right focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
+                            className="w-20 px-2 py-0.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 text-right focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
                             title="Modifier librement le prix unitaire pour cette vente"
                           />
                         </div>
@@ -547,8 +547,8 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                   <span className="text-xl sm:text-2xl font-black text-white">{formatUSD(totalUSD)}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-sky-300 text-[11px]">Équivalent en Francs Congolais :</span>
-                  <span className="font-bold text-sky-300 text-sm">{formatCDF(totalCDF)}</span>
+                  <span className="text-amber-300 text-[11px]">Équivalent en Francs Congolais :</span>
+                  <span className="font-bold text-amber-300 text-sm">{formatCDF(totalCDF)}</span>
                 </div>
                 <div className="text-[9px] text-slate-400 text-right">
                   1 USD = {exchangeRate} FC
@@ -559,7 +559,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
               <button
                 disabled={cart.length === 0 || !canCreate}
                 onClick={handleOpenCheckout}
-                className="w-full py-3 bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 disabled:opacity-50 text-white rounded-2xl font-black text-sm shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 disabled:opacity-50 text-white rounded-2xl font-black text-sm shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Check className="w-5 h-5" />
                 {canCreate ? `Encaisser & Valider (${formatUSD(totalUSD)})` : 'Consultation uniquement'}
@@ -576,7 +576,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
           </div>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-            <input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder="Rechercher facture, client, téléphone, produit ou caissier..." className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500" />
+            <input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder="Rechercher facture, client, téléphone, produit ou caissier..." className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
             {historySearch && <button onClick={() => setHistorySearch('')} className="absolute right-3 top-2.5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
           </div>
 
@@ -590,7 +590,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                 <div className="truncate">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-xs text-slate-800">{sale.invoiceNumber}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-sky-100 text-sky-800">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800">
                       {sale.paymentMethod}
                     </span>
                     {sale.debtAmountUSD > 0 && (
@@ -607,8 +607,8 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
 
                 <div className="text-right shrink-0">
                   <p className="text-sm font-black text-slate-900">{formatUSD(sale.totalUSD)}</p>
-                  <p className="text-[10px] text-sky-700 font-bold">{formatCDF(sale.totalCDF)}</p>
-                  <span className="text-[10px] text-sky-600 underline font-medium mt-1 inline-block">
+                  <p className="text-[10px] text-amber-700 font-bold">{formatCDF(sale.totalCDF)}</p>
+                  <span className="text-[10px] text-amber-600 underline font-medium mt-1 inline-block">
                     Voir Reçu
                   </span>
                 </div>
@@ -627,7 +627,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base">Règlement de la Vente</h3>
-                <p className="text-xs text-sky-300">
+                <p className="text-xs text-amber-300">
                   Client: {selectedCustomer ? selectedCustomer.name : 'Client Comptoir'}
                 </p>
               </div>
@@ -655,7 +655,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                 </div>
                 <div className="text-right">
                   <span className="text-xs text-slate-500 font-semibold">Total en CDF</span>
-                  <p className="text-lg font-black text-sky-800">{formatCDF(totalCDF)}</p>
+                  <p className="text-lg font-black text-amber-800">{formatCDF(totalCDF)}</p>
                   <p className="text-[10px] text-slate-400">1$ = {exchangeRate} FC</p>
                 </div>
               </div>
@@ -669,7 +669,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     onClick={() => setPaymentMethod('CASH')}
                     className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition ${
                       paymentMethod === 'CASH'
-                        ? 'border-sky-500 bg-sky-50 text-sky-800 ring-2 ring-sky-300'
+                        ? 'border-amber-500 bg-amber-50 text-amber-800 ring-2 ring-amber-300'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
@@ -682,7 +682,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     onClick={() => setPaymentMethod('MOBILE_MONEY')}
                     className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition ${
                       paymentMethod === 'MOBILE_MONEY'
-                        ? 'border-sky-500 bg-sky-50 text-sky-800 ring-2 ring-sky-300'
+                        ? 'border-amber-500 bg-amber-50 text-amber-800 ring-2 ring-amber-300'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
@@ -695,11 +695,11 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     onClick={() => setPaymentMethod('BANK_TRANSFER')}
                     className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition ${
                       paymentMethod === 'BANK_TRANSFER'
-                        ? 'border-sky-500 bg-sky-50 text-sky-800 ring-2 ring-sky-300'
+                        ? 'border-amber-500 bg-amber-50 text-amber-800 ring-2 ring-amber-300'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <CreditCard className="w-5 h-5 text-blue-600" />
+                    <CreditCard className="w-5 h-5 text-amber-600" />
                     <span>Virement</span>
                   </button>
 
@@ -708,7 +708,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     onClick={() => setPaymentMethod('PARTIAL')}
                     className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition ${
                       paymentMethod === 'PARTIAL'
-                        ? 'border-sky-500 bg-sky-50 text-sky-800 ring-2 ring-sky-300'
+                        ? 'border-amber-500 bg-amber-50 text-amber-800 ring-2 ring-amber-300'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
@@ -721,7 +721,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     onClick={() => setPaymentMethod('CREDIT')}
                     className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition ${
                       paymentMethod === 'CREDIT'
-                        ? 'border-sky-500 bg-sky-50 text-sky-800 ring-2 ring-sky-300'
+                        ? 'border-amber-500 bg-amber-50 text-amber-800 ring-2 ring-amber-300'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
@@ -741,7 +741,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                         type="button"
                         onClick={() => setCurrencyPaidType('USD')}
                         className={`px-3 py-1 rounded-lg font-bold transition ${
-                          currencyPaidType === 'USD' ? 'bg-sky-600 text-white' : 'text-slate-600'
+                          currencyPaidType === 'USD' ? 'bg-amber-600 text-white' : 'text-slate-600'
                         }`}
                       >
                         USD ($)
@@ -750,7 +750,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                         type="button"
                         onClick={() => setCurrencyPaidType('CDF')}
                         className={`px-3 py-1 rounded-lg font-bold transition ${
-                          currencyPaidType === 'CDF' ? 'bg-sky-600 text-white' : 'text-slate-600'
+                          currencyPaidType === 'CDF' ? 'bg-amber-600 text-white' : 'text-slate-600'
                         }`}
                       >
                         CDF (FC)
@@ -771,7 +771,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                           setAmountReceivedUSD(val);
                           setAmountReceivedCDF(usdToCdf(val, exchangeRate));
                         }}
-                        className="w-full text-base font-black p-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                        className="w-full text-base font-black p-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                       />
                       {paymentMethod === 'CASH' && amountReceivedUSD > totalUSD && (
                         <div className="mt-2 p-2 bg-emerald-50 rounded-xl flex justify-between text-xs text-emerald-800 font-bold">
@@ -795,7 +795,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                           setAmountReceivedCDF(val);
                           setAmountReceivedUSD(Number((val / exchangeRate).toFixed(2)));
                         }}
-                        className="w-full text-base font-black p-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 text-sky-800"
+                        className="w-full text-base font-black p-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-amber-800"
                       />
                       {paymentMethod === 'CASH' && amountReceivedCDF > totalCDF && (
                         <div className="mt-2 p-2 bg-emerald-50 rounded-xl flex justify-between text-xs text-emerald-800 font-bold">
@@ -833,7 +833,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                   placeholder="Ex: Réf M-Pesa 2948194, livraison prévue samedi..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 

@@ -136,7 +136,7 @@ export const CompanyPanel: React.FC = () => {
   });
 
   const input = 'w-full border border-slate-300 rounded-xl px-3 py-2 text-xs';
-  const btn = 'px-3 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-50 flex items-center gap-1';
+  const btn = 'px-3 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold disabled:opacity-50 flex items-center gap-1';
 
   return (
     <div className="space-y-4 text-xs">
@@ -151,7 +151,7 @@ export const CompanyPanel: React.FC = () => {
             {memberships.map((m) => (
               <button key={m.tenantId} type="button" disabled={busy}
                 onClick={() => { setTenantId(m.tenantId); void setActiveContext({ tenantId: m.tenantId, branchId: null }); }}
-                className={`w-full text-left p-3 rounded-xl border ${m.tenantId === tenantId ? 'border-sky-500 bg-sky-50' : 'border-slate-200'}`}>
+                className={`w-full text-left p-3 rounded-xl border ${m.tenantId === tenantId ? 'border-amber-500 bg-amber-50' : 'border-slate-200'}`}>
                 <b>{displayCompanyName(m.name)}</b> · {ROLE_LABEL[m.role] ?? m.role}
               </button>
             ))}
@@ -176,7 +176,7 @@ export const CompanyPanel: React.FC = () => {
               <h3 className="font-extrabold flex items-center gap-2"><Store className="w-4 h-4" /> Établissements de {displayCompanyName(current.name)}</h3>
               {branches.map((b) => <div key={b.id} className="p-2 rounded-xl bg-slate-50 flex items-center justify-between gap-2">
                 <span>{displayCompanyName(b.name)}</span>
-                {appRepository.isCloudEnabled() && <button className="text-sky-700 font-bold disabled:text-slate-400"
+                {appRepository.isCloudEnabled() && <button className="text-amber-700 font-bold disabled:text-slate-400"
                   disabled={busy || appRepository.getCloudContext()?.tenantId === tenantId && appRepository.getCloudContext()?.branchId === b.id}
                   onClick={() => switchBranch(b.id)}>Utiliser ici</button>}
               </div>)}

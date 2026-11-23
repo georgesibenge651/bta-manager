@@ -69,7 +69,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         {/* Modal Toolbar (hidden during print) */}
         <div className="bg-[#0F2444] text-white p-3 sm:p-4 flex items-center justify-between shrink-0 print:hidden">
           <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-sky-400" />
+            <FileText className="w-5 h-5 text-amber-400" />
             <h3 className="font-bold text-sm sm:text-base">
               {isSale ? `Facture N° ${sale?.invoiceNumber}` : `Reçu de Remboursement N° ${debtReceiptNumber}`}
             </h3>
@@ -79,7 +79,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               <button
                 onClick={() => setFormat('80MM')}
                 className={`px-2.5 py-1 rounded-lg font-medium transition ${
-                  format === '80MM' ? 'bg-sky-500 text-white' : 'text-slate-300 hover:text-white'
+                  format === '80MM' ? 'bg-amber-500 text-white' : 'text-slate-300 hover:text-white'
                 }`}
               >
                 80 mm (Ticket)
@@ -87,7 +87,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               <button
                 onClick={() => setFormat('A4')}
                 className={`px-2.5 py-1 rounded-lg font-medium transition ${
-                  format === 'A4' ? 'bg-sky-500 text-white' : 'text-slate-300 hover:text-white'
+                  format === 'A4' ? 'bg-amber-500 text-white' : 'text-slate-300 hover:text-white'
                 }`}
               >
                 A4 (Standard)
@@ -184,7 +184,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       <span>TOTAL USD:</span>
                       <span>{formatUSD(sale.totalUSD)}</span>
                     </div>
-                    <div className="flex justify-between text-xs font-bold text-sky-800">
+                    <div className="flex justify-between text-xs font-bold text-amber-800">
                       <span>TOTAL CDF:</span>
                       <span>{formatCDF(sale.totalCDF)}</span>
                     </div>
@@ -233,7 +233,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       <span>MONTANT VERSÉ:</span>
                       <span>{formatUSD(debtRepaymentAmountUSD)}</span>
                     </div>
-                    <div className="flex justify-between text-xs font-bold text-sky-800">
+                    <div className="flex justify-between text-xs font-bold text-amber-800">
                       <span>Équivalent CDF:</span>
                       <span>{formatCDF(debtRepaymentAmountUSD * settings.exchangeRate)}</span>
                     </div>
@@ -270,7 +270,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               <div className="flex justify-between items-start border-b-2 border-[#0F2444] pb-4">
                 <div>
                   <div className="flex items-start gap-3">{settings.logoDataUrl && <img src={settings.logoDataUrl} alt="Logo" className="max-h-20 max-w-28 object-contain" />}<div><h1 className="text-xl font-black" style={{ color: settings.brandColor || "#0F2444" }}>{settings.companyName}</h1>
-                  <p className="text-xs text-sky-600 font-semibold">{settings.slogan}</p>
+                  <p className="text-xs text-amber-600 font-semibold">{settings.slogan}</p>
                   <p className="text-slate-500 mt-1">{settings.address}</p>
                   <p className="text-slate-500">{settings.city}</p>
                   <p className="text-slate-500">Tél: {settings.phone} | Email: {settings.email}</p>
@@ -354,7 +354,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       <span>NET À PAYER (USD):</span>
                       <span>{formatUSD(sale.totalUSD)}</span>
                     </div>
-                    <div className="flex justify-between text-sm font-bold text-sky-700">
+                    <div className="flex justify-between text-sm font-bold text-amber-700">
                       <span>Montant en CDF:</span>
                       <span>{formatCDF(sale.totalCDF)}</span>
                     </div>
@@ -414,7 +414,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             </button>
             <button
               onClick={handlePrint}
-              className="px-4 py-2 text-xs font-bold text-white bg-[#0F2444] hover:bg-sky-900 rounded-xl shadow-sm flex items-center gap-2 transition"
+              className="px-4 py-2 text-xs font-bold text-white bg-[#0F2444] hover:bg-amber-900 rounded-xl shadow-sm flex items-center gap-2 transition"
             >
               <Printer className="w-4 h-4" />
               Imprimer Facture

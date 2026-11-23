@@ -67,29 +67,29 @@ export const NewOperations: React.FC<NewOperationsProps> = ({
   return (
     <div className="space-y-4 pb-20 max-w-7xl mx-auto px-3 sm:px-4 pt-3">
       <div className="flex items-center gap-3">
-        <span className="w-11 h-11 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center"><Icon className="w-5 h-5" /></span>
+        <span className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center"><Icon className="w-5 h-5" /></span>
         <div><h2 className="text-lg font-black text-slate-900">{title}</h2><p className="text-xs text-slate-500">Consultation et recherche dans les opérations enregistrées hors connexion</p></div>
       </div>
       <div className="relative bg-white rounded-2xl border border-slate-200 p-3">
         <Search className="w-4 h-4 absolute left-6 top-5 text-slate-400" />
-        <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher par référence, client, produit, bénéficiaire ou statut..." className="w-full pl-8 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500" />
+        <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher par référence, client, produit, bénéficiaire ou statut..." className="w-full pl-8 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
       </div>
 
       {view === 'reservations' && <>
         <div className="flex justify-end">
-          <button onClick={() => { setShowCreate((v) => !v); setFeedback(''); }} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 text-white px-4 py-3 text-xs font-black shadow-sm">
+          <button onClick={() => { setShowCreate((v) => !v); setFeedback(''); }} className="inline-flex items-center gap-2 rounded-xl bg-amber-600 text-white px-4 py-3 text-xs font-black shadow-sm">
             <span className="text-lg leading-none">+</span> Nouvelle réservation
           </button>
         </div>
-        {feedback && <div className="rounded-xl border border-sky-200 bg-sky-50 text-sky-800 p-3 text-xs font-semibold">{feedback}</div>}
-        {showCreate && <section className="bg-white border border-sky-200 rounded-2xl p-4 space-y-3">
+        {feedback && <div className="rounded-xl border border-amber-200 bg-amber-50 text-amber-800 p-3 text-xs font-semibold">{feedback}</div>}
+        {showCreate && <section className="bg-white border border-amber-200 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between"><h3 className="font-black text-slate-900">Créer une réservation</h3><button onClick={() => setShowCreate(false)} className="text-xs text-slate-500">Fermer</button></div>
           <label className="block text-xs font-bold text-slate-600">Client
             <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm bg-white">
               <option value="">Sélectionner un client</option>{customers.map((c) => <option key={c.id} value={c.id}>{c.name} {c.phone ? `— ${c.phone}` : ''}</option>)}
             </select>
           </label>
-          <div className="space-y-2"><div className="flex justify-between items-center"><span className="text-xs font-black text-slate-700">Produits à réserver</span><button onClick={() => setLines((old) => [...old, { productId: '', quantity: '1', price: '', policy: 'BLOCK_STOCK' }])} className="text-xs font-bold text-sky-700">+ Ajouter un produit</button></div>
+          <div className="space-y-2"><div className="flex justify-between items-center"><span className="text-xs font-black text-slate-700">Produits à réserver</span><button onClick={() => setLines((old) => [...old, { productId: '', quantity: '1', price: '', policy: 'BLOCK_STOCK' }])} className="text-xs font-bold text-amber-700">+ Ajouter un produit</button></div>
           {lines.map((line, index) => {
             const selected = products.find((p) => p.id === line.productId);
             return <div key={index} className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-2">
@@ -103,7 +103,7 @@ export const NewOperations: React.FC<NewOperationsProps> = ({
           <div className="grid grid-cols-2 gap-2"><label className="text-xs text-slate-500">Avance initiale ($)<input type="number" min="0" step="0.01" value={initialPayment} onChange={(e) => setInitialPayment(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm"/></label><label className="text-xs text-slate-500">Mode de paiement<select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm bg-white"><option value="CASH">Espèces</option><option value="MOBILE_MONEY">Mobile Money</option><option value="BANK_TRANSFER">Virement bancaire</option></select></label></div>
           <label className="block text-xs text-slate-500">Date prévue de livraison<input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm"/></label>
           <label className="block text-xs text-slate-500">Observations<textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm"/></label>
-          <div className="rounded-xl bg-sky-50 p-3 text-xs text-sky-800">Total estimé : <strong>{lines.reduce((sum, line) => sum + (Math.max(0, Number(line.quantity) || 0) * Math.max(0, Number(line.price) || 0)), 0).toLocaleString('fr-FR')} $</strong></div>
+          <div className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">Total estimé : <strong>{lines.reduce((sum, line) => sum + (Math.max(0, Number(line.quantity) || 0) * Math.max(0, Number(line.price) || 0)), 0).toLocaleString('fr-FR')} $</strong></div>
           <button onClick={() => {
             const items = lines.map((line) => ({ productId: line.productId, quantity: Number(line.quantity), unitPriceUSD: Number(line.price), stockPolicy: line.policy }));
             if (!customerId) { setFeedback('Veuillez sélectionner un client.'); return; }
@@ -113,7 +113,7 @@ export const NewOperations: React.FC<NewOperationsProps> = ({
             const result = onCreateReservation({ customerId, items, initialPaymentUSD: advance, paymentMethod: advance > 0 ? paymentMethod : undefined, expectedDeliveryDate: expectedDate || undefined, notes: notes.trim() || undefined });
             if (result.success) { setFeedback(`Réservation ${result.reservation?.reservationNumber || ''} créée avec succès.`); setShowCreate(false); setCustomerId(''); setLines([{ productId: '', quantity: '1', price: '', policy: 'BLOCK_STOCK' }]); setInitialPayment('0'); setExpectedDate(''); setNotes(''); }
             else setFeedback(result.error || 'Impossible de créer la réservation.');
-          }} className="w-full rounded-xl bg-sky-600 text-white p-3 text-sm font-black">Enregistrer la réservation</button>
+          }} className="w-full rounded-xl bg-amber-600 text-white p-3 text-sm font-black">Enregistrer la réservation</button>
         </section>}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <Kpi label="Réservations" value={reservations.length} />
@@ -128,15 +128,15 @@ export const NewOperations: React.FC<NewOperationsProps> = ({
             const payments = reservationPayments.filter((p) => p.reservationId === r.id);
             const deliveries = reservationDeliveries.filter((d) => d.reservationId === r.id);
             return <article key={r.id} className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2">
-              <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-black text-sm text-slate-900">{r.reservationNumber}</p><p className="text-xs text-slate-600">{r.customerName} • {r.customerPhone}</p></div><span className="text-[10px] font-bold px-2 py-1 rounded-full bg-sky-50 text-sky-700">{r.status}</span></div>
+              <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-black text-sm text-slate-900">{r.reservationNumber}</p><p className="text-xs text-slate-600">{r.customerName} • {r.customerPhone}</p></div><span className="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-700">{r.status}</span></div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs"><Metric label="Total" value={money(r.totalUSD)} /><Metric label="Avance reçue" value={money(r.amountPaidUSD)} /><Metric label="Reste financier" value={money(r.remainingAmountUSD)} /><Metric label="Quantités livrées" value={`${delivered} / ${reserved}`} /></div>
               <div className="text-[11px] text-slate-500">{r.items.map((item) => `${item.productName} : ${item.quantityDelivered}/${item.quantityReserved} ${item.unit}`).join(' • ')}</div>
               <div className="text-[10px] text-slate-400 flex flex-wrap gap-x-4"><span><CalendarDays className="inline w-3 h-3 mr-1" />{dateLabel(r.reservationDate)}</span><span>{payments.length} paiement(s)</span><span>{deliveries.length} livraison(s)</span></div>
               {r.status !== 'CANCELLED' && r.status !== 'CANCELLATION_PENDING' && <div className="flex flex-wrap gap-2 pt-1">
-                <button onClick={() => { setActionReservation(actionReservation === `${r.id}:payment` ? null : `${r.id}:payment`); setPaymentAmount(''); }} className="rounded-lg border border-sky-200 text-sky-700 px-3 py-2 text-[11px] font-bold">Ajouter une avance</button>
+                <button onClick={() => { setActionReservation(actionReservation === `${r.id}:payment` ? null : `${r.id}:payment`); setPaymentAmount(''); }} className="rounded-lg border border-amber-200 text-amber-700 px-3 py-2 text-[11px] font-bold">Ajouter une avance</button>
                 {r.status !== 'DELIVERED' && <button onClick={() => { setActionReservation(actionReservation === `${r.id}:delivery` ? null : `${r.id}:delivery`); setDeliveryQuantities({}); }} className="rounded-lg border border-emerald-200 text-emerald-700 px-3 py-2 text-[11px] font-bold">Enregistrer une livraison</button>}
               </div>}
-              {actionReservation === `${r.id}:payment` && <div className="rounded-xl bg-slate-50 border p-3 space-y-2"><p className="text-xs font-bold">Nouvelle avance — reste : {money(r.remainingAmountUSD)}</p><input type="number" min="0.01" max={r.remainingAmountUSD} step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="Montant en USD" className="w-full rounded-lg border p-2 text-sm"/><select id={`payment-method-${r.id}`} className="w-full rounded-lg border p-2 text-xs bg-white"><option value="CASH">Espèces</option><option value="MOBILE_MONEY">Mobile Money</option><option value="BANK_TRANSFER">Virement bancaire</option></select><input value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} placeholder="Note (facultatif)" className="w-full rounded-lg border p-2 text-xs"/><button onClick={() => { const method = (document.getElementById(`payment-method-${r.id}`) as HTMLSelectElement)?.value as PaymentMethod; const result = onRecordReservationPayment(r.id, Number(paymentAmount), method, paymentNotes || undefined); setFeedback(result.success ? 'Avance enregistrée.' : result.error || 'Paiement impossible.'); if (result.success) { setActionReservation(null); setPaymentAmount(''); setPaymentNotes(''); } }} className="rounded-lg bg-sky-600 text-white px-3 py-2 text-xs font-bold">Enregistrer l’avance</button></div>}
+              {actionReservation === `${r.id}:payment` && <div className="rounded-xl bg-slate-50 border p-3 space-y-2"><p className="text-xs font-bold">Nouvelle avance — reste : {money(r.remainingAmountUSD)}</p><input type="number" min="0.01" max={r.remainingAmountUSD} step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="Montant en USD" className="w-full rounded-lg border p-2 text-sm"/><select id={`payment-method-${r.id}`} className="w-full rounded-lg border p-2 text-xs bg-white"><option value="CASH">Espèces</option><option value="MOBILE_MONEY">Mobile Money</option><option value="BANK_TRANSFER">Virement bancaire</option></select><input value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} placeholder="Note (facultatif)" className="w-full rounded-lg border p-2 text-xs"/><button onClick={() => { const method = (document.getElementById(`payment-method-${r.id}`) as HTMLSelectElement)?.value as PaymentMethod; const result = onRecordReservationPayment(r.id, Number(paymentAmount), method, paymentNotes || undefined); setFeedback(result.success ? 'Avance enregistrée.' : result.error || 'Paiement impossible.'); if (result.success) { setActionReservation(null); setPaymentAmount(''); setPaymentNotes(''); } }} className="rounded-lg bg-amber-600 text-white px-3 py-2 text-xs font-bold">Enregistrer l’avance</button></div>}
               {actionReservation === `${r.id}:delivery` && <div className="rounded-xl bg-slate-50 border p-3 space-y-2"><p className="text-xs font-bold">Quantités à livrer</p>{r.items.filter((item) => item.quantityReserved > item.quantityDelivered).map((item) => <label key={item.id} className="block text-[11px] text-slate-600">{item.productName} — reste {item.quantityReserved - item.quantityDelivered} {item.unit}<input type="number" min="0" max={item.quantityReserved - item.quantityDelivered} step="0.01" value={deliveryQuantities[item.id] || ''} onChange={(e) => setDeliveryQuantities((old) => ({ ...old, [item.id]: e.target.value }))} placeholder="Quantité livrée" className="mt-1 w-full rounded-lg border p-2 text-sm"/></label>)}<button onClick={() => { const items = r.items.map((item) => ({ reservationItemId: item.id, quantity: Number(deliveryQuantities[item.id] || 0) })).filter((item) => item.quantity > 0); const result = onDeliverReservation({ reservationId: r.id, items }); setFeedback(result.success ? 'Livraison enregistrée et stock mis à jour.' : result.error || 'Livraison impossible.'); if (result.success) setActionReservation(null); }} className="rounded-lg bg-emerald-600 text-white px-3 py-2 text-xs font-bold">Confirmer la livraison</button></div>}
             </article>;
           })}

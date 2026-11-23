@@ -99,12 +99,12 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = (props) => {
       <section className="w-full max-w-2xl mt-3 sm:mt-10 bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200" role="dialog" aria-modal="true" aria-label="Recherche globale">
         <div className="p-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <Search className="w-5 h-5 text-sky-700 shrink-0" />
+            <Search className="w-5 h-5 text-amber-700 shrink-0" />
             <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un produit, client, facture, réservation…" className="flex-1 min-w-0 outline-none text-sm text-slate-900 placeholder:text-slate-400" />
             <button onClick={props.onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500" aria-label="Fermer"><X className="w-5 h-5" /></button>
           </div>
           <div className="flex gap-2 overflow-x-auto pt-3 pb-1">
-            {kinds.map((kind) => <button key={kind} onClick={() => setKindFilter(kind)} className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition ${kindFilter === kind ? 'bg-sky-700 text-white border-sky-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>{kind === 'TOUS' ? 'Tous' : kind}</button>)}
+            {kinds.map((kind) => <button key={kind} onClick={() => setKindFilter(kind)} className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition ${kindFilter === kind ? 'bg-amber-700 text-white border-amber-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>{kind === 'TOUS' ? 'Tous' : kind}</button>)}
           </div>
         </div>
         <div className="max-h-[65vh] overflow-y-auto p-2">
@@ -112,10 +112,10 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = (props) => {
           {query.trim() && results.length === 0 && <div className="py-12 text-center text-sm text-slate-500">Aucun résultat pour « {query} ».</div>}
           {results.map((result) => {
             const Icon = result.icon;
-            return <button key={result.id} onClick={() => { props.onNavigate(result.destination); props.onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-2xl text-left hover:bg-sky-50 transition group">
-              <span className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 group-hover:bg-sky-100 group-hover:text-sky-700"><Icon className="w-5 h-5" /></span>
-              <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><strong className="text-sm text-slate-900 truncate">{result.title}</strong><span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full shrink-0">{result.kind}</span></span><span className="block text-xs text-slate-600 truncate mt-0.5">{result.subtitle}</span><span className="block text-[11px] text-slate-400 truncate mt-0.5">{result.detail}</span></span>
-              <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-sky-600 shrink-0" />
+            return <button key={result.id} onClick={() => { props.onNavigate(result.destination); props.onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-2xl text-left hover:bg-amber-50 transition group">
+              <span className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 group-hover:bg-amber-100 group-hover:text-amber-700"><Icon className="w-5 h-5" /></span>
+              <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><strong className="text-sm text-slate-900 truncate">{result.title}</strong><span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full shrink-0">{result.kind}</span></span><span className="block text-xs text-slate-600 truncate mt-0.5">{result.subtitle}</span><span className="block text-[11px] text-slate-400 truncate mt-0.5">{result.detail}</span></span>
+              <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-amber-600 shrink-0" />
             </button>;
           })}
           {results.length === 60 && <p className="text-center text-[11px] text-slate-400 py-3">60 premiers résultats affichés. Affinez votre recherche.</p>}

@@ -214,10 +214,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wider font-semibold text-sky-300">
+              <span className="text-xs uppercase tracking-wider font-semibold text-amber-300">
                 Tableau de Bord Exécutif
               </span>
-              <span className="bg-sky-400/20 text-sky-200 text-[10px] px-2 py-0.5 rounded-full font-bold">
+              <span className="bg-amber-400/20 text-amber-200 text-[10px] px-2 py-0.5 rounded-full font-bold">
                 1$ = {settings.exchangeRate} FC
               </span>
             </div>
@@ -231,11 +231,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           {/* Period Filter Buttons */}
           <div className="flex items-center gap-1 bg-white/10 p-1 rounded-2xl backdrop-blur-md self-start md:self-center overflow-x-auto max-w-full text-xs">
-            <Filter className="w-3.5 h-3.5 text-sky-300 ml-1.5 shrink-0 hidden sm:inline" />
+            <Filter className="w-3.5 h-3.5 text-amber-300 ml-1.5 shrink-0 hidden sm:inline" />
             <button
               onClick={() => setPeriod('TODAY')}
               className={`px-3 py-1.5 rounded-xl font-semibold transition shrink-0 ${
-                period === 'TODAY' ? 'bg-sky-500 text-white shadow' : 'text-slate-300 hover:text-white'
+                period === 'TODAY' ? 'bg-amber-500 text-white shadow' : 'text-slate-300 hover:text-white'
               }`}
             >
               Aujourd'hui
@@ -243,7 +243,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <button
               onClick={() => setPeriod('WEEK')}
               className={`px-3 py-1.5 rounded-xl font-semibold transition shrink-0 ${
-                period === 'WEEK' ? 'bg-sky-500 text-white shadow' : 'text-slate-300 hover:text-white'
+                period === 'WEEK' ? 'bg-amber-500 text-white shadow' : 'text-slate-300 hover:text-white'
               }`}
             >
               Semaine
@@ -251,7 +251,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <button
               onClick={() => setPeriod('MONTH')}
               className={`px-3 py-1.5 rounded-xl font-semibold transition shrink-0 ${
-                period === 'MONTH' ? 'bg-sky-500 text-white shadow' : 'text-slate-300 hover:text-white'
+                period === 'MONTH' ? 'bg-amber-500 text-white shadow' : 'text-slate-300 hover:text-white'
               }`}
             >
               Ce Mois
@@ -259,7 +259,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <button
               onClick={() => setPeriod('YEAR')}
               className={`px-3 py-1.5 rounded-xl font-semibold transition shrink-0 ${
-                period === 'YEAR' ? 'bg-sky-500 text-white shadow' : 'text-slate-300 hover:text-white'
+                period === 'YEAR' ? 'bg-amber-500 text-white shadow' : 'text-slate-300 hover:text-white'
               }`}
             >
               Année
@@ -267,7 +267,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <button
               onClick={() => setPeriod('ALL')}
               className={`px-3 py-1.5 rounded-xl font-semibold transition shrink-0 ${
-                period === 'ALL' ? 'bg-sky-500 text-white shadow' : 'text-slate-300 hover:text-white'
+                period === 'ALL' ? 'bg-amber-500 text-white shadow' : 'text-slate-300 hover:text-white'
               }`}
             >
               Tout
@@ -276,29 +276,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Ambient background blur accents */}
-        <div className="absolute -right-12 -top-12 w-48 h-48 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -right-12 -top-12 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
       </div>
 
       {/* Quick Action Buttons */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         <button
           onClick={() => onNavigate('ventes')}
-          className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-sky-600 to-blue-700 text-white shadow-md hover:shadow-lg hover:scale-[1.01] transition-all"
+          className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-amber-600 to-amber-700 text-white shadow-md hover:shadow-lg hover:scale-[1.01] transition-all"
         >
           <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
             <ShoppingCart className="w-5 h-5" />
           </div>
           <div className="text-left">
-            <p className="text-xs text-sky-100 font-medium">Point de Vente</p>
+            <p className="text-xs text-amber-100 font-medium">Point de Vente</p>
             <p className="text-sm font-bold leading-tight">Nouvelle Vente</p>
           </div>
         </button>
 
         <button
           onClick={() => onNavigate('produits')}
-          className="flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-200 text-slate-800 shadow-sm hover:border-sky-300 hover:shadow transition"
+          className="flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-200 text-slate-800 shadow-sm hover:border-amber-300 hover:shadow transition"
         >
-          <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
             <PlusCircle className="w-5 h-5" />
           </div>
           <div className="text-left">
@@ -382,19 +382,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Financial Core Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Sales Card */}
-        <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm relative overflow-hidden group hover:border-sky-300 transition">
+        <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm relative overflow-hidden group hover:border-amber-300 transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500">
               Ventes ({period === 'TODAY' ? "Aujourd'hui" : period === 'MONTH' ? 'Ce Mois' : 'Période'})
             </span>
-            <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
           <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
             {formatUSD(stats.periodSalesUSD)}
           </p>
-          <p className="text-xs font-bold text-sky-700 mt-0.5">
+          <p className="text-xs font-bold text-amber-700 mt-0.5">
             {formatCDF(usdToCdf(stats.periodSalesUSD, settings.exchangeRate))}
           </p>
           <div className="mt-2 text-[10px] text-slate-400 flex items-center gap-1">
@@ -425,18 +425,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* Stock Value Card */}
         <div
           onClick={() => onNavigate('produits')}
-          className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm relative overflow-hidden group hover:border-blue-300 transition cursor-pointer"
+          className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm relative overflow-hidden group hover:border-amber-300 transition cursor-pointer"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500">Valeur Marchande Stock</span>
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <Package className="w-4 h-4" />
             </div>
           </div>
           <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
             {formatUSD(stats.stockValueSellUSD)}
           </p>
-          <p className="text-xs font-bold text-blue-700 mt-0.5">
+          <p className="text-xs font-bold text-amber-700 mt-0.5">
             Coût d'achat: {formatUSD(stats.stockValueBuyUSD)}
           </p>
           <div className="mt-2 text-[10px] text-slate-400">
@@ -474,7 +474,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <h3 className="font-bold text-sm text-slate-800">Évolution des Ventes (7 derniers jours)</h3>
               <p className="text-xs text-slate-400">Activité journalière en magasin</p>
             </div>
-            <span className="text-xs font-bold text-sky-600 bg-sky-50 px-2.5 py-1 rounded-xl">
+            <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-xl">
               USD & CDF
             </span>
           </div>
@@ -493,7 +493,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="w-full max-w-[36px] bg-slate-100 rounded-t-xl h-36 flex items-end overflow-hidden">
                     <div
                       style={{ height: `${heightPercent}%` }}
-                      className="w-full bg-gradient-to-t from-sky-600 to-sky-400 rounded-t-xl transition-all duration-500 group-hover:from-sky-500 group-hover:to-sky-300"
+                      className="w-full bg-gradient-to-t from-amber-600 to-amber-400 rounded-t-xl transition-all duration-500 group-hover:from-amber-500 group-hover:to-amber-300"
                     ></div>
                   </div>
                   <span className="text-[10px] font-medium text-slate-500 truncate w-full text-center">
@@ -525,7 +525,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 topSellingProducts.map((p, idx) => (
                   <div key={idx} className="flex items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2 truncate">
-                      <span className="w-5 h-5 rounded-lg bg-sky-100 text-sky-800 font-bold text-[10px] flex items-center justify-center shrink-0">
+                      <span className="w-5 h-5 rounded-lg bg-amber-100 text-amber-800 font-bold text-[10px] flex items-center justify-center shrink-0">
                         {idx + 1}
                       </span>
                       <div className="truncate">
@@ -548,7 +548,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           <button
             onClick={() => onNavigate('produits')}
-            className="w-full mt-4 py-2 text-xs font-semibold text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-xl transition text-center"
+            className="w-full mt-4 py-2 text-xs font-semibold text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-xl transition text-center"
           >
             Consulter tout le stock ({products.length})
           </button>
@@ -566,7 +566,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <button
               onClick={() => onNavigate('ventes')}
-              className="text-xs font-bold text-sky-600 hover:text-sky-700"
+              className="text-xs font-bold text-amber-600 hover:text-amber-700"
             >
               Historique complet
             </button>
@@ -592,7 +592,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-xs font-bold text-slate-900">{formatUSD(sale.totalUSD)}</p>
-                  <p className="text-[10px] text-sky-700">{formatCDF(sale.totalCDF)}</p>
+                  <p className="text-[10px] text-amber-700">{formatCDF(sale.totalCDF)}</p>
                 </div>
               </div>
             ))}

@@ -182,7 +182,7 @@ export const Customers: React.FC<CustomersProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Users className="w-6 h-6 text-sky-600" />
+            <Users className="w-6 h-6 text-amber-600" />
             Gestion des Clients & Créances
           </h2>
           <p className="text-xs text-slate-500">
@@ -193,7 +193,7 @@ export const Customers: React.FC<CustomersProps> = ({
         {canEdit && (
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md self-start sm:self-auto transition"
+            className="px-4 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md self-start sm:self-auto transition"
           >
             <Plus className="w-4 h-4" />
             Nouveau Client
@@ -210,7 +210,7 @@ export const Customers: React.FC<CustomersProps> = ({
             placeholder="Rechercher client par nom, téléphone, ville..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
+            className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"
           />
           {searchTerm && (
             <button
@@ -266,7 +266,7 @@ export const Customers: React.FC<CustomersProps> = ({
                 {/* Header */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0F2444] to-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0F2444] to-amber-600 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
                       {customer.name.charAt(0)}
                     </div>
                     <div className="truncate">
@@ -283,7 +283,7 @@ export const Customers: React.FC<CustomersProps> = ({
                   {canEdit && (
                     <button
                       onClick={() => handleOpenEdit(customer)}
-                      className="p-1.5 text-slate-400 hover:text-sky-600 rounded-lg hover:bg-sky-50"
+                      className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50"
                       title="Modifier coordonnées"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -338,7 +338,7 @@ export const Customers: React.FC<CustomersProps> = ({
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                 <button
                   onClick={() => setSelectedCustomer(customer)}
-                  className="px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 rounded-xl transition flex items-center gap-1"
+                  className="px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 rounded-xl transition flex items-center gap-1"
                 >
                   <History className="w-3.5 h-3.5" />
                   Détails & Factures ({customerSales.length})
@@ -373,7 +373,7 @@ export const Customers: React.FC<CustomersProps> = ({
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base">{selectedCustomer.name}</h3>
-                <p className="text-xs text-sky-300">
+                <p className="text-xs text-amber-300">
                   {selectedCustomer.phone} • {selectedCustomer.city}
                 </p>
               </div>
@@ -411,7 +411,7 @@ export const Customers: React.FC<CustomersProps> = ({
               {/* Debt Records & Payment History */}
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <CreditCard className="w-4 h-4 text-sky-600" />
+                  <CreditCard className="w-4 h-4 text-amber-600" />
                   Dossiers de Crédit & Remboursements
                 </h4>
 
@@ -487,7 +487,7 @@ export const Customers: React.FC<CustomersProps> = ({
               {/* Purchase history */}
               <div className="space-y-2 pt-2">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-sky-600" />
+                  <FileText className="w-4 h-4 text-amber-600" />
                   Factures d'Achats Passées
                 </h4>
 
@@ -512,7 +512,7 @@ export const Customers: React.FC<CustomersProps> = ({
                           </div>
                           <div className="text-right">
                             <p className="font-black text-slate-900">{formatUSD(sale.totalUSD)}</p>
-                            <span className="text-[10px] text-sky-600 underline">Imprimer</span>
+                            <span className="text-[10px] text-amber-600 underline">Imprimer</span>
                           </div>
                         </div>
                       ))
@@ -560,7 +560,7 @@ export const Customers: React.FC<CustomersProps> = ({
                   placeholder="Ex: Entreprise GEMA SARL, Patrick Tshilombo..."
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 font-semibold"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-semibold"
                 />
               </div>
 
@@ -573,7 +573,7 @@ export const Customers: React.FC<CustomersProps> = ({
                     placeholder="+243..."
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 font-mono"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-mono"
                   />
                 </div>
                 <div>
@@ -582,7 +582,7 @@ export const Customers: React.FC<CustomersProps> = ({
                     type="text"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
               </div>
@@ -595,7 +595,7 @@ export const Customers: React.FC<CustomersProps> = ({
                     placeholder="Ex: Av. Kasavubu N° 45, C/Lubumbashi"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
                 <div>
@@ -605,7 +605,7 @@ export const Customers: React.FC<CustomersProps> = ({
                     placeholder="contact@..."
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
               </div>
@@ -619,7 +619,7 @@ export const Customers: React.FC<CustomersProps> = ({
                     step="50"
                     value={formData.creditLimitUSD}
                     onChange={(e) => setFormData({ ...formData, creditLimitUSD: parseFloat(e.target.value) || 0 })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 font-bold"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-bold"
                   />
                 </div>
                 <div>
@@ -629,7 +629,7 @@ export const Customers: React.FC<CustomersProps> = ({
                     placeholder="Ex: Architecte réputé, chantiers Golf..."
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
               </div>
@@ -644,7 +644,7 @@ export const Customers: React.FC<CustomersProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md"
+                  className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md"
                 >
                   Enregistrer Client
                 </button>
@@ -661,7 +661,7 @@ export const Customers: React.FC<CustomersProps> = ({
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base">Enregistrer un Remboursement</h3>
-                <p className="text-xs text-sky-300">{repaymentDebtRecord.partyName}</p>
+                <p className="text-xs text-amber-300">{repaymentDebtRecord.partyName}</p>
               </div>
               <button
                 onClick={() => setIsRepaymentModalOpen(false)}
@@ -706,9 +706,9 @@ export const Customers: React.FC<CustomersProps> = ({
                   required
                   value={repaymentAmountUSD}
                   onChange={(e) => setRepaymentAmountUSD(parseFloat(e.target.value) || 0)}
-                  className="w-full text-base font-black p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-base font-black p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                 />
-                <p className="text-[11px] text-sky-700 font-bold mt-1">
+                <p className="text-[11px] text-amber-700 font-bold mt-1">
                   Équiv: {formatCDF(repaymentAmountUSD * exchangeRate)}
                 </p>
               </div>
@@ -718,7 +718,7 @@ export const Customers: React.FC<CustomersProps> = ({
                 <select
                   value={repaymentMethod}
                   onChange={(e) => setRepaymentMethod(e.target.value as PaymentMethod)}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 font-medium"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-medium"
                 >
                   <option value="CASH">Espèces (Cash)</option>
                   <option value="MOBILE_MONEY">Mobile Money (M-Pesa / Airtel / Orange)</option>
@@ -733,7 +733,7 @@ export const Customers: React.FC<CustomersProps> = ({
                   placeholder="Ex: Versement comptant bureau ou réf transaction"
                   value={repaymentNotes}
                   onChange={(e) => setRepaymentNotes(e.target.value)}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 

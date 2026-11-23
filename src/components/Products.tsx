@@ -195,7 +195,7 @@ export const Products: React.FC<ProductsProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Package className="w-6 h-6 text-sky-600" />
+            <Package className="w-6 h-6 text-amber-600" />
             Gestion des Produits & Stocks
           </h2>
           <p className="text-xs text-slate-500">
@@ -208,7 +208,7 @@ export const Products: React.FC<ProductsProps> = ({
             onClick={onOpenBarcodeScanner}
             className="px-3.5 py-2 rounded-2xl bg-slate-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-slate-800 transition"
           >
-            <Barcode className="w-4 h-4 text-sky-400" />
+            <Barcode className="w-4 h-4 text-amber-400" />
             Scanner
           </button>
 
@@ -223,7 +223,7 @@ export const Products: React.FC<ProductsProps> = ({
               </button>
               <button
                 onClick={handleOpenAddModal}
-                className="px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition"
+                className="px-4 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition"
               >
                 <Plus className="w-4 h-4" />
                 Nouveau Produit
@@ -244,7 +244,7 @@ export const Products: React.FC<ProductsProps> = ({
               placeholder="Rechercher par nom, SKU, code-barres, marque..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"
             />
             {searchTerm && (
               <button
@@ -261,7 +261,7 @@ export const Products: React.FC<ProductsProps> = ({
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="text-xs py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none font-medium text-slate-700"
+              className="text-xs py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none font-medium text-slate-700"
             >
               <option value="ALL">Toutes catégories ({products.length})</option>
               {categories.map((c) => (
@@ -328,7 +328,7 @@ export const Products: React.FC<ProductsProps> = ({
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md truncate">
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md truncate">
                         {product.categoryName || 'Général'}
                       </span>
                       {isOut ? (
@@ -388,7 +388,7 @@ export const Products: React.FC<ProductsProps> = ({
                     <span className="text-base font-black text-[#0F2444]">
                       {formatUSD(product.sellPriceUSD)}
                     </span>
-                    <span className="text-[10px] text-sky-700 font-bold block">
+                    <span className="text-[10px] text-amber-700 font-bold block">
                       {formatCDF(product.sellPriceUSD * exchangeRate)}
                     </span>
                   </div>
@@ -417,7 +417,7 @@ export const Products: React.FC<ProductsProps> = ({
               <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
                 <button
                   onClick={() => setViewingHistoryProduct(product)}
-                  className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-sky-700 flex items-center gap-1 rounded-lg hover:bg-slate-200/60 transition"
+                  className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-amber-700 flex items-center gap-1 rounded-lg hover:bg-slate-200/60 transition"
                   title="Historique des mouvements de stock"
                 >
                   <History className="w-3.5 h-3.5" />
@@ -428,7 +428,7 @@ export const Products: React.FC<ProductsProps> = ({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleOpenEditModal(product)}
-                      className="p-1.5 text-slate-600 hover:text-sky-600 rounded-lg hover:bg-sky-50 transition"
+                      className="p-1.5 text-slate-600 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition"
                       title="Modifier"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -503,7 +503,7 @@ export const Products: React.FC<ProductsProps> = ({
                     required
                     value={formData.sku}
                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 font-mono"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-mono"
                   />
                 </div>
                 <div>
@@ -513,7 +513,7 @@ export const Products: React.FC<ProductsProps> = ({
                     required
                     value={formData.barcode}
                     onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 font-mono"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-mono"
                   />
                 </div>
               </div>
@@ -526,7 +526,7 @@ export const Products: React.FC<ProductsProps> = ({
                   placeholder="Ex: Ciment Dangote 42.5R, Fer 12mm..."
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 
@@ -536,7 +536,7 @@ export const Products: React.FC<ProductsProps> = ({
                   <select
                     value={formData.categoryId}
                     onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                   >
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -552,7 +552,7 @@ export const Products: React.FC<ProductsProps> = ({
                     placeholder="Ex: Dangote, Bosch, Schneider..."
                     value={formData.brand}
                     onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
               </div>
@@ -566,7 +566,7 @@ export const Products: React.FC<ProductsProps> = ({
                     min="0"
                     value={formData.buyPriceUSD}
                     onChange={(e) => setFormData({ ...formData, buyPriceUSD: parseFloat(e.target.value) || 0 })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 font-bold"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-bold"
                   />
                 </div>
                 <div>
@@ -578,7 +578,7 @@ export const Products: React.FC<ProductsProps> = ({
                     required
                     value={formData.sellPriceUSD}
                     onChange={(e) => setFormData({ ...formData, sellPriceUSD: parseFloat(e.target.value) || 0 })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 font-bold text-sky-700"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-bold text-amber-700"
                   />
                   <p className="text-[10px] text-slate-400 mt-0.5">
                     Équiv. CDF: {formatCDF(formData.sellPriceUSD * exchangeRate)}
@@ -594,7 +594,7 @@ export const Products: React.FC<ProductsProps> = ({
                     min="0"
                     value={formData.currentStock}
                     onChange={(e) => setFormData({ ...formData, currentStock: parseInt(e.target.value, 10) || 0 })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 font-bold"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-bold"
                   />
                 </div>
                 <div>
@@ -604,7 +604,7 @@ export const Products: React.FC<ProductsProps> = ({
                     min="1"
                     value={formData.minStock}
                     onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value, 10) || 5 })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
                 <div>
@@ -612,7 +612,7 @@ export const Products: React.FC<ProductsProps> = ({
                   <select
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value as UnitOfMeasure })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                   >
                     <option value="pcs">Pièce (pcs)</option>
                     <option value="sac">Sac (sac)</option>
@@ -683,7 +683,7 @@ export const Products: React.FC<ProductsProps> = ({
                 </button>
                 <button
                   type="submit" disabled={photoReading}
-                  className="px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md"
+                  className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md"
                 >
                   Enregistrer
                 </button>
@@ -700,7 +700,7 @@ export const Products: React.FC<ProductsProps> = ({
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-sm sm:text-base">Historique des Mouvements de Stock</h3>
-                <p className="text-xs text-sky-300 truncate max-w-sm">{viewingHistoryProduct.name}</p>
+                <p className="text-xs text-amber-300 truncate max-w-sm">{viewingHistoryProduct.name}</p>
               </div>
               <button
                 onClick={() => setViewingHistoryProduct(null)}
@@ -789,14 +789,14 @@ export const Products: React.FC<ProductsProps> = ({
                   placeholder="Nom de la catégorie..."
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                 />
                 <input
                   type="text"
                   placeholder="Description..."
                   value={newCatDesc}
                   onChange={(e) => setNewCatDesc(e.target.value)}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                 />
                 <button
                   type="button"
@@ -807,7 +807,7 @@ export const Products: React.FC<ProductsProps> = ({
                       setNewCatDesc('');
                     }
                   }}
-                  className="w-full py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-xs"
+                  className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-xs"
                 >
                   Ajouter la catégorie
                 </button>

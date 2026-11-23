@@ -21,7 +21,7 @@ export function CoreSignIn({onSignIn,onInvitation,onOwnerSignUp,error:parentErro
    <input required type="password" minLength={mode==='register'||mode==='owner'?12:undefined} autoComplete={mode==='register'||mode==='owner'?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==='register'||mode==='owner'?'Mot de passe (12 caractères minimum)':'Mot de passe'} className="w-full border rounded-xl p-3"/>
    {(mode==='register'||mode==='owner')&&<input required type="password" autoComplete="new-password" value={confirmation} onChange={e=>setConfirmation(e.target.value)} placeholder="Confirmer le mot de passe" className="w-full border p-3"/>}
    {(error||parentError)&&<p role="alert" className="text-sm text-red-700">{error||parentError}</p>}
-   <button disabled={busy} className="w-full bg-sky-600 text-white rounded-xl p-3 font-bold">{busy?'Traitement…':mode==='login'?'Se connecter':mode==='owner'?'Créer mon entreprise':mode==='register'?'Créer mon compte':'Accepter l’invitation'}</button>
+   <button disabled={busy} className="w-full bg-amber-600 text-white rounded-xl p-3 font-bold">{busy?'Traitement…':mode==='login'?'Se connecter':mode==='owner'?'Créer mon entreprise':mode==='register'?'Créer mon compte':'Accepter l’invitation'}</button>
    <button type="button" onClick={async()=>{setProbe('Test en cours…');setProbe(await runNetProbe(CORE_API_BASE));}} className="w-full border rounded-xl p-2 text-xs">Diagnostic réseau</button>{probe&&<pre className="text-[10px] whitespace-pre-wrap break-all">{probe}</pre>}
  </form></main>;
 }

@@ -48,12 +48,12 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
         {/* Header */}
         <div className="bg-[#0F2444] text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-300">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300">
               <Smartphone className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-extrabold text-base sm:text-lg">Installation Mobile & Export APK</h3>
-              <p className="text-xs text-sky-200">CHIEF ALPHONS COMPANY LTD pour Android</p>
+              <p className="text-xs text-amber-200">CHIEF ALPHONS COMPANY LTD pour Android</p>
             </div>
           </div>
           <button
@@ -81,7 +81,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
               activeTab === 'APK_ONLINE' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <Smartphone className="w-3.5 h-3.5 text-sky-600" />
+            <Smartphone className="w-3.5 h-3.5 text-amber-600" />
             2. Générer Fichier .APK
           </button>
           <button
@@ -108,12 +108,12 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
         <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm text-slate-700 flex-1">
           {activeTab === 'PWA' && (
             <div className="space-y-4">
-              <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 text-sky-900">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-900">
                 <h4 className="font-bold text-sm flex items-center gap-2 mb-1">
                   <Zap className="w-4 h-4 text-amber-500" />
                   Solution la plus rapide (Aucune compilation nécessaire)
                 </h4>
-                <p className="text-xs text-sky-800 leading-relaxed">
+                <p className="text-xs text-amber-800 leading-relaxed">
                   CHIEF ALPHONS COMPANY LTD est conçue comme une Progressive Web App (PWA). Sur n’importe quel téléphone Android (Samsung, Tecno, Infinix, Xiaomi, etc.), Google Chrome installe directement l’application sur votre écran d’accueil avec son icône, son plein écran et son fonctionnement hors-ligne.
                 </p>
               </div>
@@ -138,7 +138,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                       />
                       <button
                         onClick={handleCopyUrl}
-                        className="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition"
+                        className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition"
                       >
                         {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                         {copied ? 'Copié !' : 'Copier'}
@@ -190,8 +190,8 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
                   <h5 className="font-bold text-slate-900 text-xs">Méthode avec PWABuilder (Officiel Microsoft) :</h5>
                   <ol className="list-decimal list-inside space-y-1.5 text-xs text-slate-600">
-                    <li>Copiez l’URL de l’application : <code className="font-mono text-sky-700 bg-sky-50 px-1 rounded">{appUrl}</code></li>
-                    <li>Rendez-vous sur le site sécurisé : <a href="https://www.pwabuilder.com" target="_blank" rel="noopener noreferrer" className="text-sky-600 font-bold underline inline-flex items-center gap-0.5">www.pwabuilder.com <ExternalLink className="w-3 h-3" /></a></li>
+                    <li>Copiez l’URL de l’application : <code className="font-mono text-amber-700 bg-amber-50 px-1 rounded">{appUrl}</code></li>
+                    <li>Rendez-vous sur le site sécurisé : <a href="https://www.pwabuilder.com" target="_blank" rel="noopener noreferrer" className="text-amber-600 font-bold underline inline-flex items-center gap-0.5">www.pwabuilder.com <ExternalLink className="w-3 h-3" /></a></li>
                     <li>Collez l’URL et cliquez sur <strong>« Start »</strong>.</li>
                     <li>Cliquez sur <strong>« Package for Android »</strong> puis <strong>« Generate APK »</strong>.</li>
                     <li>Téléchargez votre fichier <code className="font-bold text-emerald-700">bta-release.apk</code> prêt à installer !</li>
@@ -230,7 +230,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                     <p className="text-slate-400"># 1. Générer l’APK de test (Debug) :</p>
                     <p>cd android</p>
                     <p>./gradlew assembleDebug</p>
-                    <p className="text-sky-300"># Emplacement du fichier généré :</p>
+                    <p className="text-amber-300"># Emplacement du fichier généré :</p>
                     <p className="text-amber-300">android/app/build/outputs/apk/debug/app-debug.apk</p>
                     <p className="text-slate-400 mt-2"># 2. Générer l’APK de production (Release) :</p>
                     <p>./gradlew assembleRelease</p>
@@ -245,7 +245,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                   <p>1. Décompressez l’archive ZIP sur votre machine.</p>
                   <p>2. Lancez Android Studio et choisissez <strong>« Open »</strong> en sélectionnant le dossier <code className="font-mono bg-white px-1 border rounded">android</code>.</p>
                   <p>3. Menu supérieur : <strong>Build &gt; Build Bundle(s) / APK(s) &gt; Build APK(s)</strong>.</p>
-                  <p>4. Android Studio affiche une notification avec un lien direct <strong>« locate »</strong> pour copier le fichier <code className="font-bold text-sky-800">app-debug.apk</code> vers votre téléphone.</p>
+                  <p>4. Android Studio affiche une notification avec un lien direct <strong>« locate »</strong> pour copier le fichier <code className="font-bold text-amber-800">app-debug.apk</code> vers votre téléphone.</p>
                 </div>
               </div>
             </div>
@@ -266,7 +266,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
               <div className="space-y-3">
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
                   <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-[10px]">1</span>
+                    <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px]">1</span>
                     Configurer votre Magasin & Taux de Change
                   </h5>
                   <p className="text-xs text-slate-600 mt-1">
@@ -276,7 +276,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
 
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
                   <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-[10px]">2</span>
+                    <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px]">2</span>
                     Enregistrer vos vrais Produits
                   </h5>
                   <p className="text-xs text-slate-600 mt-1">
@@ -286,7 +286,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
 
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
                   <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-[10px]">3</span>
+                    <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px]">3</span>
                     Créer vos Fournisseurs & Réceptions (Candol)
                   </h5>
                   <p className="text-xs text-slate-600 mt-1">
@@ -296,7 +296,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
 
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
                   <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-[10px]">4</span>
+                    <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px]">4</span>
                     Sauvegarder vos Données en 1 Clic
                   </h5>
                   <p className="text-xs text-slate-600 mt-1">

@@ -75,7 +75,7 @@ export const Debts: React.FC<DebtsProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-sky-600" />
+            <CreditCard className="w-5 h-5 text-amber-600" />
             Module Indépendant des Dettes & Créances
           </h3>
           <p className="text-xs text-slate-500">
@@ -113,7 +113,7 @@ export const Debts: React.FC<DebtsProps> = ({
             Total {activeTab === 'CUSTOMER' ? 'Créances à Encaisser' : 'Dettes à Régler'}
           </span>
           <p className="text-2xl font-black text-white mt-1">{formatUSD(totalRemainingUSD)}</p>
-          <p className="text-xs text-sky-300 font-bold">
+          <p className="text-xs text-amber-300 font-bold">
             {formatCDF(totalRemainingUSD * exchangeRate)}
           </p>
         </div>
@@ -126,7 +126,7 @@ export const Debts: React.FC<DebtsProps> = ({
       {/* Search */}
       <div className="relative bg-white rounded-2xl border border-slate-200 p-3">
         <Search className="w-4 h-4 absolute left-6 top-5 text-slate-400" />
-        <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher par nom, téléphone, facture, échéance ou montant..." className="w-full pl-8 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500" />
+        <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher par nom, téléphone, facture, échéance ou montant..." className="w-full pl-8 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
         {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-6 top-5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
       </div>
 
@@ -208,7 +208,7 @@ export const Debts: React.FC<DebtsProps> = ({
                 {!isCleared && canPay && (
                   <button
                     onClick={() => handleOpenPayment(debt)}
-                    className="px-3 py-1.5 text-xs font-bold bg-[#0F2444] hover:bg-sky-900 text-white rounded-xl shadow-xs transition"
+                    className="px-3 py-1.5 text-xs font-bold bg-[#0F2444] hover:bg-amber-900 text-white rounded-xl shadow-xs transition"
                   >
                     Enregistrer Versement
                   </button>
@@ -226,7 +226,7 @@ export const Debts: React.FC<DebtsProps> = ({
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base">Enregistrer Règlement Financier</h3>
-                <p className="text-xs text-sky-300">{selectedDebt.partyName}</p>
+                <p className="text-xs text-amber-300">{selectedDebt.partyName}</p>
               </div>
               <button
                 onClick={() => setIsPaymentModalOpen(false)}
@@ -252,7 +252,7 @@ export const Debts: React.FC<DebtsProps> = ({
                 </div>
                 <div className="text-right">
                   <span className="text-slate-500">En Francs :</span>
-                  <p className="text-xs font-bold text-sky-800">
+                  <p className="text-xs font-bold text-amber-800">
                     {formatCDF(selectedDebt.remainingBalanceUSD * exchangeRate)}
                   </p>
                 </div>
@@ -269,7 +269,7 @@ export const Debts: React.FC<DebtsProps> = ({
                   required
                   value={paymentAmountUSD}
                   onChange={(e) => setPaymentAmountUSD(e.target.value)}
-                  className="w-full text-base font-black p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
+                  className="w-full text-base font-black p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 

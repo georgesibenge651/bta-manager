@@ -37,7 +37,7 @@ const statusLabel = (status: CargoStatus) =>
   STATUS.find((item) => item.value === status)?.label || status;
 
 const field =
-  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500';
+  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-amber-500';
 
 export const CargoModule: React.FC<CargoModuleProps> = ({
   packages,
@@ -383,16 +383,16 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
   return (
     <div className="space-y-4 pb-20">
-      <header className="rounded-3xl bg-gradient-to-r from-indigo-700 to-blue-600 p-5 text-white shadow-sm">
+      <header className="rounded-3xl bg-gradient-to-r from-amber-700 to-amber-600 p-5 text-white shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-indigo-100">
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-100">
               CHIEF ALPHONS COMPANY LTD
             </p>
             <h2 className="mt-1 text-xl font-black">
               Chief Cargo & Suivi Colis
             </h2>
-            <p className="mt-1 text-xs text-indigo-100">
+            <p className="mt-1 text-xs text-amber-100">
               Gestion des expéditions internationales
             </p>
           </div>
@@ -404,15 +404,15 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           <div className="rounded-xl bg-white/10 p-2">
             <div className="text-lg font-bold">{packages.length}</div>
-            <div className="text-[10px] text-indigo-100">Colis</div>
+            <div className="text-[10px] text-amber-100">Colis</div>
           </div>
           <div className="rounded-xl bg-white/10 p-2">
             <div className="text-sm font-bold">{money(paid)}</div>
-            <div className="text-[10px] text-indigo-100">Encaissé</div>
+            <div className="text-[10px] text-amber-100">Encaissé</div>
           </div>
           <div className="rounded-xl bg-white/10 p-2">
             <div className="text-sm font-bold">{money(balance)}</div>
-            <div className="text-[10px] text-indigo-100">À recevoir</div>
+            <div className="text-[10px] text-amber-100">À recevoir</div>
           </div>
         </div>
       </header>
@@ -428,7 +428,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
             }}
             className={`rounded-xl px-3 py-3 text-xs font-bold ${
               tab === item
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-amber-600 text-white'
                 : 'border border-slate-200 bg-white text-slate-600'
             }`}
           >
@@ -538,7 +538,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-bold text-indigo-600">
+                      <p className="text-xs font-bold text-amber-600">
                         {pkg.packingNumber}
                       </p>
                       <h3 className="mt-1 font-bold text-slate-900">
@@ -548,7 +548,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                         {pkg.description}
                       </p>
                     </div>
-                    <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-bold text-indigo-700">
+                    <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700">
                       {statusLabel(pkg.currentStatus)}
                     </span>
                   </div>
@@ -718,7 +718,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
                       <button
                         disabled={busy}
-                        className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+                        className="w-full rounded-xl bg-amber-600 py-2.5 text-sm font-bold text-white disabled:opacity-50"
                       >
                         {busy ? 'Enregistrement...' : 'Enregistrer le suivi'}
                       </button>
@@ -801,7 +801,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                         [...pkg.events].reverse().map((ev) => (
                           <div
                             key={ev.id}
-                            className="border-l-2 border-indigo-200 py-2 pl-3"
+                            className="border-l-2 border-amber-200 py-2 pl-3"
                           >
                             <b className="text-xs">
                               {statusLabel(ev.status)}
@@ -1064,12 +1064,12 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
             )}
           </section>
 
-          <section className="space-y-2 rounded-xl border border-indigo-100 bg-indigo-50 p-3">
-            <h4 className="text-sm font-bold text-indigo-900">
+          <section className="space-y-2 rounded-xl border border-amber-100 bg-amber-50 p-3">
+            <h4 className="text-sm font-bold text-amber-900">
               Facturation automatique (USD)
             </h4>
 
-            <label className="block text-xs font-semibold text-indigo-900">
+            <label className="block text-xs font-semibold text-amber-900">
               Prix unitaire (
               {form.transportMode === 'AIR'
                 ? 'USD par kg'
@@ -1091,7 +1091,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
               />
             </label>
 
-            <p className="text-xs text-indigo-800">
+            <p className="text-xs text-amber-800">
               Calcul :{' '}
               {form.transportMode === 'AIR'
                 ? `${form.weightKg || 0} kg ×`
@@ -1099,7 +1099,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
               {form.unitPriceUSD || 0} USD
             </p>
 
-            <p className="rounded-lg bg-white p-3 text-base font-black text-indigo-900">
+            <p className="rounded-lg bg-white p-3 text-base font-black text-amber-900">
               Total à facturer : {money(calculatedTotalUSD)}
             </p>
           </section>
@@ -1118,7 +1118,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
           <button
             disabled={busy}
-            className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white disabled:opacity-50"
+            className="w-full rounded-xl bg-amber-600 py-3 text-sm font-bold text-white disabled:opacity-50"
           >
             {busy ? 'Enregistrement...' : 'Créer le colis'}
           </button>

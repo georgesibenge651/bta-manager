@@ -37,7 +37,7 @@ export const FirstAdminSetup: React.FC = () => {
         <input aria-label="Nouveau PIN" type="password" inputMode="numeric" autoComplete="new-password" maxLength={8} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="Nouveau PIN (4 à 8 chiffres)" className="w-full border rounded-xl p-3" />
         <input aria-label="Confirmer le PIN" type="password" inputMode="numeric" autoComplete="new-password" maxLength={8} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))} placeholder="Confirmer le PIN" className="w-full border rounded-xl p-3" />
         {error && <p role="alert" className="text-sm font-bold text-red-700">{error}</p>}
-        <button onClick={submit} disabled={pin.length < 4 || confirmPin.length < 4} className="w-full rounded-xl bg-sky-600 text-white p-3 font-bold disabled:opacity-50">Initialiser l’administrateur</button>
+        <button onClick={submit} disabled={pin.length < 4 || confirmPin.length < 4} className="w-full rounded-xl bg-amber-600 text-white p-3 font-bold disabled:opacity-50">Initialiser l’administrateur</button>
       </div>
     </div>
   );
@@ -214,11 +214,11 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
     <div className="min-h-screen bg-[#0B1A30] flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden">
         <div className="bg-[#0F2444] text-white p-5 text-center">
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 mb-2">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 mb-2">
             <Lock className="w-6 h-6" />
           </div>
           <h1 className="font-extrabold text-base">{companyName}</h1>
-          <p className="text-[11px] text-sky-200">Application verrouillée – identifiez-vous</p>
+          <p className="text-[11px] text-amber-200">Application verrouillée – identifiez-vous</p>
         </div>
 
         {!selected ? (
@@ -232,7 +232,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
                   onClick={() => choose(u)}
                   className="w-full flex items-center gap-3 p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 text-left"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 text-white flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-600 text-white flex items-center justify-center">
                     <UserIcon className="w-4 h-4" />
                   </div>
                   <div>
@@ -246,13 +246,13 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
           <div className="p-5 text-center space-y-4">
             <div>
               <p className="font-bold text-slate-900 text-sm">{selected.name}</p>
-              <button type="button" onClick={() => setSelected(null)} className="text-[11px] text-sky-700 underline">
+              <button type="button" onClick={() => setSelected(null)} className="text-[11px] text-amber-700 underline">
                 Changer d'utilisateur
               </button>
             </div>
 
             {(
-              <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 text-left space-y-2">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-left space-y-2">
                 <>
                     {selected.firebaseUid && <div className="flex items-center gap-2 text-xs font-semibold text-amber-700"><CheckCircle2 className="w-4 h-4" />Compte Firebase associé : vous pouvez le reconnecter ou remplacer l’association après vérification locale.</div>}
                     <button
@@ -262,7 +262,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
                         setFirebaseError('');
                         setFirebaseMessage('');
                       }}
-                      className="w-full flex items-center justify-center gap-2 text-xs font-bold text-sky-800"
+                      className="w-full flex items-center justify-center gap-2 text-xs font-bold text-amber-800"
                     >
                       <Cloud className="w-4 h-4" />
                       {showFirebaseLink ? 'Masquer le raccordement Firebase' : selected.firebaseUid ? 'Reconnecter ou remplacer le compte Firebase' : 'Associer mon compte Firebase'}
@@ -303,7 +303,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
                           type="button"
                           onClick={linkFirebaseAccount}
                           disabled={firebaseBusy || !firebaseEmail.trim() || !firebasePassword || !firebaseLocalPin}
-                          className="w-full rounded-xl bg-sky-700 px-3 py-2.5 text-xs font-bold text-white disabled:opacity-50"
+                          className="w-full rounded-xl bg-amber-700 px-3 py-2.5 text-xs font-bold text-white disabled:opacity-50"
                         >
                           {firebaseBusy ? 'Connexion en cours…' : 'Vérifier puis enregistrer l’association'}
                         </button>
@@ -350,7 +350,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
               {[0, 1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className={`w-4 h-4 rounded-full ${pin.length > i ? 'bg-sky-600' : 'border-2 border-slate-300 bg-slate-100'}`}
+                  className={`w-4 h-4 rounded-full ${pin.length > i ? 'bg-amber-600' : 'border-2 border-slate-300 bg-slate-100'}`}
                 />
               ))}
             </div>
@@ -391,7 +391,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({ users, companyName }) =>
               disabled={pin.length < 4 || secondsLeft > 0}
               className="w-full py-3 bg-[#0F2444] disabled:opacity-40 text-white rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5"
             >
-              <ShieldCheck className="w-4 h-4 text-sky-400" />
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
               Déverrouiller
             </button>
           </div>

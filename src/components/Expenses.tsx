@@ -64,7 +64,7 @@ export const Expenses: React.FC<ExpensesProps> = ({
   const getCategoryBadge = (cat: ExpenseCategory) => {
     switch (cat) {
       case 'TRANSPORT':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-amber-100 text-amber-800';
       case 'RENT':
         return 'bg-amber-100 text-amber-800';
       case 'SALARY':

@@ -74,14 +74,14 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           title: 'Achats & Approvisionnements',
           subtitle: 'Bons de réception, entrées en stock et calcul des frais',
           icon: Truck,
-          color: 'bg-blue-500/10 text-blue-600',
+          color: 'bg-amber-500/10 text-amber-600',
         },
         {
           id: 'cargo',
           title: 'CHIEF ALPHONS Cargo & Suivi Colis',
           subtitle: 'Expéditions internationales, suivi et paiements',
           icon: Truck,
-          color: 'bg-indigo-500/10 text-indigo-600',
+          color: 'bg-amber-500/10 text-amber-600',
         },
         {
           id: 'fournisseurs',
@@ -121,7 +121,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           title: 'Rapports & États Comptables',
           subtitle: 'Compte de résultat, export Excel CSV et impression A4',
           icon: BarChart3,
-          color: 'bg-sky-500/10 text-sky-600',
+          color: 'bg-amber-500/10 text-amber-600',
         },
       ],
     },
@@ -133,7 +133,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           title: 'Réservations & Livraisons clients',
           subtitle: 'Réservations, avances, livraisons et annulations',
           icon: ClipboardList,
-          color: 'bg-sky-500/10 text-sky-700',
+          color: 'bg-amber-500/10 text-amber-700',
         },
         {
           id: 'dommages',
@@ -159,7 +159,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           title: 'Mouvements de Stock & Inventaire',
           subtitle: 'Traçabilité des flux et outil de réconciliation physique',
           icon: Layers,
-          color: 'bg-indigo-500/10 text-indigo-600',
+          color: 'bg-amber-500/10 text-amber-600',
         },
       ],
     },
@@ -173,7 +173,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
                 title: 'Installer sur Téléphone & Exporter APK',
                 subtitle: 'Installation directe sur Android (PWA) ou génération fichier .apk autonome',
                 icon: Smartphone,
-                color: 'bg-sky-500/10 text-sky-700',
+                color: 'bg-amber-500/10 text-amber-700',
                 onClick: onOpenApkModal,
               },
             ]
@@ -221,12 +221,12 @@ export const MenuHub: React.FC<MenuHubProps> = ({
       {/* Profile & Business Header */}
       <div className="bg-linear-to-r from-[#0F2444] to-[#1E3E62] rounded-3xl p-4 sm:p-5 text-white shadow-lg flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-sky-500 flex items-center justify-center text-lg font-black text-white shadow-md">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-lg font-black text-white shadow-md">
             {currentUser.name.charAt(0)}
           </div>
           <div>
             <h2 className="font-extrabold text-base text-white">{currentUser.name}</h2>
-            <p className="text-xs text-sky-200">
+            <p className="text-xs text-amber-200">
               Rôle : <span className="font-bold underline">{currentUser.role}</span> • {currentUser.email}
             </p>
             <p className="text-[11px] text-slate-300 mt-0.5">{settings.companyName}</p>
@@ -252,7 +252,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
               syncInfo.status === 'OFFLINE'
                 ? 'bg-amber-100 text-amber-800'
                 : syncInfo.status === 'SYNCING'
-                ? 'bg-sky-100 text-sky-800'
+                ? 'bg-amber-100 text-amber-800'
                 : 'bg-emerald-100 text-emerald-800'
             }`}
           >
@@ -291,7 +291,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           {syncInfo.status !== 'OFFLINE' && (
             <button
               onClick={onManualSync}
-              className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-xs transition"
+              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition"
             >
               Synchroniser
             </button>
@@ -326,7 +326,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
                       <Icon className="w-5 h-5" />
                     </div>
                     <div className="truncate">
-                      <h4 className="font-bold text-xs sm:text-sm text-slate-800 group-hover:text-sky-700 transition truncate">
+                      <h4 className="font-bold text-xs sm:text-sm text-slate-800 group-hover:text-amber-700 transition truncate">
                         {item.title}
                       </h4>
                       <p className="text-[11px] text-slate-400 truncate">{item.subtitle}</p>

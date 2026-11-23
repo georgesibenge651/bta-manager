@@ -141,7 +141,7 @@ export const StockMovements: React.FC<StockMovementsProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Layers className="w-5 h-5 text-sky-600" />
+            <Layers className="w-5 h-5 text-amber-600" />
             Traçabilité des Stocks & Inventaire Physique
           </h3>
           <p className="text-xs text-slate-500">
@@ -174,7 +174,7 @@ export const StockMovements: React.FC<StockMovementsProps> = ({
           {canEdit && activeTab === 'MOVEMENTS' && (
             <button
               onClick={() => setIsManualModalOpen(true)}
-              className="px-3 py-2 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center gap-1 shadow-md"
+              className="px-3 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1 shadow-md"
             >
               <Plus className="w-4 h-4" />
               Ajustement Manuel
@@ -189,7 +189,7 @@ export const StockMovements: React.FC<StockMovementsProps> = ({
           {/* Search and Filters Bar */}
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-            <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher produit, référence, motif ou agent..." className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500" />
+            <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher produit, référence, motif ou agent..." className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
             {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
           </div>
           <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 text-xs">
@@ -200,7 +200,7 @@ export const StockMovements: React.FC<StockMovementsProps> = ({
                   key={t}
                   onClick={() => setTypeFilter(t)}
                   className={`px-2.5 py-1 rounded-xl font-medium transition shrink-0 ${
-                    typeFilter === t ? 'bg-sky-600 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    typeFilter === t ? 'bg-amber-600 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   {t === 'ALL'
@@ -309,7 +309,7 @@ export const StockMovements: React.FC<StockMovementsProps> = ({
                           Conforme
                         </span>
                       ) : diff > 0 ? (
-                        <span className="text-sky-700 font-black text-xs bg-sky-50 px-2 py-0.5 rounded-md">
+                        <span className="text-amber-700 font-black text-xs bg-amber-50 px-2 py-0.5 rounded-md">
                           Excédent (+{diff})
                         </span>
                       ) : (
@@ -407,7 +407,7 @@ export const StockMovements: React.FC<StockMovementsProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md"
+                  className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md"
                 >
                   Enregistrer Mouvement
                 </button>

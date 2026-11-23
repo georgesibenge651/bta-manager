@@ -61,16 +61,16 @@ export const Navbar: React.FC<NavbarProps> = ({
       return <span className="bg-red-500/20 text-red-200 border border-red-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">ADMIN</span>;
     }
 
-    if (role === 'CASHIER') return <span className="bg-sky-500/20 text-sky-200 border border-sky-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">CAISSE</span>;
+    if (role === 'CASHIER') return <span className="bg-amber-500/20 text-amber-200 border border-amber-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">CAISSE</span>;
     return <span className="bg-amber-500/20 text-amber-200 border border-amber-400/40 text-[10px] px-2 py-0.5 rounded-full font-bold">MANAGER</span>;
   };
 
   return (
-    <header className="bg-[#0B1A30] text-white sticky top-0 z-30 shadow-md border-b border-sky-950">
+    <header className="bg-[#0B1A30] text-white sticky top-0 z-30 shadow-md border-b border-amber-950">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2">
         {/* Brand & Store Name */}
         <div onClick={currentUser.role === "ADMIN" ? onOpenSettings : undefined} className="flex items-center gap-2 sm:gap-3 cursor-pointer">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center shadow-lg shadow-sky-500/20 ring-2 ring-white/10 shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20 ring-2 ring-white/10 shrink-0">
             <Building2 className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -78,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="font-extrabold text-sm sm:text-base tracking-tight text-white flex items-center gap-1">
                 CHIEF ALPHONS COMPANY LTD
               </span>
-              <span className="bg-sky-400/20 text-sky-300 text-[10px] px-1.5 py-0.2 rounded font-semibold uppercase hidden md:inline">
+              <span className="bg-amber-400/20 text-amber-300 text-[10px] px-1.5 py-0.2 rounded font-semibold uppercase hidden md:inline">
                 {settings.timezone.replace('Africa/', '')}
               </span>
             </div>
@@ -98,7 +98,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
             <span className="text-slate-300 text-[11px]">1$ =</span>
-            <span className="font-bold text-sky-300 text-xs">{settings.exchangeRate} FC</span>
+            <span className="font-bold text-amber-300 text-xs">{settings.exchangeRate} FC</span>
           </div>
 
           {/* Sync & Connectivity Controller */}
@@ -114,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 syncInfo.status === 'OFFLINE'
                   ? 'bg-amber-950/80 text-amber-300 border-amber-600/50 hover:bg-amber-900'
                   : syncInfo.status === 'SYNCING'
-                  ? 'bg-sky-950 text-sky-300 border-sky-500/40 animate-pulse'
+                  ? 'bg-amber-950 text-amber-300 border-amber-500/40 animate-pulse'
                   : 'bg-emerald-950/80 text-emerald-300 border-emerald-600/40 hover:bg-emerald-900/60'
               }`}
               title="Cliquer pour basculer en mode Hors-ligne / En ligne"
@@ -126,7 +126,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </>
               ) : syncInfo.status === 'SYNCING' ? (
                 <>
-                  <RefreshCw className="w-3.5 h-3.5 text-sky-400 animate-spin" />
+                  <RefreshCw className="w-3.5 h-3.5 text-amber-400 animate-spin" />
                   <span className="hidden xs:inline">Synchro...</span>
                 </>
               ) : syncInfo.status === 'SYNCED' ? (
@@ -171,7 +171,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onOpenGlobalSearch && (
             <button
               onClick={onOpenGlobalSearch}
-              className="p-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 border border-sky-400/20 transition"
+              className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-200 border border-amber-400/20 transition"
               title="Recherche globale dans CHIEF ALPHONS COMPANY LTD"
               aria-label="Ouvrir la recherche globale"
             >
@@ -195,7 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={onToggleMobileFrame}
             className={`p-1.5 sm:p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition border ${
               isMobileFrame
-                ? 'bg-sky-500 text-white border-sky-400'
+                ? 'bg-amber-500 text-white border-amber-400'
                 : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
             }`}
             title={isMobileFrame ? 'Passer en plein écran responsive' : 'Passer en vue mobile Android'}
@@ -221,14 +221,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex items-center gap-2 p-1.5 pl-2 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition"
             title="Verrouiller / changer d'utilisateur"
           >
-            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
               {currentUser.name.charAt(0)}
             </div>
             <div className="hidden sm:block text-left text-xs leading-none pr-1">
               <p className="font-semibold text-slate-100 truncate max-w-[100px]">{currentUser.name}</p>
               <div className="mt-1">{getRoleBadge(currentUser.role)}</div>
             </div>
-            <span className="text-[10px] font-bold text-sky-300 pr-1">Verrouiller</span>
+            <span className="text-[10px] font-bold text-amber-300 pr-1">Verrouiller</span>
           </button>
         </div>
       </div>

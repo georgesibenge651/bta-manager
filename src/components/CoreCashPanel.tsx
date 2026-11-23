@@ -62,7 +62,7 @@ export function CoreCashPanel({tenantId,branchId,userId}:{tenantId:number;branch
     finally{actionLock.current=false;setBusy(false);}
   }
 
-  const fieldClass='w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100';
+  const fieldClass='w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100';
   const buttonClass='w-full rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
 
   return <div className="space-y-4 min-w-0">
@@ -112,6 +112,6 @@ export function CoreCashPanel({tenantId,branchId,userId}:{tenantId:number;branch
     {closeResult&&<section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 sm:p-4 space-y-2"><div className="flex items-center gap-2 font-bold text-sm text-emerald-900"><CheckCircle2 size={18}/>Clôture enregistrée</div><div className="grid grid-cols-2 gap-2 text-xs"><div className="rounded-lg bg-white/80 p-3"><span className="block text-slate-500">Solde théorique</span><strong>{money(closeResult.expected_amount,closeResult.currency??'USD')}</strong></div><div className="rounded-lg bg-white/80 p-3"><span className="block text-slate-500">Montant compté</span><strong>{money(closeResult.counted_amount,closeResult.currency??'USD')}</strong></div></div><div className="rounded-lg bg-white/80 p-3 text-sm"><span className="text-slate-600">Écart constaté : </span><strong className={Number(closeResult.difference)<0?'text-rose-700':Number(closeResult.difference)>0?'text-amber-700':'text-emerald-700'}>{money(closeResult.difference,closeResult.currency??'USD')}</strong></div></section>}
 
     <button type="button" disabled={busy} onClick={()=>void refresh().then(()=>{setUncertain(false);setMessage('État actualisé depuis Core.');}).catch(e=>{setMessage(String(e));setUncertain(true);})} className={`${buttonClass} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`}><span className="inline-flex items-center justify-center gap-2"><RefreshCw size={16} className={busy?'animate-spin':''}/>Actualiser depuis Core</span></button>
-    {message&&<p role="status" className="rounded-lg bg-sky-50 border border-sky-100 p-3 text-xs text-sky-900 break-words">{message}</p>}
+    {message&&<p role="status" className="rounded-lg bg-amber-50 border border-amber-100 p-3 text-xs text-amber-900 break-words">{message}</p>}
   </div>;
 }

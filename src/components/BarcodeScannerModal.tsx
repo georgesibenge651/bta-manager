@@ -61,7 +61,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         {/* Header */}
         <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Barcode className="w-6 h-6 text-sky-400" />
+            <Barcode className="w-6 h-6 text-amber-400" />
             <div>
               <h3 className="font-bold text-base">Scanner Code-barres</h3>
               <p className="text-xs text-slate-300">Caméra & Douchette laser</p>
@@ -77,26 +77,26 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
         {/* Camera simulation box */}
         <div className="p-4 space-y-4">
-          <div className="relative bg-slate-950 rounded-2xl h-48 overflow-hidden flex flex-col items-center justify-center border-2 border-dashed border-sky-400/60 shadow-inner">
+          <div className="relative bg-slate-950 rounded-2xl h-48 overflow-hidden flex flex-col items-center justify-center border-2 border-dashed border-amber-400/60 shadow-inner">
             {/* Animated laser scan line */}
             <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 flex items-center justify-center">
               <div className="w-full h-0.5 bg-red-500 shadow-[0_0_12px_#ef4444] animate-pulse"></div>
             </div>
             
             {/* Viewfinder brackets */}
-            <div className="absolute inset-6 border-2 border-sky-400/50 rounded-xl pointer-events-none flex flex-col justify-between">
+            <div className="absolute inset-6 border-2 border-amber-400/50 rounded-xl pointer-events-none flex flex-col justify-between">
               <div className="flex justify-between p-2">
-                <span className="w-4 h-4 border-t-2 border-l-2 border-sky-400"></span>
-                <span className="w-4 h-4 border-t-2 border-r-2 border-sky-400"></span>
+                <span className="w-4 h-4 border-t-2 border-l-2 border-amber-400"></span>
+                <span className="w-4 h-4 border-t-2 border-r-2 border-amber-400"></span>
               </div>
               <div className="flex justify-between p-2">
-                <span className="w-4 h-4 border-b-2 border-l-2 border-sky-400"></span>
-                <span className="w-4 h-4 border-b-2 border-r-2 border-sky-400"></span>
+                <span className="w-4 h-4 border-b-2 border-l-2 border-amber-400"></span>
+                <span className="w-4 h-4 border-b-2 border-r-2 border-amber-400"></span>
               </div>
             </div>
 
-            <Camera className="w-10 h-10 text-sky-400/40 mb-2 animate-bounce" />
-            <p className="text-xs text-sky-200 font-medium z-10 px-4 text-center">
+            <Camera className="w-10 h-10 text-amber-400/40 mb-2 animate-bounce" />
+            <p className="text-xs text-amber-200 font-medium z-10 px-4 text-center">
               Pointez la caméra vers le code-barres ou le SKU
             </p>
             <span className="mt-1 text-[10px] text-slate-400 bg-white/10 px-2 py-0.5 rounded-full">
@@ -113,13 +113,13 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 placeholder="Ou saisir le code / SKU..."
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"
                 autoFocus
               />
             </div>
             <button
               type="submit"
-              className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1 shadow-sm transition"
+              className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1 shadow-sm transition"
             >
               <Check className="w-4 h-4" />
               Valider
@@ -138,17 +138,17 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 <button
                   key={prod.id}
                   onClick={() => handleSelectProductBarcode(prod.barcode)}
-                  className="w-full text-left p-2 rounded-xl bg-slate-50 hover:bg-sky-50 hover:border-sky-300 border border-slate-200 flex items-center justify-between transition-colors group"
+                  className="w-full text-left p-2 rounded-xl bg-slate-50 hover:bg-amber-50 hover:border-amber-300 border border-slate-200 flex items-center justify-between transition-colors group"
                 >
                   <div className="truncate pr-2">
-                    <p className="font-semibold text-slate-800 truncate group-hover:text-sky-700">
+                    <p className="font-semibold text-slate-800 truncate group-hover:text-amber-700">
                       {prod.name}
                     </p>
                     <p className="text-[11px] text-slate-500 font-mono">
                       {prod.sku} • {prod.barcode}
                     </p>
                   </div>
-                  <span className="bg-sky-100 text-sky-800 text-[10px] px-2 py-0.5 rounded-md font-mono shrink-0">
+                  <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-md font-mono shrink-0">
                     Scanner
                   </span>
                 </button>

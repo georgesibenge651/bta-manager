@@ -39,7 +39,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       label: 'Ventes',
       icon: ShoppingCart,
       badge: cartItemCount,
-      badgeColor: 'bg-sky-500',
+      badgeColor: 'bg-amber-500',
     },
     {
       id: 'clients' as MainTab,
@@ -75,14 +75,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             >
               <div
                 className={`relative p-1.5 rounded-2xl transition-colors ${
-                  isActive ? 'bg-sky-100/90 text-sky-800 shadow-sm' : ''
+                  isActive ? 'bg-amber-100/90 text-amber-800 shadow-sm' : ''
                 }`}
               >
                 <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
                 {tab.badge > 0 && (
                   <span
                     className={`absolute -top-1 -right-1.5 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm ${
-                      tab.badgeColor || 'bg-sky-500'
+                      tab.badgeColor || 'bg-amber-500'
                     }`}
                   >
                     {tab.badge > 99 ? '99+' : tab.badge}

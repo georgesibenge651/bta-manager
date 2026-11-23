@@ -72,12 +72,12 @@ export const PinModal: React.FC<PinModalProps> = ({
         {/* Header */}
         <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400">
               <Lock className="w-4 h-4" />
             </div>
             <div>
               <h3 className="font-extrabold text-sm">{title}</h3>
-              <p className="text-[11px] text-sky-200">
+              <p className="text-[11px] text-amber-200">
                 {targetUser ? `${targetUser.name} (${targetUser.role})` : description || 'Authentification requise'}
               </p>
             </div>
@@ -100,7 +100,7 @@ export const PinModal: React.FC<PinModalProps> = ({
                   key={idx}
                   className={`w-4 h-4 rounded-full transition-all duration-150 ${
                     isFilled
-                      ? 'bg-sky-600 scale-110 shadow-sm shadow-sky-500/50'
+                      ? 'bg-amber-600 scale-110 shadow-sm shadow-amber-500/50'
                       : 'border-2 border-slate-300 bg-slate-100'
                   }`}
                 />
@@ -122,7 +122,7 @@ export const PinModal: React.FC<PinModalProps> = ({
                 key={digit}
                 type="button"
                 onClick={() => handleKeyPress(digit)}
-                className="h-12 rounded-2xl bg-slate-100 hover:bg-slate-200 active:bg-sky-100 text-slate-800 font-black text-lg transition flex items-center justify-center select-none"
+                className="h-12 rounded-2xl bg-slate-100 hover:bg-slate-200 active:bg-amber-100 text-slate-800 font-black text-lg transition flex items-center justify-center select-none"
               >
                 {digit}
               </button>
@@ -137,7 +137,7 @@ export const PinModal: React.FC<PinModalProps> = ({
             <button
               type="button"
               onClick={() => handleKeyPress('0')}
-              className="h-12 rounded-2xl bg-slate-100 hover:bg-slate-200 active:bg-sky-100 text-slate-800 font-black text-lg transition flex items-center justify-center select-none"
+              className="h-12 rounded-2xl bg-slate-100 hover:bg-slate-200 active:bg-amber-100 text-slate-800 font-black text-lg transition flex items-center justify-center select-none"
             >
               0
             </button>
@@ -156,7 +156,7 @@ export const PinModal: React.FC<PinModalProps> = ({
             disabled={pin.length < 4}
             className="w-full py-3 bg-[#0F2444] hover:bg-[#1E3E62] disabled:opacity-40 text-white rounded-2xl font-bold text-xs uppercase tracking-wider shadow-md transition flex items-center justify-center gap-1.5 mt-2"
           >
-            <ShieldCheck className="w-4 h-4 text-sky-400" />
+            <ShieldCheck className="w-4 h-4 text-amber-400" />
             Valider le Code PIN
           </button>
         </div>

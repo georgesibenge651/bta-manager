@@ -166,7 +166,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Header */}
         <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <SettingsIcon className="w-5 h-5 text-sky-400" />
+            <SettingsIcon className="w-5 h-5 text-amber-400" />
             <h3 className="font-bold text-base">Configuration CHIEF ALPHONS COMPANY LTD</h3>
           </div>
           <button
@@ -398,7 +398,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="flex justify-end pt-3">
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-2xl text-xs font-bold shadow-md flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl text-xs font-bold shadow-md flex items-center gap-1.5"
                 >
                   <Save className="w-4 h-4" />
                   Enregistrer les Modifications
@@ -409,16 +409,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {activeTab === 'CURRENCY' && (
             <div className="space-y-4">
-              <div className="bg-sky-50 p-4 rounded-2xl border border-sky-200 text-xs text-sky-900 space-y-2">
+              <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-2">
                 <h4 className="font-bold flex items-center gap-1.5 text-sm">
-                  <DollarSign className="w-4 h-4 text-sky-600" />
+                  <DollarSign className="w-4 h-4 text-amber-600" />
                   Règle d'Immuabilité du Taux de Change
                 </h4>
                 <p>
                   Lorsque vous modifiez le taux de change du jour, ce nouveau taux s'applique
                   uniquement aux <strong>nouvelles transactions</strong> (ventes, achats, dépenses).
                 </p>
-                <p className="text-[11px] text-sky-700">
+                <p className="text-[11px] text-amber-700">
                   Les anciennes factures conservent rigoureusement leur taux historique pour garantir
                   l'exactitude comptable et fiscale.
                 </p>
@@ -438,7 +438,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onChange={(e) =>
                         setFormData({ ...formData, exchangeRate: parseInt(e.target.value, 10) || 2800 })
                       }
-                      className="w-full text-xl font-black p-3 bg-white border border-slate-300 rounded-xl text-sky-900 focus:ring-2 focus:ring-sky-500"
+                      className="w-full text-xl font-black p-3 bg-white border border-slate-300 rounded-xl text-amber-900 focus:ring-2 focus:ring-amber-500"
                     />
                   </div>
                   <span className="font-bold text-sm text-slate-700 shrink-0">CDF / Francs</span>
@@ -447,7 +447,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="text-xs text-slate-600 pt-1">
                   Exemple de conversion : <br />
                   <strong>10.00 $ USD</strong> ={' '}
-                  <strong className="text-sky-800">
+                  <strong className="text-amber-800">
                     {new Intl.NumberFormat('fr-CD').format(10 * formData.exchangeRate)} FC
                   </strong>
                 </div>
@@ -462,7 +462,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       alert(err instanceof Error ? err.message : 'Enregistrement impossible.');
                     }
                   }}
-                  className="w-full py-2.5 bg-[#0F2444] hover:bg-sky-900 text-white font-bold text-xs rounded-xl shadow-xs transition"
+                  className="w-full py-2.5 bg-[#0F2444] hover:bg-amber-900 text-white font-bold text-xs rounded-xl shadow-xs transition"
                 >
                   Appliquer le Nouveau Taux
                 </button>
@@ -527,7 +527,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <button
                     type="submit"
-                    className="w-full py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold"
+                    className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold"
                   >
                     Créer le compte utilisateur
                   </button>
@@ -590,7 +590,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               if (phone === null) return;
                               onUpdateUserProfile(u.id, { name, email, phone });
                             }}
-                            className="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-800 text-[10px] font-bold rounded-lg border border-sky-200 transition"
+                            className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-[10px] font-bold rounded-lg border border-amber-200 transition"
                           >
                             Modifier
                           </button>
@@ -610,7 +610,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
 
                     {changingPinUserId === u.id && (
-                      <div className="p-2.5 bg-slate-50 rounded-xl border border-sky-200 flex items-center gap-2 pt-2">
+                      <div className="p-2.5 bg-slate-50 rounded-xl border border-amber-200 flex items-center gap-2 pt-2">
                         <span className="text-[11px] text-slate-600 font-semibold shrink-0">Nouveau PIN :</span>
                         <input
                           type="password"
@@ -623,7 +623,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleChangePinSubmit(u.id)}
-                          className="px-3 py-1.5 bg-[#0F2444] text-white rounded-lg text-[11px] font-bold hover:bg-sky-900"
+                          className="px-3 py-1.5 bg-[#0F2444] text-white rounded-lg text-[11px] font-bold hover:bg-amber-900"
                         >
                           Enregistrer
                         </button>
@@ -641,7 +641,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="space-y-4 text-xs">
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
                 <h4 className="font-bold text-slate-800 flex items-center gap-1.5 text-sm">
-                  <Download className="w-4 h-4 text-sky-600" />
+                  <Download className="w-4 h-4 text-amber-600" />
                   Exporter la Base de Données Complète
                 </h4>
                 <p className="text-slate-500">
@@ -651,7 +651,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button
                   type="button"
                   onClick={onExportDatabase}
-                  className="px-4 py-2 bg-[#0F2444] text-white rounded-xl font-bold flex items-center gap-1.5 hover:bg-sky-900"
+                  className="px-4 py-2 bg-[#0F2444] text-white rounded-xl font-bold flex items-center gap-1.5 hover:bg-amber-900"
                 >
                   <Download className="w-4 h-4" />
                   Télécharger Sauvegarde JSON
@@ -670,7 +670,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   type="file"
                   accept=".json"
                   onChange={handleFileImport}
-                  className="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"
+                  className="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
                 />
               </div>
 
