@@ -110,9 +110,9 @@ export default defineConfig(() => {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BTA Business Transform Africa</title>
+    <title>CHIEF ALPHONS COMPANY LTD</title>
     <meta name="description" content="Application professionnelle de gestion commerciale mobile pour commerces, quincailleries et distributeurs en Afrique avec gestion multidevise USD/CDF, caisse POS, stocks et synchronisation hors-ligne." />
-    <meta property="og:title" content="BTA Business Transform Africa" />
+    <meta property="og:title" content="CHIEF ALPHONS COMPANY LTD" />
     <meta property="og:description" content="Application professionnelle de gestion commerciale mobile pour commerces, quincailleries et distributeurs en Afrique avec gestion multidevise USD/CDF, caisse POS, stocks et synchronisation hors-ligne." />
     <meta property="og:type" content="website" />
     <meta name="theme-color" content="#0F2444" />
@@ -149,7 +149,7 @@ dist-ssr
 
   zip.file(
     'README.md',
-    `# 🏢 BTA Business Transform Africa (BTA Manager)
+    `# 🏢 CHIEF ALPHONS COMPANY LTD (CHIEF ALPHONS COMPANY LTD)
 
 Application mobile & web professionnelle de gestion commerciale, caisse enregistreuse tactile (POS), stocks, dettes, approvisionnements et multidevise (USD / Franc Congolais CDF).
 
@@ -322,7 +322,7 @@ class SyncWorker(
   return await zip.generateAsync({ type: 'blob' });
 }
 
-export function downloadProjectZip(blob: Blob, filename = 'bta-business-transform-africa-source.zip') {
+export function downloadProjectZip(blob: Blob, filename = 'chief-alphons-company-ltd-source.zip') {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

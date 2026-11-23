@@ -1,5 +1,5 @@
 /**
- * Security and PIN Management Utility for BTA Business Transform Africa
+ * Security and PIN Management Utility for CHIEF ALPHONS COMPANY LTD
  * Salted + stretched SHA-256 hashing for user PINs (never stored in clear text).
  *
  * Hash formats:

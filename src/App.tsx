@@ -258,14 +258,14 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
       // Direct HTTP download from backend server endpoint
       const link = document.createElement('a');
       link.href = '/api/download-zip';
-      link.setAttribute('download', 'bta-business-transform-africa.zip');
+      link.setAttribute('download', 'chief-alphons-company-ltd.zip');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch {
       try {
         const blob = await generateProjectZip();
-        downloadProjectZip(blob, 'bta-business-transform-africa.zip');
+        downloadProjectZip(blob, 'chief-alphons-company-ltd.zip');
       } catch (err) {
         console.error('Failed to generate ZIP archive', err);
         window.open('/api/download-zip', '_blank');

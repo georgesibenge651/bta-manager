@@ -76,7 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-extrabold text-sm sm:text-base tracking-tight text-white flex items-center gap-1">
-                BTA <span className="text-sky-400 font-medium hidden sm:inline">Africa</span>
+                CHIEF ALPHONS COMPANY LTD
               </span>
               <span className="bg-sky-400/20 text-sky-300 text-[10px] px-1.5 py-0.2 rounded font-semibold uppercase hidden md:inline">
                 {settings.timezone.replace('Africa/', '')}
@@ -172,7 +172,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={onOpenGlobalSearch}
               className="p-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 border border-sky-400/20 transition"
-              title="Recherche globale dans BTA Manager"
+              title="Recherche globale dans CHIEF ALPHONS COMPANY LTD"
               aria-label="Ouvrir la recherche globale"
             >
               <Search className="w-4 h-4" />

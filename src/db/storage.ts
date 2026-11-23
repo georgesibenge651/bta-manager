@@ -1,5 +1,5 @@
 /**
- * Storage and Repository Engine for BTA Business Transform Africa
+ * Storage and Repository Engine for CHIEF ALPHONS COMPANY LTD
  * Mirrors Android Room Database + WorkManager + Firestore Sync Architecture
  */
 
@@ -62,7 +62,7 @@ if (typeof window !== 'undefined') {
   localforage.config({
     name: 'bta_business_transform_africa',
     storeName: 'commercial_records_v1',
-    description: 'Stockage local persistant hors connexion pour BTA Manager (compatibilité Android SQLite/IndexedDB)',
+    description: 'Stockage local persistant hors connexion pour CHIEF ALPHONS COMPANY LTD (compatibilité Android SQLite/IndexedDB)',
   });
 }
 
@@ -296,7 +296,7 @@ const cleanState: AppDatabaseState = {
         });
 
         this.notify();
-        console.info('BTA inventory migration completed successfully.');
+        console.info('CHIEF ALPHONS COMPANY LTD inventory migration completed successfully.');
         return;
       }
 
@@ -332,7 +332,7 @@ const cleanState: AppDatabaseState = {
         this.notify();
       }
     } catch (e) {
-      console.error('BTA storage initialization/migration error:', e);
+      console.error('CHIEF ALPHONS COMPANY LTD storage initialization/migration error:', e);
     }
   }
 
@@ -368,7 +368,7 @@ const cleanState: AppDatabaseState = {
         };
       }
     } catch (e) {
-      console.warn('Failed to parse stored BTA state, initializing default dataset:', e);
+      console.warn('Failed to parse stored CHIEF ALPHONS COMPANY LTD state, initializing default dataset:', e);
     }
     return this.getDefaultState();
   }
@@ -440,7 +440,7 @@ freeIssues: [],
   }
 
   private flushDurable() {
-    void this.flushDurableAndWait().catch(error => console.warn('BTA durable storage write failed:', error));
+    void this.flushDurableAndWait().catch(error => console.warn('CHIEF ALPHONS COMPANY LTD durable storage write failed:', error));
   }
 
   private async flushDurableAndWait() {
@@ -1011,7 +1011,30 @@ const pendingCargoDeleteIds = new Set(
         this.state.cargoPackages = this.state.cargoPackages.filter(
   item => !pendingCargoDeleteIds.has(item.id)
 );
-        this.state.cargoPackages = this.state.cargoPackages.map(item => pendingCargoIds.has(item.id) ? item : (remoteIds.has(item.id) ? item : item));
+    const pendingLocalPackages = this.state.cargoPackages.filter(
+  item =>
+    pendingCargoIds.has(item.id) &&
+    !pendingCargoDeleteIds.has(item.id) &&
+    !remoteIds.has(item.id)
+);
+
+this.state.cargoPackages = [
+  ...cargoSnapshot.packages
+    .filter(remote =>
+      remote &&
+      typeof remote.id === 'string' &&
+      remote.data &&
+      typeof remote.data === 'object' &&
+      !pendingCargoDeleteIds.has(remote.id) &&
+      !pendingCargoIds.has(remote.id)
+    )
+    .map(remote => ({
+      ...(remote.data as unknown as CargoPackage),
+      id: remote.id,
+      syncStatus: 'SYNCED' as const
+    })),
+  ...pendingLocalPackages
+];
       }
       // Import-Export uses its own idempotent record endpoint, separate from Cargo and sync/push.
       const importSnapshot = await coreImportExportPull(ctx.tenantId, ctx.branchId);
@@ -1093,7 +1116,7 @@ const pendingCargoDeleteIds = new Set(
     }
     if (type === 'STOCK_ADJUSTMENT') {
       const product_id = await idOf('products', raw.productId);
-      return { branch_id, product_id, quantity_delta: raw.quantity_delta ?? raw.quantity, expected_quantity: raw.expected_quantity, reason: raw.reason ?? 'Ajustement BTA', _local_record_id: raw.id };
+      return { branch_id, product_id, quantity_delta: raw.quantity_delta ?? raw.quantity, expected_quantity: raw.expected_quantity, reason: raw.reason ?? 'Ajustement CHIEF ALPHONS COMPANY LTD', _local_record_id: raw.id };
     }
     if (type === 'DEBT_PAYMENT') {
       const debt_id = await idOf('debts', raw.debtId);
@@ -1705,7 +1728,7 @@ const pendingCargoDeleteIds = new Set(
 
   public addUser(user: Omit<User, 'id'>, initialPin?: string): User {
     this.requireAdmin();
-    if (this.coreContext) throw new Error('Ce formulaire crée uniquement un profil local. Pour un autre téléphone, utilisez une invitation Core et un compte serveur ; ce parcours reste à intégrer dans BTA.');
+    if (this.coreContext) throw new Error('Ce formulaire crée uniquement un profil local. Pour un autre téléphone, utilisez une invitation Core et un compte serveur ; ce parcours reste à intégrer dans CHIEF ALPHONS COMPANY LTD.');
     const name = (user.name || '').trim();
     if (!name) throw new Error('Le nom est obligatoire.');
     if (!initialPin || isWeakPin(initialPin)) {

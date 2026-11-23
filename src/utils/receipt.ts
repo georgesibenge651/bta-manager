@@ -1,5 +1,5 @@
 /**
- * Receipt & Invoicing Utilities for BTA Business Transform Africa
+ * Receipt & Invoicing Utilities for CHIEF ALPHONS COMPANY LTD
  * Supports 80mm Thermal Receipt, A4 Invoice, WhatsApp message generation and print triggers
  */
 

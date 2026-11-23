@@ -167,7 +167,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <SettingsIcon className="w-5 h-5 text-sky-400" />
-            <h3 className="font-bold text-base">Configuration BTA Africa</h3>
+            <h3 className="font-bold text-base">Configuration CHIEF ALPHONS COMPANY LTD</h3>
           </div>
           <button
             onClick={onClose}

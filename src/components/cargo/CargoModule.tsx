@@ -177,21 +177,46 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
     [packages, query]
   );
 
+  const getCargoAmounts = (pkg: CargoPackage) => {
+    const totalValue = Number(pkg.totalAmountUSD);
+    const total = Number.isFinite(totalValue)
+      ? Math.max(0, totalValue)
+      : 0;
+
+    const paymentsTotal = Array.isArray(pkg.payments)
+      ? pkg.payments.reduce((sum, payment) => {
+          const amount = Number(payment.amountUSD);
+          return sum + (
+            Number.isFinite(amount) && amount > 0 ? amount : 0
+          );
+        }, 0)
+      : 0;
+
+    const storedPaid = Number(pkg.amountPaidUSD);
+    const paidValue = paymentsTotal > 0
+      ? paymentsTotal
+      : Number.isFinite(storedPaid) && storedPaid > 0
+        ? storedPaid
+        : 0;
+
+    const paid = Math.min(total, paidValue);
+
+    return {
+      total,
+      paid: Math.round(paid * 100) / 100,
+      balance: Math.round(Math.max(0, total - paid) * 100) / 100,
+    };
+  };
+
   const total = packages.reduce(
-    (sum, pkg) => sum + pkg.totalAmountUSD,
-    0
+    (sum, pkg) => sum + getCargoAmounts(pkg).total, 0
   );
 
   const paid = packages.reduce(
-    (sum, pkg) => sum + pkg.amountPaidUSD,
-    0
+    (sum, pkg) => sum + getCargoAmounts(pkg).paid, 0
   );
 
-  const balance = packages.reduce(
-    (sum, pkg) => sum + pkg.remainingBalanceUSD,
-    0
-  );
-
+  const balance = Math.max(0, total - paid);
   const set = (key: keyof typeof form, value: string) =>
     setForm((old) => ({ ...old, [key]: value }));
 
@@ -464,7 +489,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                     </small>
                   </span>
                   <b className="text-sm">
-                    {money(pkg.totalAmountUSD)}
+                    {money(getCargoAmounts(pkg).total)}
                   </b>
                 </button>
               ))
@@ -527,13 +552,13 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                     <div>
                       <span className="text-slate-400">Payé</span>
                       <b className="block">
-                        {money(pkg.amountPaidUSD)}
+                        {money(getCargoAmounts(pkg).paid)}
                       </b>
                     </div>
                     <div>
                       <span className="text-slate-400">Solde</span>
                       <b className="block text-amber-700">
-                        {money(pkg.remainingBalanceUSD)}
+                        {money(getCargoAmounts(pkg).balance)}
                       </b>
                     </div>
                   </div>

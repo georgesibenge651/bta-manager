@@ -14,7 +14,7 @@ export function CoreInvitations({tenantId,role,branches}:{tenantId:number;role:C
   const act=async(fn:()=>Promise<void>)=>{if(lock.current)return;lock.current=true;setBusy(true);setMessage('');try{await fn();}catch(e){setMessage(`${String(e)} Actualisez la liste avant de réessayer.`);}finally{lock.current=false;setBusy(false);}};
   return <section className="space-y-3">
     <h3 className="font-bold">Inviter un utilisateur Core</h3>
-    <p className="text-xs">Le destinataire choisit « Invitation : nouveau compte » sur l’écran de connexion BTA et définit son mot de passe. Son PIN reste personnel à son téléphone.</p>
+    <p className="text-xs">Le destinataire choisit « Invitation : nouveau compte » sur l’écran de connexion CHIEF ALPHONS COMPANY LTD et définit son mot de passe. Son PIN reste personnel à son téléphone.</p>
     <form className="space-y-2" onSubmit={e=>{e.preventDefault();void act(async()=>{setCode('');const r=await coreCreateInvitation(tenantId,target,selected);if(!r.success||!r.code||r.invitation.role!==target)throw new Error('Rôle non confirmé par Core. Vérifiez la version du correctif et la liste des invitations.');setCode(r.code);await refresh();});}}>
       <label>Rôle <select aria-label="Rôle invité" value={target} onChange={e=>setTarget(e.target.value as InvitationRole)}>{roles.map(r=><option key={r}>{r}</option>)}</select></label>
       <fieldset><legend>Établissements autorisés</legend>{branches.map(b=><label key={b.id} className="block"><input type="checkbox" checked={selected.includes(b.id)} onChange={e=>setSelected(v=>e.target.checked?[...v,b.id]:v.filter(id=>id!==b.id))}/>{b.name}</label>)}</fieldset>

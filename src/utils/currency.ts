@@ -1,5 +1,5 @@
 /**
- * Currency and Date utilities for BTA Business Transform Africa
+ * Currency and Date utilities for CHIEF ALPHONS COMPANY LTD
  * Handles USD and Congolese Franc (CDF) conversions and formatting.
  */
 

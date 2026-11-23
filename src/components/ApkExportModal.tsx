@@ -53,7 +53,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
             </div>
             <div>
               <h3 className="font-extrabold text-base sm:text-lg">Installation Mobile & Export APK</h3>
-              <p className="text-xs text-sky-200">BTA Business Transform Africa pour Android</p>
+              <p className="text-xs text-sky-200">CHIEF ALPHONS COMPANY LTD pour Android</p>
             </div>
           </div>
           <button
@@ -114,7 +114,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                   Solution la plus rapide (Aucune compilation nécessaire)
                 </h4>
                 <p className="text-xs text-sky-800 leading-relaxed">
-                  BTA est conçue comme une Progressive Web App (PWA). Sur n’importe quel téléphone Android (Samsung, Tecno, Infinix, Xiaomi, etc.), Google Chrome installe directement l’application sur votre écran d’accueil avec son icône, son plein écran et son fonctionnement hors-ligne.
+                  CHIEF ALPHONS COMPANY LTD est conçue comme une Progressive Web App (PWA). Sur n’importe quel téléphone Android (Samsung, Tecno, Infinix, Xiaomi, etc.), Google Chrome installe directement l’application sur votre écran d’accueil avec son icône, son plein écran et son fonctionnement hors-ligne.
                 </p>
               </div>
 
@@ -166,7 +166,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                   <div>
                     <p className="font-bold text-slate-800">Sélectionnez « Installer l’application »</p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      (Ou <em>« Ajouter à l’écran d’accueil »</em>). Android génère automatiquement un <strong>WebAPK natif</strong> avec l’icône BTA sur votre bureau mobile !
+                      (Ou <em>« Ajouter à l’écran d’accueil »</em>). Android génère automatiquement un <strong>WebAPK natif</strong> avec l’icône CHIEF ALPHONS COMPANY LTD sur votre bureau mobile !
                     </p>
                   </div>
                 </div>
@@ -209,7 +209,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                   Projet Android Natif Prêt (Capacitor & Gradle)
                 </h4>
                 <p className="text-xs text-teal-800 leading-relaxed">
-                  Le dossier <code className="font-bold bg-white/70 px-1 py-0.5 rounded text-teal-900">android/</code> est 100% configuré avec Gradle, l’<code className="font-bold bg-white/70 px-1 py-0.5 rounded text-teal-900">AndroidManifest.xml</code>, le nom <strong>BTA Manager</strong> et l’ID <code className="font-mono text-teal-800 font-bold">com.businessafrica.bta.manager</code>.
+                  Le dossier <code className="font-bold bg-white/70 px-1 py-0.5 rounded text-teal-900">android/</code> est 100% configuré avec Gradle, l’<code className="font-bold bg-white/70 px-1 py-0.5 rounded text-teal-900">AndroidManifest.xml</code>, le nom <strong>CHIEF ALPHONS COMPANY LTD</strong> et l’ID <code className="font-mono text-teal-800 font-bold">com.businessafrica.bta.manager</code>.
                 </p>
               </div>
 
@@ -259,7 +259,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                   Comment intégrer et utiliser vos propres données
                 </h4>
                 <p className="text-xs text-emerald-800 leading-relaxed">
-                  Vous n’avez pas besoin de toucher au code informatique pour utiliser BTA avec vos vrais produits (farine de maïs Candol, huile, riz), vos vrais clients et vos taux de change.
+                  Vous n’avez pas besoin de toucher au code informatique pour utiliser CHIEF ALPHONS COMPANY LTD avec vos vrais produits (farine de maïs Candol, huile, riz), vos vrais clients et vos taux de change.
                 </p>
               </div>
 

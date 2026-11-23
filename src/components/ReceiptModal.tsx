@@ -257,7 +257,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                   {sale?.invoiceNumber || debtReceiptNumber}
                 </p>
                 <p className="text-[10px] text-slate-600 italic px-2">{settings.footerMessage}</p>
-                <p className="text-[9px] text-slate-400">Système BTA Africa • Lubumbashi</p>
+                <p className="text-[9px] text-slate-400">CHIEF ALPHONS COMPANY LTD • Lubumbashi</p>
               </div>
             </div>
           ) : (
@@ -303,7 +303,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 </div>
                 <div className="text-right">
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Émis par :</h4>
-                  <p className="text-sm font-bold text-slate-900 mt-1">{sale?.cashierName || 'Caisse Centrale BTA'}</p>
+                  <p className="text-sm font-bold text-slate-900 mt-1">{sale?.cashierName || 'Caisse Centrale CHIEF ALPHONS COMPANY LTD'}</p>
                   <p className="text-slate-600">Mode: {getPaymentMethodLabel(sale?.paymentMethod || 'CASH')}</p>
                 </div>
               </div>

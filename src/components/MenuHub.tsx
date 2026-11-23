@@ -78,7 +78,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
         },
         {
           id: 'cargo',
-          title: 'BTA Cargo & Suivi Colis',
+          title: 'CHIEF ALPHONS Cargo & Suivi Colis',
           subtitle: 'Expéditions internationales, suivi et paiements',
           icon: Truck,
           color: 'bg-indigo-500/10 text-indigo-600',

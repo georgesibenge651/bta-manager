@@ -352,7 +352,7 @@ export const Products: React.FC<ProductsProps> = ({
                       {product.name}
                     </h3>
                     <p className="text-[11px] text-slate-500 font-mono">
-                      SKU: {product.sku} • {product.brand || 'BTA'}
+                      SKU: {product.sku} • {product.brand || 'CHIEF ALPHONS COMPANY LTD'}
                     </p>
                   </div>
                 </div>

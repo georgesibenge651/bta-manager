@@ -17,7 +17,7 @@ export const PinModal: React.FC<PinModalProps> = ({
   onClose,
   targetUser,
   onSuccess,
-  title = 'Sécurité BTA – Code PIN Requis',
+  title = 'Sécurité CHIEF ALPHONS COMPANY LTD – Code PIN Requis',
   description,
   verifyPinFn,
 }) => {
