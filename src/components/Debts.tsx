@@ -28,7 +28,7 @@ export const Debts: React.FC<DebtsProps> = ({
 
   // Payment form state
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [paymentAmountUSD, setPaymentAmountUSD] = useState<number>(0);
+  const [paymentAmountUSD, setPaymentAmountUSD] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [paymentNotes, setPaymentNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -40,7 +40,7 @@ export const Debts: React.FC<DebtsProps> = ({
 
   const handleOpenPayment = (debt: DebtRecord) => {
     setSelectedDebt(debt);
-    setPaymentAmountUSD(debt.remainingBalanceUSD);
+    setPaymentAmountUSD(String(debt.remainingBalanceUSD));
     setPaymentMethod('CASH');
     setPaymentNotes('');
     setErrorMessage('');
@@ -54,7 +54,7 @@ export const Debts: React.FC<DebtsProps> = ({
 
     const res = onRecordDebtPayment(
       selectedDebt.id,
-      paymentAmountUSD,
+      Number(paymentAmountUSD.replace(',', '.')),
       paymentMethod,
       paymentNotes.trim() || undefined
     );
@@ -66,7 +66,7 @@ export const Debts: React.FC<DebtsProps> = ({
 
     setIsPaymentModalOpen(false);
     if (res.updatedDebt && res.receiptNumber) {
-      onOpenDebtReceipt(res.updatedDebt, paymentAmountUSD, res.receiptNumber);
+      onOpenDebtReceipt(res.updatedDebt, Number(paymentAmountUSD.replace(',', '.')), res.receiptNumber);
     }
   };
 
@@ -262,12 +262,13 @@ export const Debts: React.FC<DebtsProps> = ({
                 <label className="text-xs font-bold text-slate-700 block mb-1">Montant Versé (USD) *</label>
                 <input
                   type="number"
-                  step="0.5"
-                  min="0.1"
+                  step="0.01"
+                  inputMode="decimal"
+                  min="0.01"
                   max={selectedDebt.remainingBalanceUSD}
                   required
                   value={paymentAmountUSD}
-                  onChange={(e) => setPaymentAmountUSD(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => setPaymentAmountUSD(e.target.value)}
                   className="w-full text-base font-black p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500"
                 />
               </div>

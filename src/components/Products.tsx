@@ -52,6 +52,7 @@ export const Products: React.FC<ProductsProps> = ({
   const [stockFilter, setStockFilter] = useState<'ALL' | 'LOW' | 'OUT'>('ALL');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [photoReading, setPhotoReading] = useState(false);
   const [viewingHistoryProduct, setViewingHistoryProduct] = useState<Product | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
@@ -112,7 +113,7 @@ export const Products: React.FC<ProductsProps> = ({
       description: '',
       categoryId: categories[0]?.id || '',
       brand: '',
-      photoUrl: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=400&auto=format&fit=crop&q=80',
+      photoUrl: '',
       buyPriceUSD: 0,
       sellPriceUSD: 0,
       currentStock: 0,
@@ -145,7 +146,7 @@ export const Products: React.FC<ProductsProps> = ({
 
   const handleSaveProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    if (photoReading || !formData.name.trim()) return;
 
     onSaveProduct({
       id: editingProduct ? editingProduct.id : undefined,
@@ -318,11 +319,11 @@ export const Products: React.FC<ProductsProps> = ({
                 {/* Header: Photo, Status Badge & Title */}
                 <div className="flex gap-3">
                   <div className="w-16 h-16 rounded-2xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                    <img
+                    {product.photoUrl && <img
                       src={product.photoUrl}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+                    />}
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -480,6 +481,20 @@ export const Products: React.FC<ProductsProps> = ({
             </div>
 
             <form onSubmit={handleSaveProductSubmit} className="p-4 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              <label className="block text-sm">Photo facultative (galerie)
+                <input type="file" disabled={photoReading} accept="image/jpeg,image/png,image/webp" onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) { alert('Choisissez une image JPG, PNG ou WebP de 2 Mo maximum.'); return; }
+                  setPhotoReading(true);
+                  const reader = new FileReader();
+                  reader.onloadend = () => setPhotoReading(false);
+                  reader.onload = () => setFormData(previous => ({...previous, photoUrl: String(reader.result)}));
+                  reader.onerror = () => alert('Lecture de la photo impossible.');
+                  reader.readAsDataURL(file);
+                }}/>
+              </label>
+              {formData.photoUrl && <div><img src={formData.photoUrl} alt="Photo sélectionnée" className="h-24 w-24 object-cover rounded"/><button type="button" disabled={photoReading} onClick={() => setFormData(previous => ({...previous,photoUrl:''}))}>Retirer la photo</button></div>}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Code SKU *</label>
@@ -667,7 +682,7 @@ export const Products: React.FC<ProductsProps> = ({
                   Annuler
                 </button>
                 <button
-                  type="submit"
+                  type="submit" disabled={photoReading}
                   className="px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md"
                 >
                   Enregistrer

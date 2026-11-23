@@ -121,7 +121,7 @@ async function startServer() {
   app.get('/api/health', (req: Request, res: Response) => {
     res.json({
       status: 'ok',
-      app: 'BTA Business Transform Africa',
+      app: 'CHIEF ALPHONS COMPANY LTD',
       version: '1.0.0',
       timezone: 'Africa/Lubumbashi',
       timestamp: new Date().toISOString(),

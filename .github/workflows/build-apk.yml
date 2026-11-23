@@ -1,13 +1,26 @@
-name: Build APK
+
+name: BTA Manager - CI & APK Release
 
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches:
+      - main
+      - master
+      - feature/bta-anonymous-manager
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bta-manager-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  apk:
+  verify-and-build:
+    name: Tests, Web build and signed Android APK
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -17,6 +30,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -24,59 +38,99 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Accept Android SDK licenses
+            - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platform-tools
+            platforms;android-36
+            build-tools;36.0.0
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Install application and backend dependencies
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          npm ci --legacy-peer-deps --no-audit --no-fund
+          npm --prefix functions ci --no-audit --no-fund
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund
+      - name: TypeScript validation
+        run: npm run lint
 
-      - name: Unit tests (sync engine)
+      - name: Unit and synchronization tests
         run: npm run test:unit
+
+      - name: Server functions tests
+        run: npm run test:functions
+
+      - name: Firestore rules tests
+        run: npm run test:rules
+
+      - name: Validate and test WordPress Core
+        run: |
+          set -euo pipefail
+          if ! command -v php >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y php-cli
+          fi
+          find wordpress/fondation-kenda-core -name '*.php' -print0 | xargs -0 -r -n1 php -l
+          npm run test:core
+          python3 scripts/package-core.py
 
       - name: Build web application
         run: npm run build
 
-      - name: Sync Capacitor
+      - name: Sync Capacitor Android
         run: npx cap sync android
 
-      - name: Prepare permanent signing key
+      - name: Prepare and verify Android release signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD_SECRET: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD_SECRET: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS_SECRET: ${{ secrets.KEY_ALIAS }}
         run: |
           set -euo pipefail
 
           if [ -z "$KEYSTORE_BASE64" ] || \
              [ -z "$KEYSTORE_PASSWORD_SECRET" ] || \
+             [ -z "$KEY_PASSWORD_SECRET" ] || \
              [ -z "$KEY_ALIAS_SECRET" ]; then
-            echo "ERROR: Permanent Android signing secrets are missing."
+            echo "ERROR: Android signing secrets are missing."
             exit 1
           fi
 
           KEYSTORE_FILE="$RUNNER_TEMP/bta-release.jks"
-
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_FILE"
 
           if [ ! -s "$KEYSTORE_FILE" ]; then
-            echo "ERROR: Keystore file is empty or invalid."
+            echo "ERROR: The decoded keystore is empty."
             exit 1
           fi
 
           keytool -list \
             -keystore "$KEYSTORE_FILE" \
             -storepass "$KEYSTORE_PASSWORD_SECRET" \
-            -alias "$KEY_ALIAS_SECRET" > /dev/null
+            -keypass "$KEY_PASSWORD_SECRET" \
+            -alias "$KEY_ALIAS_SECRET" >/dev/null
 
           {
             echo "KEYSTORE_PATH=$KEYSTORE_FILE"
             echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD_SECRET"
-            echo "KEY_PASSWORD=$KEYSTORE_PASSWORD_SECRET"
+            echo "KEY_PASSWORD=$KEY_PASSWORD_SECRET"
             echo "KEY_ALIAS=$KEY_ALIAS_SECRET"
           } >> "$GITHUB_ENV"
 
-          echo "Permanent signing key verified successfully."
+          echo "Android release signing key verified."
 
       - name: Build signed release APK
         working-directory: android
@@ -84,9 +138,18 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
 
-      - name: Upload APK
+      - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: bta-manager-apk
+          name: bta-manager-release-apk
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Fondation Kenda Core package
+        uses: actions/upload-artifact@v4
+        with:
+          name: fondation-kenda-core
+          path: artifacts/fondation-kenda-core-*.zip
+          if-no-files-found: error
+          retention-days: 30

@@ -22,6 +22,7 @@ import {
   ClipboardList,
   AlertTriangle,
   Gift,
+  Ship,
 } from 'lucide-react';
 import { User, CompanySettings, SyncStatusInfo } from '../types';
 
@@ -76,12 +77,26 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           color: 'bg-blue-500/10 text-blue-600',
         },
         {
+          id: 'cargo',
+          title: 'BTA Cargo & Suivi Colis',
+          subtitle: 'Expéditions internationales, suivi et paiements',
+          icon: Truck,
+          color: 'bg-indigo-500/10 text-indigo-600',
+        },
+        {
           id: 'fournisseurs',
           title: 'Fournisseurs & Contacts',
           subtitle: 'Répertoire des distributeurs et solde dû',
           icon: Building,
           color: 'bg-emerald-500/10 text-emerald-600',
         },
+        {
+        id: 'import-export',
+        title: 'Import-Export & Suivi des Colis',
+        subtitle: 'Gestion des colis clients, frais de transport et facturation',
+        icon: Ship,
+        color: 'bg-amber-500/10 text-amber-600',
+      },
       ],
     },
     {
@@ -204,7 +219,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
   return (
     <div className="space-y-4 pb-20 max-w-4xl mx-auto px-3 sm:px-4 pt-3">
       {/* Profile & Business Header */}
-      <div className="bg-gradient-to-r from-[#0F2444] to-[#1E3E62] rounded-3xl p-4 sm:p-5 text-white shadow-lg flex items-center justify-between">
+      <div className="bg-linear-to-r from-[#0F2444] to-[#1E3E62] rounded-3xl p-4 sm:p-5 text-white shadow-lg flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-sky-500 flex items-center justify-center text-lg font-black text-white shadow-md">
             {currentUser.name.charAt(0)}
@@ -251,9 +266,9 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           </div>
           <div>
             <h4 className="font-bold text-xs text-slate-900">
-              État Synchronisation Cloud Firestore :{' '}
+              État synchronisation Gestion Entreprise :{' '}
               <span className={syncInfo.status === 'OFFLINE' ? 'text-amber-700' : 'text-emerald-700'}>
-                {syncInfo.status === 'OFFLINE' ? 'Mode Hors-Ligne (Room DB Local)' : 'Connecté & En Ligne'}
+                {syncInfo.status === 'OFFLINE' ? 'Mode hors ligne (stockage local)' : 'En ligne'}
               </span>
             </h4>
             <p className="text-[11px] text-slate-500">

@@ -1,0 +1,24 @@
+Corrections réalisées
+- Paramètres > Utilisateurs & Rôles : invitation Core, sélection ADMIN/MANAGER/CASHIER selon le rôle connecté, choix des établissements, code partageable, liste récente et statuts, révocation.
+- Connexion : inscription avec invitation et mot de passe personnel (12 caractères minimum), ou acceptation avec un compte Core existant. Contexte de l’entreprise invitante sélectionné, puis récupération des branches et permissions par les mécanismes existants. Aucun compte Firebase impliqué.
+- Serveur : OWNER invite ADMIN/MANAGER/CASHIER ; ADMIN invite MANAGER/CASHIER ; autres rôles refusés. OWNER exclu des rôles attribuables. Contrôles de membership, members.manage, branches et absence de délégation de permissions supérieures. Droits de l’invitant revérifiés à l’acceptation.
+- Révocation conditionnelle sur statut PENDING non expiré ; inscription/acceptation verrouillent l’invitation pendant la transaction. Rôle fourni à l’inscription ignoré ; rôle stocké dans l’invitation utilisé.
+- Centre de synchronisation > Historiques Core : lecture paginée des ventes, dettes clients, paiements SALE/DEBT et remboursements de ventes. Permission sales.read/debts.read selon ressource ; les paiements demandent les deux. Filtrage serveur tenant/branche.
+- Cache historique distinct par entreprise/établissement/compte ; aucun remplacement des ventes, dettes ou opérations locales en attente. Réception automatique à l’ouverture du centre et bouton d’actualisation. Auteur affiché par ID serveur quand disponible.
+
+Fichiers modifiés
+Core : includes/class-fkc-core.php ; nouveau includes/class-fkc-history-api.php ; fondation-kenda-core.php ; tests/php/invitations-history.php.
+Application : src/core/{api.ts,session.tsx,signIn.tsx,history.ts,history.test.ts} ; src/components/{CoreInvitations.tsx,CoreHistoryPanel.tsx,CoreSyncCenter.tsx,SettingsModal.tsx} ; src/App.tsx ; présent rapport.
+
+Tests ciblés
+- php tests/php/invitations-history.php : réussi. Handlers Core réels sur frontière WP/DB simulée : 20 combinaisons de rôles, isolation des branches/tenants, refus d’escalade, révocation et permissions, expiration/réutilisation refusées, trois inscriptions avec rôle stocké, connexion/membership et sessions distinctes, acceptation par compte existant, historiques autorisés/refusés.
+- tsx --test src/core/history.test.ts : 2 réussis. Deux contextes d’appareils simulés récupèrent les mêmes pages ; caches isolés et opérations locales préservées ; contrats API d’invitation/inscription sans rôle ni bearer à l’inscription.
+- tsc --noEmit : réussi. php -l : les trois fichiers Core modifiés passent. git diff --check : réussi.
+- Échec intermédiaire : le test d’un tenant étranger conservait par erreur le tenant de sa fixture ; fixture corrigée, contrôle final réussi. Avertissements de nom de tenant manquant dans la fixture également corrigés. Aucun échec final.
+
+Limites et tests réels requis
+- Aucun WordPress réel, compte réel ou téléphone utilisé. Partage Android, clavier, inscription et connexion sur deux téléphones, révocation concurrente et droits personnalisés restent à tester après installation du correctif Core sur un environnement de test.
+- Historiques consultables en lecture seule dans le centre ; pas de fusion dans les anciennes listes locales de ventes/dettes ni d’édition depuis ce panneau. Détails des lignes de vente, dettes fournisseurs et paiements d’achats hors de ce nouveau panneau. Les écritures métier existantes restent disponibles selon leurs permissions.
+- La liste d’invitations reprend la limite existante de 100 invitations récentes. Code secret disponible seulement lors de la création ; aucune transmission automatique par e-mail.
+- Correctif Core requis avant l’application : nouvelle route GET /tenants/{tenant_id}/history/{sales|debts|payments|refunds} et renforcement des routes d’invitation existantes. Version du plugin conservée ; aucune migration destructive.
+- Aucun ancien test relancé, aucune compilation APK, publication WordPress ou opération GitHub.

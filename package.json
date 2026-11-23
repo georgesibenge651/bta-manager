@@ -1,7 +1,7 @@
 {
   "name": "bta-manager",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.0.1",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -13,10 +13,11 @@
     "cap:build": "vite build && npx cap sync android",
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
-    "test:unit": "tsx --test src/db/syncEngine.test.ts",
+    "test:unit": "tsx --test src/db/syncEngine.test.ts src/core/bootstrap.test.ts src/db/coreStorage.test.ts",
     "test:functions": "npm --prefix functions run build && node --test functions/lib/syncPlan.test.js functions/lib/permissions.test.js",
     "test:rules": "firebase emulators:exec --only firestore --project demo-bta \"node --test tests/rules.test.mjs\"",
-    "test": "npm run test:unit && npm run test:functions && npm run test:rules"
+    "test": "npm run test:unit && npm run test:functions && npm run test:rules",
+    "test:core": "php tests/php/core-sync.php"
   },
   "dependencies": {
     "@capacitor-firebase/app": "^8.6.0",
@@ -47,17 +48,18 @@
     "vite": "^8.3.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.28.2",
+    "fake-indexeddb": "^6.2.8",
+    "firebase-tools": "^14.0.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "@firebase/rules-unit-testing": "^4.0.1",
-    "firebase-tools": "^14.0.0"
+    "typescript": "^5.9.3"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,

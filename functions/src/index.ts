@@ -6,6 +6,8 @@ export {
   createTenant,
   createBranch,
   inviteMember,
+  inviteAnonymousManager,
+  acceptAnonymousInvitation,
   acceptInvitation,
   setBranchAccess,
   deactivateMember,

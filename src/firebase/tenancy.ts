@@ -89,6 +89,34 @@ export function acceptInvitation(code: string) {
   return callFunction<{ tenantId: string }>('acceptInvitation', { tenantId, invitationId });
 }
 
+export const inviteAnonymousManager = (
+  tenantId: string,
+  branches: { branchId: string; permissions?: string[] }[],
+) => callFunction<{ tenantId: string; code: string }>(
+  'inviteAnonymousManager',
+  { tenantId, branches },
+);
+
+export function acceptAnonymousInvitation(code: string) {
+  const value = code.trim();
+  const separator = value.indexOf('.');
+  if (separator <= 0) {
+    throw new Error('Code d’invitation invalide.');
+  }
+
+  const tenantId = value.slice(0, separator);
+  const token = value.slice(separator + 1);
+
+  if (!/^[a-f0-9]{64}$/i.test(token)) {
+    throw new Error('Code d’invitation invalide.');
+  }
+
+  return callFunction<{ tenantId: string; role: 'MANAGER'; alreadyAccepted?: boolean }>(
+    'acceptAnonymousInvitation',
+    { tenantId, token },
+  );
+}
+
 export const setBranchAccess = (
   tenantId: string, uid: string, branchId: string, role: TenantRole | null, permissions?: string[],
 ) => callFunction<{ ok: true }>('setBranchAccess', { tenantId, uid, branchId, role, permissions });

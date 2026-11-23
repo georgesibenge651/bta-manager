@@ -1,38 +1,16 @@
-BTA MANAGER — PHASE 1 : RACCORDEMENT DU COMPTE ADMINISTRATEUR
+BTA MANAGER — Caisse et clôture lisible
 
-Contenu :
-- src/components/LockScreen.tsx : ajoute un formulaire de connexion Firebase dans l'écran PIN.
-- src/db/storage.ts : ajoute l'association explicite de l'UID au profil local ADMIN.
+Cette mise à jour remplace le champ ambigu « solde initial ou montant compté » par deux parcours distincts : ouverture de caisse et clôture.
 
-Installation dans Termux :
-1. Faites une copie de sécurité :
-   cd ~/bta
-   cp src/components/LockScreen.tsx src/components/LockScreen.tsx.backup
-   cp src/db/storage.ts src/db/storage.ts.backup
+À la clôture, le bouton ouvre un formulaire. Le caissier saisit le montant physiquement compté, puis confirme. Après confirmation du serveur, l’écran affiche le solde théorique, le montant compté et l’écart retourné par Core.
 
-2. Placez le ZIP dans Download puis :
-   cp ~/storage/shared/Download/bta-phase1-raccordement-firebase.zip ~/
-   cd ~/bta
-   unzip -o ~/bta-phase1-raccordement-firebase.zip
+Le correctif ne change ni les routes serveur ni les règles comptables. Il corrige également le bouton d’ouverture pour respecter la règle serveur : une seule caisse ouverte par utilisateur à la fois, quelle que soit la devise.
 
-3. Vérifiez :
-   npm run lint
-   npm run build
+Installation depuis la racine du dépôt :
+1. Copier ce ZIP dans le dossier du projet.
+2. unzip -o BTA_ENTERPRISE_CASH_DESIGN_20261114.zip
+3. git apply --check BTA_ENTERPRISE_CASH_DESIGN.patch
+4. Si le contrôle passe : git apply BTA_ENTERPRISE_CASH_DESIGN.patch
+5. npm run lint && npm run build && npm run test:unit
 
-4. Si les deux commandes réussissent :
-   npx cap sync android
-
-Utilisation :
-- Ouvrir l'écran de verrouillage.
-- Choisir le profil local administrateur.
-- Appuyer sur « Associer mon compte Firebase ».
-- Saisir georgesibenge651@gmail.com et le mot de passe Firebase dans l'application.
-- Appuyer sur « Vérifier et associer le compte ».
-- Ensuite, continuer à utiliser le PIN local habituel.
-
-IMPORTANT :
-- Ne communiquez jamais votre mot de passe dans le chat.
-- Cette phase associe seulement le compte Firebase au profil local.
-- Elle n'active PAS encore la synchronisation Firestore.
-- Elle ne change pas les règles Firestore ni les données commerciales.
-- Ne déployez pas l'application en multi-utilisateur avant la phase suivante de création des membres d'entreprise et des règles de sécurité.
+Ne pas faire de commit/push avant validation sur l’APK.
