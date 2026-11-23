@@ -199,12 +199,23 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
         ? storedPaid
         : 0;
 
-    const paid = Math.min(total, paidValue);
+    // Le solde enregistré par le registre Cargo est la référence.
+    // Certains anciens paiements contiennent amountUSD en FC (données historiques) :
+    // les additionner directement comme des USD gonfle artificiellement le montant encaissé.
+    const storedBalance = Number(pkg.remainingBalanceUSD);
+    const hasValidStoredBalance =
+      Number.isFinite(storedBalance) && storedBalance >= 0;
+
+    const balance = hasValidStoredBalance
+      ? Math.min(total, Math.round(storedBalance * 100) / 100)
+      : Math.round(Math.max(0, total - Math.min(total, paidValue)) * 100) / 100;
+
+    const paid = Math.round(Math.max(0, total - balance) * 100) / 100;
 
     return {
       total,
-      paid: Math.round(paid * 100) / 100,
-      balance: Math.round(Math.max(0, total - paid) * 100) / 100,
+      paid,
+      balance,
     };
   };
 
