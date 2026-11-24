@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CreditCard, DollarSign, Calendar, History, ArrowDownRight, ArrowUpRight, X, Search } from 'lucide-react';
 import { DebtRecord, PaymentMethod } from '../types';
 import { formatUSD, formatCDF, formatDateLubumbashi } from '../utils/currency';
+import { useLanguage } from '../i18n';
 
 interface DebtsProps {
   debts: DebtRecord[];
@@ -23,6 +24,7 @@ export const Debts: React.FC<DebtsProps> = ({
   onRecordDebtPayment,
   onOpenDebtReceipt,
 }) => {
+  const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'CUSTOMER' | 'SUPPLIER'>('CUSTOMER');
   const [selectedDebt, setSelectedDebt] = useState<DebtRecord | null>(null);
 
@@ -60,7 +62,7 @@ export const Debts: React.FC<DebtsProps> = ({
     );
 
     if (!res.success) {
-      setErrorMessage(res.error || 'Erreur lors du règlement');
+      setErrorMessage(res.error || t('Erreur lors du règlement', 'Error recording payment'));
       return;
     }
 
@@ -76,10 +78,10 @@ export const Debts: React.FC<DebtsProps> = ({
         <div>
           <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-amber-600" />
-            Module Indépendant des Dettes & Créances
+            {t('Module Indépendant des Dettes & Créances', 'Standalone Receivables & Payables Module')}
           </h3>
           <p className="text-xs text-slate-500">
-            Suivi des créances clients et dettes fournisseurs sans perte d'historique
+            {t("Suivi des créances clients et dettes fournisseurs sans perte d'historique", 'Track customer receivables and supplier payables with a complete history')}
           </p>
         </div>
 
@@ -92,7 +94,7 @@ export const Debts: React.FC<DebtsProps> = ({
             }`}
           >
             <ArrowDownRight className="w-4 h-4 text-emerald-400" />
-            Créances Clients
+            {t('Créances Clients', 'Customer Receivables')}
           </button>
           <button
             onClick={() => setActiveTab('SUPPLIER')}
@@ -101,7 +103,7 @@ export const Debts: React.FC<DebtsProps> = ({
             }`}
           >
             <ArrowUpRight className="w-4 h-4 text-amber-400" />
-            Dettes Fournisseurs
+            {t('Dettes Fournisseurs', 'Supplier Payables')}
           </button>
         </div>
       </div>
@@ -110,7 +112,7 @@ export const Debts: React.FC<DebtsProps> = ({
       <div className="bg-gradient-to-r from-slate-900 to-[#0F2444] rounded-3xl p-4 sm:p-5 text-white flex justify-between items-center shadow-md">
         <div>
           <span className="text-xs text-slate-300 font-semibold uppercase">
-            Total {activeTab === 'CUSTOMER' ? 'Créances à Encaisser' : 'Dettes à Régler'}
+            {t('Total', 'Total')} {activeTab === 'CUSTOMER' ? t('Créances à Encaisser', 'Receivables to Collect') : t('Dettes à Régler', 'Payables Due')}
           </span>
           <p className="text-2xl font-black text-white mt-1">{formatUSD(totalRemainingUSD)}</p>
           <p className="text-xs text-amber-300 font-bold">
@@ -118,16 +120,16 @@ export const Debts: React.FC<DebtsProps> = ({
           </p>
         </div>
         <div className="text-right text-xs text-slate-300">
-          <p className="font-bold text-white">{filteredDebts.length} dossiers enregistrés</p>
-          <p className="text-[10px] text-slate-400">Taux: 1$ = {exchangeRate} FC</p>
+          <p className="font-bold text-white">{filteredDebts.length} {t('dossiers enregistrés', 'records')}</p>
+          <p className="text-[10px] text-slate-400">{t('Taux', 'Rate')}: 1$ = {exchangeRate} FC</p>
         </div>
       </div>
 
       {/* Search */}
       <div className="relative bg-white rounded-2xl border border-slate-200 p-3">
         <Search className="w-4 h-4 absolute left-6 top-5 text-slate-400" />
-        <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher par nom, téléphone, facture, échéance ou montant..." className="w-full pl-8 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
-        {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-6 top-5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
+        <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder={t('Rechercher par nom, téléphone, facture, échéance ou montant...', 'Search by name, phone, invoice, due date, or amount...')} className="w-full pl-8 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
+        {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-6 top-5 text-slate-400" aria-label={t('Effacer la recherche', 'Clear search')}><X className="w-4 h-4" /></button>}
       </div>
 
       {/* Debts List */}
@@ -145,7 +147,7 @@ export const Debts: React.FC<DebtsProps> = ({
                   <div>
                     <h4 className="font-bold text-sm text-slate-900">{debt.partyName}</h4>
                     <p className="text-[11px] text-slate-500 font-mono">
-                      Ref: {debt.referenceInvoice} • Tél: {debt.partyPhone}
+                      {t('Réf', 'Ref')}: {debt.referenceInvoice} • {t('Tél', 'Phone')}: {debt.partyPhone}
                     </p>
                   </div>
                   <span
@@ -153,21 +155,21 @@ export const Debts: React.FC<DebtsProps> = ({
                       isCleared ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                     }`}
                   >
-                    {isCleared ? 'Entièrement Soldé' : 'En Cours'}
+                    {isCleared ? t('Entièrement Soldé', 'Paid in Full') : t('En Cours', 'Outstanding')}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-2xl text-xs text-slate-600 text-center">
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Initial</span>
+                    <span className="text-[10px] text-slate-400 block">{t('Initial', 'Original')}</span>
                     <strong className="text-slate-800">{formatUSD(debt.initialAmountUSD)}</strong>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Déjà Payé</span>
+                    <span className="text-[10px] text-slate-400 block">{t('Déjà Payé', 'Paid')}</span>
                     <strong className="text-emerald-700">{formatUSD(debt.paidAmountUSD)}</strong>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Solde Dû</span>
+                    <span className="text-[10px] text-slate-400 block">{t('Solde Dû', 'Balance Due')}</span>
                     <strong className={isCleared ? 'text-emerald-700' : 'text-amber-800'}>
                       {formatUSD(debt.remainingBalanceUSD)}
                     </strong>
@@ -178,7 +180,7 @@ export const Debts: React.FC<DebtsProps> = ({
                 {debt.history.length > 0 && (
                   <div className="space-y-1 text-xs pt-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">
-                      Historique des versements ({debt.history.length}) :
+                      {t('Historique des versements', 'Payment History')} ({debt.history.length}) :
                     </span>
                     <div className="space-y-1 max-h-24 overflow-y-auto">
                       {debt.history.map((h) => (
@@ -202,7 +204,7 @@ export const Debts: React.FC<DebtsProps> = ({
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[10px] text-slate-400 flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  Échéance: {new Date(debt.dueDate).toLocaleDateString('fr-FR')}
+                  {t('Échéance', 'Due')}: {formatDateLubumbashi(debt.dueDate, false, language === 'en' ? 'en-US' : 'fr-FR')}
                 </span>
 
                 {!isCleared && canPay && (
@@ -210,7 +212,7 @@ export const Debts: React.FC<DebtsProps> = ({
                     onClick={() => handleOpenPayment(debt)}
                     className="px-3 py-1.5 text-xs font-bold bg-[#0F2444] hover:bg-amber-900 text-white rounded-xl shadow-xs transition"
                   >
-                    Enregistrer Versement
+                    {t('Enregistrer Versement', 'Record Payment')}
                   </button>
                 )}
               </div>
@@ -225,7 +227,7 @@ export const Debts: React.FC<DebtsProps> = ({
           <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-200">
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-base">Enregistrer Règlement Financier</h3>
+                <h3 className="font-bold text-base">{t('Enregistrer Règlement Financier', 'Record Payment')}</h3>
                 <p className="text-xs text-amber-300">{selectedDebt.partyName}</p>
               </div>
               <button
@@ -245,13 +247,13 @@ export const Debts: React.FC<DebtsProps> = ({
 
               <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex justify-between text-xs">
                 <div>
-                  <span className="text-slate-500">Reste à solder :</span>
+                  <span className="text-slate-500">{t('Reste à solder :', 'Remaining Balance:')}</span>
                   <p className="text-base font-black text-slate-900">
                     {formatUSD(selectedDebt.remainingBalanceUSD)}
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="text-slate-500">En Francs :</span>
+                  <span className="text-slate-500">{t('En Francs :', 'In Francs:')}</span>
                   <p className="text-xs font-bold text-amber-800">
                     {formatCDF(selectedDebt.remainingBalanceUSD * exchangeRate)}
                   </p>
@@ -259,7 +261,7 @@ export const Debts: React.FC<DebtsProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Montant Versé (USD) *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Montant Versé (USD) *', 'Amount Paid (USD) *')}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -274,23 +276,23 @@ export const Debts: React.FC<DebtsProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Moyen de Paiement</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Moyen de Paiement', 'Payment Method')}</label>
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium"
                 >
-                  <option value="CASH">Espèces (Cash)</option>
+                  <option value="CASH">{t('Espèces (Cash)', 'Cash')}</option>
                   <option value="MOBILE_MONEY">Mobile Money (M-Pesa, Airtel...)</option>
-                  <option value="BANK_TRANSFER">Virement Bancaire</option>
+                  <option value="BANK_TRANSFER">{t('Virement Bancaire', 'Bank Transfer')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Notes / Référence</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Notes / Référence', 'Notes / Reference')}</label>
                 <input
                   type="text"
-                  placeholder="Ex: Réf reçu bancaire ou versement guichet..."
+                  placeholder={t('Ex: Réf reçu bancaire ou versement guichet...', 'e.g., Bank receipt reference or counter payment...')}
                   value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
@@ -303,13 +305,13 @@ export const Debts: React.FC<DebtsProps> = ({
                   onClick={() => setIsPaymentModalOpen(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
                 >
-                  Annuler
+                  {t('Annuler', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md"
                 >
-                  Valider & Générer Reçu
+                  {t('Valider & Générer Reçu', 'Confirm & Generate Receipt')}
                 </button>
               </div>
             </form>

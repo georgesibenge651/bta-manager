@@ -3,6 +3,7 @@ import { appRepository } from '../db/storage';
 import { coreRegisterInvited, coreRegisterOwner, coreAcceptInvitation, clearCoreToken, coreBranches, coreBranchPermissions, coreLogin, coreLogout, coreMe, CoreApiError, CoreBranch, CoreMembership, CoreMe, CoreRole, getCoreToken, setCoreToken } from './api';
 import { CoreSignIn } from './signIn';
 import { Preferences } from '@capacitor/preferences';
+import { useLanguage } from '../i18n';
 
 const CONTEXT_KEY = 'bta_core_context_v1';
 const CACHED_SESSION_KEY = 'bta_core_session_cache_v1';
@@ -14,6 +15,7 @@ const Context = createContext<CoreSessionValue | null>(null);
 export const useCoreSession = () => useContext(Context);
 
 export function CoreSessionGate({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   const [me, setMe] = useState<CoreMe | null>(null);
   const [membership, setMembership] = useState<CoreMembership | null>(null);
   const [branches, setBranches] = useState<CoreBranch[]>([]);
@@ -84,7 +86,7 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
     const onUnauthorized = (event: Event) => { const detail = (event as CustomEvent).detail; void Preferences.remove({ key: CACHED_SESSION_KEY }); appRepository.logout(); setMe(null); setMembership(null); setBranches([]); setBranch(null); setPermissions([]); setError(`Session expirée — requête: ${detail?.path ?? 'inconnue'} | HTTP ${detail?.status ?? 401} | ${detail?.code ?? 'unknown'}`); };
     window.addEventListener('bta-core-unauthorized', onUnauthorized);
     return () => window.removeEventListener('bta-core-unauthorized', onUnauthorized);
-  }, []);
+  }, [t]);
 
   const signIn = async (email: string, password: string) => {
     await Preferences.remove({ key: CACHED_SESSION_KEY });
@@ -117,9 +119,9 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
   };
   const selectBranch = async (id: number) => {
     const selected = branches.find(x => x.id === id);
-    if (!selected || !membership) throw new Error('Établissement indisponible.');
+    if (!selected || !membership) throw new Error(t('Établissement indisponible.','Branch unavailable.'));
     const access = await coreBranchPermissions(membership.tenantId, id);
-    if (access.role !== membership.role) throw new Error('Le rôle de session ne correspond pas aux droits Core.');
+    if (access.role !== membership.role) throw new Error(t('Le rôle de session ne correspond pas aux droits Core.','Session role does not match Core permissions.'));
     await appRepository.bootstrapCoreData(membership.tenantId, id, access.permissions);
     await Preferences.set({ key: CONTEXT_KEY, value: JSON.stringify({ tenantId: membership.tenantId, branchId: id }) });
     setPermissions(access.permissions);
@@ -130,10 +132,17 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => me && membership && branch ? { me, membership, branch, branches, permissions, selectBranch, signOut, refresh } : null,
     [me, membership, branch, branches, permissions]);
-  if (busy) return <div className="min-h-screen grid place-items-center">Connexion à Gestion Entreprise…</div>;
-  if (!me) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} onOwnerSignUp={ownerSignUp} error={error} />;
-  if (!membership) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} onOwnerSignUp={ownerSignUp} error="Ce compte n’appartient à aucune entreprise active." />;
-  if (!branches.length || !branch) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} onOwnerSignUp={ownerSignUp} error="Aucun établissement actif n’est disponible pour cette entreprise." />;
+  const visibleError = error === 'Session en cache : le serveur est indisponible. Les écritures restent en file locale.'
+    ? t('Session en cache : le serveur est indisponible. Les écritures restent en file locale.', 'Using cached session: the server is unavailable. Changes remain queued locally.')
+    : error === 'Connexion au Core impossible.'
+      ? t('Connexion au Core impossible.', 'Unable to connect to Core.')
+      : error.startsWith('Session expirée — requête: ')
+        ? `${t('Session expirée — requête:','Session expired — request:')}${error.slice('Session expirée — requête:'.length).replace('inconnue', t('inconnue','unknown'))}`
+        : error;
+  if (busy) return <div className="min-h-screen grid place-items-center">{t('Connexion à Gestion Entreprise…','Connecting to Business Management…')}</div>;
+  if (!me) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} onOwnerSignUp={ownerSignUp} error={visibleError} />;
+  if (!membership) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} onOwnerSignUp={ownerSignUp} error={t('Ce compte n’appartient à aucune entreprise active.','This account does not belong to an active company.')} />;
+  if (!branches.length || !branch) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} onOwnerSignUp={ownerSignUp} error={t('Aucun établissement actif n’est disponible pour cette entreprise.','No active branch is available for this company.')} />;
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 

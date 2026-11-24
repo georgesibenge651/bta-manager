@@ -20,6 +20,7 @@ import {
 import confetti from 'canvas-confetti';
 import { Product, Customer, Sale, PaymentMethod, User } from '../types';
 import { formatUSD, formatCDF, usdToCdf, formatDateLubumbashi } from '../utils/currency';
+import { useLanguage } from '../i18n';
 
 interface SalesPOSProps {
   products: Product[];
@@ -62,6 +63,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
   cart,
   onUpdateCart,
 }) => {
+  const { language, t } = useLanguage();
   const [activeView, setActiveView] = useState<'POS' | 'HISTORY'>('POS');
   const [searchTerm, setSearchTerm] = useState('');
   const [historySearch, setHistorySearch] = useState('');
@@ -120,13 +122,13 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
       const updated = [...cart];
       const nextQty = updated[existingIndex].quantity + 1;
       if (nextQty > product.currentStock) {
-        alert(`Attention: Stock disponible dépassé (${product.currentStock} ${product.unit})`);
+        alert(t(`Attention: Stock disponible dépassé (${product.currentStock} ${product.unit})`, `Warning: Available stock exceeded (${product.currentStock} ${product.unit})`));
       }
       updated[existingIndex].quantity = nextQty;
       onUpdateCart(updated);
     } else {
       if (product.currentStock <= 0) {
-        alert(`Attention: Ce produit est en rupture de stock !`);
+        alert(t('Attention: Ce produit est en rupture de stock !', 'Warning: This product is out of stock!'));
       }
       onUpdateCart([
         ...cart,
@@ -169,7 +171,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
   };
 
   const handleClearCart = () => {
-    if (confirm('Vider le panier de vente ?')) {
+    if (confirm(t('Vider le panier de vente ?', 'Clear the sales cart?'))) {
       onUpdateCart([]);
       setDiscountUSD(0);
       setSelectedCustomerId('');
@@ -196,17 +198,17 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
     if (paymentMethod === 'CREDIT') {
       finalAmountPaidUSD = 0;
       if (!selectedCustomerId) {
-        setErrorMessage('La vente à crédit exige obligatoirement la sélection d’un client enregistré.');
+        setErrorMessage(t('La vente à crédit exige obligatoirement la sélection d’un client enregistré.', 'A registered customer must be selected for a credit sale.'));
         return;
       }
     } else if (paymentMethod === 'PARTIAL') {
       finalAmountPaidUSD = currencyPaidType === 'USD' ? amountReceivedUSD : amountReceivedCDF / exchangeRate;
       if (!Number.isFinite(finalAmountPaidUSD) || finalAmountPaidUSD <= 0 || finalAmountPaidUSD >= totalUSD) {
-        setErrorMessage('Pour un paiement partiel, l’acompte doit être supérieur à 0 et inférieur au total.');
+        setErrorMessage(t('Pour un paiement partiel, l’acompte doit être supérieur à 0 et inférieur au total.', 'For a partial payment, the deposit must be greater than 0 and less than the total.'));
         return;
       }
       if (!selectedCustomerId) {
-        setErrorMessage('La vente partielle exige obligatoirement un client enregistré pour la dette restante.');
+        setErrorMessage(t('La vente partielle exige obligatoirement un client enregistré pour la dette restante.', 'A registered customer must be selected for the remaining balance on a partial sale.'));
         return;
       }
     } else {
@@ -218,9 +220,11 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
       const remainingDebt = totalUSD - finalAmountPaidUSD;
       if (selectedCustomer.debtBalanceUSD + remainingDebt > selectedCustomer.creditLimitUSD) {
         const proceed = confirm(
-          `Attention: Cette vente va dépasser la limite de crédit accordée à ${selectedCustomer.name} (Limite: ${formatUSD(
+          t(`Attention: Cette vente va dépasser la limite de crédit accordée à ${selectedCustomer.name} (Limite: ${formatUSD(
             selectedCustomer.creditLimitUSD
-          )}, Solde actuel: ${formatUSD(selectedCustomer.debtBalanceUSD)}). Continuer quand même ?`
+          )}, Solde actuel: ${formatUSD(selectedCustomer.debtBalanceUSD)}). Continuer quand même ?`, `Warning: This sale will exceed the credit limit for ${selectedCustomer.name} (Limit: ${formatUSD(
+            selectedCustomer.creditLimitUSD
+          )}, Current balance: ${formatUSD(selectedCustomer.debtBalanceUSD)}). Continue anyway?`)
         );
         if (!proceed) return;
       }
@@ -233,7 +237,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
     let allowNegative = false;
     if (shortages.length > 0) {
       const list = shortages.map((p) => `${p.name} (stock ${p.currentStock})`).join(', ');
-      if (!confirm(`Stock insuffisant pour : ${list}. Vendre quand même (le stock deviendra négatif) ?`)) return;
+      if (!confirm(t(`Stock insuffisant pour : ${list}. Vendre quand même (le stock deviendra négatif) ?`, `Insufficient stock for: ${list}. Sell anyway (stock will become negative)?`))) return;
       allowNegative = true;
     }
 
@@ -255,7 +259,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
     });
 
     if (!result.success) {
-      setErrorMessage(result.error || 'Erreur lors de la validation de la vente');
+      setErrorMessage(result.error || t('Erreur lors de la validation de la vente', 'Error validating the sale'));
       return;
     }
 
@@ -299,7 +303,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
             }`}
           >
             <ShoppingCart className="w-4 h-4" />
-            Caisse Enregistreuse
+            {t('Caisse Enregistreuse', 'Point of Sale')}
           </button>
           <button
             onClick={() => setActiveView('HISTORY')}
@@ -308,7 +312,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
             }`}
           >
             <History className="w-4 h-4" />
-            Historique Factures ({sales.length})
+            {t('Historique Factures', 'Invoice History')} ({sales.length})
           </button>
         </div>
 
@@ -317,7 +321,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
           className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs hover:bg-slate-800 transition"
         >
           <Barcode className="w-4 h-4 text-amber-400" />
-          <span className="hidden sm:inline">Scanner</span> Douchette
+          <span className="hidden sm:inline">{t('Scanner', 'Scan')}</span> {t('Douchette', 'Barcode scanner')}
         </button>
       </div>
 
@@ -330,7 +334,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
               <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
               <input
                 type="text"
-                placeholder="Chercher article par nom, SKU ou code-barres..."
+                placeholder={t('Chercher article par nom, SKU ou code-barres...', 'Search items by name, SKU, or barcode...')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-2xl shadow-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
@@ -413,9 +417,9 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
               <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="w-5 h-5 text-amber-600" />
-                  <h3 className="font-bold text-sm text-slate-800">Panier de Vente</h3>
+                  <h3 className="font-bold text-sm text-slate-800">{t('Panier de Vente', 'Sales Cart')}</h3>
                   <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">
-                    {cart.reduce((sum, i) => sum + i.quantity, 0)} articles
+                    {cart.reduce((sum, i) => sum + i.quantity, 0)} {t('articles', 'items')}
                   </span>
                 </div>
                 {cart.length > 0 && (
@@ -424,33 +428,33 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     className="text-[11px] font-semibold text-red-500 hover:text-red-700 flex items-center gap-1"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    Vider
+                    {t('Vider', 'Clear')}
                   </button>
                 )}
               </div>
 
               {/* Customer Selector */}
               <div>
-                <label className="text-[11px] font-bold text-slate-500 block mb-1">Client de la Vente :</label>
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">{t('Client de la Vente :', 'Customer:')}</label>
                 <select
                   value={selectedCustomerId}
                   onChange={(e) => setSelectedCustomerId(e.target.value)}
                   className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500"
                 >
-                  <option value="">Client Comptoir (Vente Directe Anonyme)</option>
+                  <option value="">{t('Client Comptoir (Vente Directe Anonyme)', 'Walk-in Customer (Anonymous Direct Sale)')}</option>
                   {customers.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name} {c.debtBalanceUSD > 0 ? `(Dette: ${formatUSD(c.debtBalanceUSD)})` : ''}
+                      {c.name} {c.debtBalanceUSD > 0 ? `(${t('Dette:', 'Debt:')} ${formatUSD(c.debtBalanceUSD)})` : ''}
                     </option>
                   ))}
                 </select>
                 {selectedCustomer && (
                   <div className="mt-1 flex items-center justify-between text-[10px] bg-slate-50 px-2.5 py-1 rounded-lg text-slate-600">
                     <span>
-                      Dette actuelle: <strong className="text-amber-700">{formatUSD(selectedCustomer.debtBalanceUSD)}</strong>
+                      {t('Dette actuelle:', 'Current debt:')} <strong className="text-amber-700">{formatUSD(selectedCustomer.debtBalanceUSD)}</strong>
                     </span>
                     <span>
-                      Plafond Crédit: <strong className="text-slate-800">{formatUSD(selectedCustomer.creditLimitUSD)}</strong>
+                      {t('Plafond Crédit:', 'Credit Limit:')} <strong className="text-slate-800">{formatUSD(selectedCustomer.creditLimitUSD)}</strong>
                     </span>
                   </div>
                 )}
@@ -474,7 +478,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                       <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
                         {/* Editable Unit Price */}
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] text-slate-500 font-medium">Prix unit. ($) :</span>
+                          <span className="text-[11px] text-slate-500 font-medium">{t('Prix unit. ($) :', 'Unit price ($):')}</span>
                           <input
                             type="number"
                             step="0.1"
@@ -484,7 +488,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                               handleUpdateUnitPrice(item.product.id, parseFloat(e.target.value))
                             }
                             className="w-20 px-2 py-0.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 text-right focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
-                            title="Modifier librement le prix unitaire pour cette vente"
+                            title={t('Modifier librement le prix unitaire pour cette vente', 'Change the unit price for this sale')}
                           />
                         </div>
 
@@ -506,7 +510,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                           <button
                             onClick={() => handleRemoveFromCart(item.product.id)}
                             className="text-slate-400 hover:text-red-600 ml-1 p-1"
-                            title="Retirer l'article"
+                            title={t("Retirer l'article", 'Remove item')}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -517,8 +521,8 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                 ) : (
                   <div className="text-center py-10 text-slate-400 space-y-1">
                     <ShoppingCart className="w-8 h-8 mx-auto opacity-30" />
-                    <p className="text-xs">Le panier est vide</p>
-                    <p className="text-[10px]">Sélectionnez des articles à gauche ou scannez un code-barres</p>
+                    <p className="text-xs">{t('Le panier est vide', 'Your cart is empty')}</p>
+                    <p className="text-[10px]">{t('Sélectionnez des articles à gauche ou scannez un code-barres', 'Select items on the left or scan a barcode')}</p>
                   </div>
                 )}
               </div>
@@ -528,7 +532,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
             <div className="pt-3 border-t border-slate-200 space-y-2.5">
               {/* Discount Input */}
               <div className="flex items-center justify-between gap-2 text-xs">
-                <span className="text-slate-500">Remise exceptionnelle (USD) :</span>
+                <span className="text-slate-500">{t('Remise exceptionnelle (USD) :', 'Special discount (USD):')}</span>
                 <input
                   type="number"
                   step="0.5"
@@ -543,11 +547,11 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
               {/* Totals Display */}
               <div className="bg-[#0F2444] text-white p-3.5 rounded-2xl shadow-inner space-y-1">
                 <div className="flex justify-between items-baseline">
-                  <span className="text-xs text-slate-300">Total Net à Payer :</span>
+                  <span className="text-xs text-slate-300">{t('Total Net à Payer :', 'Net Total Due:')}</span>
                   <span className="text-xl sm:text-2xl font-black text-white">{formatUSD(totalUSD)}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-amber-300 text-[11px]">Équivalent en Francs Congolais :</span>
+                  <span className="text-amber-300 text-[11px]">{t('Équivalent en Francs Congolais :', 'Equivalent in Congolese Francs:')}</span>
                   <span className="font-bold text-amber-300 text-sm">{formatCDF(totalCDF)}</span>
                 </div>
                 <div className="text-[9px] text-slate-400 text-right">
@@ -562,7 +566,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                 className="w-full py-3 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 disabled:opacity-50 text-white rounded-2xl font-black text-sm shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Check className="w-5 h-5" />
-                {canCreate ? `Encaisser & Valider (${formatUSD(totalUSD)})` : 'Consultation uniquement'}
+                {canCreate ? `${t('Encaisser & Valider', 'Charge & Complete')} (${formatUSD(totalUSD)})` : t('Consultation uniquement', 'View only')}
               </button>
             </div>
           </div>
@@ -571,13 +575,13 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
         /* History of Sales */
         <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h3 className="font-bold text-sm text-slate-900">Historique des Factures Enregistrées</h3>
-            <span className="text-xs text-slate-500">{filteredSales.length} / {sales.length} ventes</span>
+            <h3 className="font-bold text-sm text-slate-900">{t('Historique des Factures Enregistrées', 'Recorded Invoice History')}</h3>
+            <span className="text-xs text-slate-500">{filteredSales.length} / {sales.length} {t('ventes', 'sales')}</span>
           </div>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-            <input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder="Rechercher facture, client, téléphone, produit ou caissier..." className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
-            {historySearch && <button onClick={() => setHistorySearch('')} className="absolute right-3 top-2.5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
+            <input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder={t('Rechercher facture, client, téléphone, produit ou caissier...', 'Search invoices, customers, phone numbers, products, or cashiers...')} className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
+            {historySearch && <button onClick={() => setHistorySearch('')} className="absolute right-3 top-2.5 text-slate-400" aria-label={t('Effacer la recherche', 'Clear search')}><X className="w-4 h-4" /></button>}
           </div>
 
           <div className="divide-y divide-slate-100 overflow-x-auto">
@@ -595,13 +599,13 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     </span>
                     {sale.debtAmountUSD > 0 && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800">
-                        Dette: {formatUSD(sale.debtAmountUSD)}
+                        {t('Dette:', 'Debt:')} {formatUSD(sale.debtAmountUSD)}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-slate-600 mt-1 font-semibold truncate">{sale.customerName}</p>
                   <p className="text-[10px] text-slate-400">
-                    {formatDateLubumbashi(sale.date)} • Par {sale.cashierName} • {sale.items.length} articles
+                    {formatDateLubumbashi(sale.date, true, language === 'en' ? 'en-US' : 'fr-FR')} • {t('Par', 'By')} {sale.cashierName} • {sale.items.length} {t('articles', 'items')}
                   </p>
                 </div>
 
@@ -609,12 +613,12 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                   <p className="text-sm font-black text-slate-900">{formatUSD(sale.totalUSD)}</p>
                   <p className="text-[10px] text-amber-700 font-bold">{formatCDF(sale.totalCDF)}</p>
                   <span className="text-[10px] text-amber-600 underline font-medium mt-1 inline-block">
-                    Voir Reçu
+                    {t('Voir Reçu', 'View Receipt')}
                   </span>
                 </div>
               </div>
             ))}
-            {filteredSales.length === 0 && <p className="py-8 text-center text-xs text-slate-400">Aucune facture correspondante.</p>}
+            {filteredSales.length === 0 && <p className="py-8 text-center text-xs text-slate-400">{t('Aucune facture correspondante.', 'No matching invoices.')}</p>}
           </div>
         </div>
       )}
@@ -626,9 +630,9 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
             {/* Modal Header */}
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-base">Règlement de la Vente</h3>
+                <h3 className="font-bold text-base">{t('Règlement de la Vente', 'Sale Payment')}</h3>
                 <p className="text-xs text-amber-300">
-                  Client: {selectedCustomer ? selectedCustomer.name : 'Client Comptoir'}
+                  {t('Client:', 'Customer:')} {selectedCustomer ? selectedCustomer.name : t('Client Comptoir', 'Walk-in Customer')}
                 </p>
               </div>
               <button
@@ -650,11 +654,11 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
               {/* Total Summary Header */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
                 <div>
-                  <span className="text-xs text-slate-500 font-semibold">Total Transaction</span>
+                  <span className="text-xs text-slate-500 font-semibold">{t('Total Transaction', 'Transaction Total')}</span>
                   <p className="text-xl font-black text-[#0F2444]">{formatUSD(totalUSD)}</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-slate-500 font-semibold">Total en CDF</span>
+                  <span className="text-xs text-slate-500 font-semibold">{t('Total en CDF', 'Total in CDF')}</span>
                   <p className="text-lg font-black text-amber-800">{formatCDF(totalCDF)}</p>
                   <p className="text-[10px] text-slate-400">1$ = {exchangeRate} FC</p>
                 </div>
@@ -662,7 +666,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
 
               {/* Payment Method Selector */}
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-2">Mode de Paiement :</label>
+                <label className="text-xs font-bold text-slate-700 block mb-2">{t('Mode de Paiement :', 'Payment Method:')}</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   <button
                     type="button"
@@ -674,7 +678,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     }`}
                   >
                     <Banknote className="w-5 h-5 text-emerald-600" />
-                    <span>Espèces (Cash)</span>
+                    <span>{t('Espèces (Cash)', 'Cash')}</span>
                   </button>
 
                   <button
@@ -687,7 +691,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     }`}
                   >
                     <Smartphone className="w-5 h-5 text-amber-600" />
-                    <span>Mobile Money</span>
+                    <span>{t('Mobile Money', 'Mobile Money')}</span>
                   </button>
 
                   <button
@@ -700,7 +704,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     }`}
                   >
                     <CreditCard className="w-5 h-5 text-amber-600" />
-                    <span>Virement</span>
+                    <span>{t('Virement', 'Bank Transfer')}</span>
                   </button>
 
                   <button
@@ -713,7 +717,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     }`}
                   >
                     <Receipt className="w-5 h-5 text-purple-600" />
-                    <span>Paiement Partiel</span>
+                    <span>{t('Paiement Partiel', 'Partial Payment')}</span>
                   </button>
 
                   <button
@@ -726,7 +730,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     }`}
                   >
                     <AlertTriangle className="w-5 h-5 text-red-600" />
-                    <span>100% à Crédit</span>
+                    <span>{t('100% à Crédit', '100% on Credit')}</span>
                   </button>
                 </div>
               </div>
@@ -735,7 +739,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
               {paymentMethod !== 'CREDIT' && (
                 <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-700">Monnaie Encaissée en :</label>
+                    <label className="text-xs font-bold text-slate-700">{t('Monnaie Encaissée en :', 'Payment Currency:')}</label>
                     <div className="flex bg-slate-200 p-0.5 rounded-xl text-xs">
                       <button
                         type="button"
@@ -760,7 +764,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
 
                   {currencyPaidType === 'USD' ? (
                     <div>
-                      <label className="text-xs font-bold text-slate-600 block mb-1">Montant Reçu (USD) :</label>
+                      <label className="text-xs font-bold text-slate-600 block mb-1">{t('Montant Reçu (USD) :', 'Amount Received (USD):')}</label>
                       <input
                         type="number"
                         step="0.5"
@@ -775,7 +779,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                       />
                       {paymentMethod === 'CASH' && amountReceivedUSD > totalUSD && (
                         <div className="mt-2 p-2 bg-emerald-50 rounded-xl flex justify-between text-xs text-emerald-800 font-bold">
-                          <span>Monnaie à rendre :</span>
+                          <span>{t('Monnaie à rendre :', 'Change due:')}</span>
                           <span>
                             {formatUSD(changeUSD)} ({formatCDF(usdToCdf(changeUSD, exchangeRate))})
                           </span>
@@ -784,7 +788,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                     </div>
                   ) : (
                     <div>
-                      <label className="text-xs font-bold text-slate-600 block mb-1">Montant Reçu (CDF) :</label>
+                      <label className="text-xs font-bold text-slate-600 block mb-1">{t('Montant Reçu (CDF) :', 'Amount Received (CDF):')}</label>
                       <input
                         type="number"
                         step="500"
@@ -799,7 +803,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                       />
                       {paymentMethod === 'CASH' && amountReceivedCDF > totalCDF && (
                         <div className="mt-2 p-2 bg-emerald-50 rounded-xl flex justify-between text-xs text-emerald-800 font-bold">
-                          <span>Monnaie à rendre :</span>
+                          <span>{t('Monnaie à rendre :', 'Change due:')}</span>
                           <span>{formatCDF(changeCDF)}</span>
                         </div>
                       )}
@@ -809,11 +813,11 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                   {paymentMethod === 'PARTIAL' && (
                     <div className="p-2.5 bg-purple-50 rounded-xl text-xs space-y-1 text-purple-900 border border-purple-200">
                       <div className="flex justify-between font-bold">
-                        <span>Acompte versé :</span>
+                        <span>{t('Acompte versé :', 'Deposit paid:')}</span>
                         <span>{formatUSD(currencyPaidType === 'USD' ? amountReceivedUSD : amountReceivedCDF / exchangeRate)}</span>
                       </div>
                       <div className="flex justify-between text-red-700 font-black">
-                        <span>Dette générée :</span>
+                        <span>{t('Dette générée :', 'New debt:')}</span>
                         <span>
                           {formatUSD(
                             Math.max(0, totalUSD - (currencyPaidType === 'USD' ? amountReceivedUSD : amountReceivedCDF / exchangeRate))
@@ -827,10 +831,10 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
 
               {/* Notes Input */}
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Notes / Référence transaction (optionnel)</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Notes / Référence transaction (optionnel)', 'Notes / Transaction Reference (optional)')}</label>
                 <input
                   type="text"
-                  placeholder="Ex: Réf M-Pesa 2948194, livraison prévue samedi..."
+                  placeholder={t('Ex: Réf M-Pesa 2948194, livraison prévue samedi...', 'E.g., M-Pesa ref. 2948194, delivery scheduled for Saturday...')}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
@@ -845,7 +849,7 @@ export const SalesPOS: React.FC<SalesPOSProps> = ({
                   className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl font-black text-sm shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Check className="w-5 h-5" />
-                  Valider la Vente & Imprimer Facture
+                  {t('Valider la Vente & Imprimer Facture', 'Complete Sale & Print Invoice')}
                 </button>
               </div>
             </div>

@@ -1,6 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { CargoPackage, CargoStatus, User, CompanySettings, PaymentMethod } from '../../types';
+import { useLanguage } from '../../i18n';
 
 interface CargoModuleProps {
   packages: CargoPackage[];
@@ -12,19 +13,19 @@ interface CargoModuleProps {
   onDeletePackage: (packageId: string) => Promise<void>;
 }
 
-const STATUS: Array<{ value: CargoStatus; label: string }> = [
-  { value: 'REGISTERED', label: 'Colis enregistré' },
-  { value: 'CHINA_WAREHOUSE', label: 'Entrepôt en Chine' },
-  { value: 'PREPARING', label: 'En préparation' },
-  { value: 'SHIPPED_CHINA', label: 'Expédié de Chine' },
-  { value: 'INTERNATIONAL_TRANSIT', label: 'Transit international' },
-  { value: 'TRANSIT_COUNTRY', label: 'Pays de transit' },
-  { value: 'CUSTOMS', label: 'En douane' },
-  { value: 'ARRIVED_DRC', label: 'Arrivé en RDC' },
-  { value: 'ON_WAY_BUNIA', label: 'En route vers Bunia' },
-  { value: 'ARRIVED_BUNIA', label: 'Arrivé à Bunia' },
-  { value: 'AVAILABLE_PICKUP', label: 'Disponible au retrait' },
-  { value: 'DELIVERED', label: 'Livré au client' },
+const STATUS: Array<{ value: CargoStatus; label: string; englishLabel: string }> = [
+  { value: 'REGISTERED', label: 'Colis enregistré', englishLabel: 'Package registered' },
+  { value: 'CHINA_WAREHOUSE', label: 'Entrepôt en Chine', englishLabel: 'At China warehouse' },
+  { value: 'PREPARING', label: 'En préparation', englishLabel: 'Preparing' },
+  { value: 'SHIPPED_CHINA', label: 'Expédié de Chine', englishLabel: 'Shipped from China' },
+  { value: 'INTERNATIONAL_TRANSIT', label: 'Transit international', englishLabel: 'In international transit' },
+  { value: 'TRANSIT_COUNTRY', label: 'Pays de transit', englishLabel: 'Transit country' },
+  { value: 'CUSTOMS', label: 'En douane', englishLabel: 'At customs' },
+  { value: 'ARRIVED_DRC', label: 'Arrivé en RDC', englishLabel: 'Arrived in the DRC' },
+  { value: 'ON_WAY_BUNIA', label: 'En route vers Bunia', englishLabel: 'On the way to Bunia' },
+  { value: 'ARRIVED_BUNIA', label: 'Arrivé à Bunia', englishLabel: 'Arrived in Bunia' },
+  { value: 'AVAILABLE_PICKUP', label: 'Disponible au retrait', englishLabel: 'Ready for pickup' },
+  { value: 'DELIVERED', label: 'Livré au client', englishLabel: 'Delivered to customer' },
 ];
 
 const money = (value: number) =>
@@ -33,8 +34,69 @@ const money = (value: number) =>
     currency: 'USD',
   }).format(value || 0);
 
-const statusLabel = (status: CargoStatus) =>
-  STATUS.find((item) => item.value === status)?.label || status;
+const createPackageForm = (language: 'fr' | 'en') => ({
+  packingNumber: '',
+  customerName: '',
+  customerPhone: '',
+  supplierName: '',
+  description: '',
+  originCountry: language === 'en' ? 'China' : 'Chine',
+  originCity: '',
+  destinationCountry: language === 'en' ? 'DRC' : 'RDC',
+  destinationCity: 'Bunia',
+  transportMode: 'SEA' as 'AIR' | 'SEA',
+  carrierName: '',
+  piecesCount: '1',
+  weightKg: '0',
+  volumeCbm: '0',
+  unitPriceUSD: '',
+  expectedShippingDate: '',
+});
+
+const statusLabel = (
+  status: CargoStatus,
+  t: (french: string, english: string) => string,
+) => {
+  const item = STATUS.find((candidate) => candidate.value === status);
+  return item ? t(item.label, item.englishLabel) : status;
+};
+
+const CARGO_ERROR_TRANSLATIONS: Record<string, string> = {
+  'Chargement des données en cours. Réessayez après sa fin.': 'Data is still loading. Please try again when it has finished.',
+  'Action réservée aux gestionnaires et administrateurs.': 'This action is restricted to managers and administrators.',
+  'Colis introuvable.': 'Package not found.',
+  'Le nom du client est obligatoire.': 'Customer name is required.',
+  'La description du colis est obligatoire.': 'Package description is required.',
+  'Le numéro PKG fourni par le fournisseur est obligatoire.': 'The PKG number provided by the supplier is required.',
+  'Le numéro PKG ne peut pas dépasser 120 caractères.': 'The PKG number cannot exceed 120 characters.',
+  'Ce numéro PKG est déjà associé à un autre colis.': 'This PKG number is already assigned to another package.',
+  'Quantité, poids ou volume invalide.': 'Invalid quantity, weight, or volume.',
+  'Un montant Cargo historique est invalide.': 'A historical Cargo amount is invalid.',
+  'Le prix unitaire doit être supérieur à zéro.': 'The unit price must be greater than zero.',
+  'Le poids en kilogrammes doit être supérieur à zéro.': 'The weight in kilograms must be greater than zero.',
+  'Le volume en CBM doit être supérieur à zéro.': 'The volume in CBM must be greater than zero.',
+  'Le prix unitaire de facturation est obligatoire.': 'The billing unit price is required.',
+  'Sélectionnez le nouveau statut du colis.': 'Select the new package status.',
+  'Le montant du paiement doit être supérieur à zéro.': 'The payment amount must be greater than zero.',
+  'Le paiement dépasse le solde restant.': 'The payment exceeds the remaining balance.',
+};
+
+const cargoErrorMessage = (
+  error: unknown,
+  t: (french: string, english: string) => string,
+  fallbackFrench: string,
+  fallbackEnglish: string,
+) => {
+  if (!(error instanceof Error)) return t(fallbackFrench, fallbackEnglish);
+
+  const permissionPrefix = 'Permission Core refusée pour cet établissement: ';
+  if (error.message.startsWith(permissionPrefix)) {
+    const permission = error.message.slice(permissionPrefix.length);
+    return t(error.message, `Core permission denied for this location: ${permission}`);
+  }
+
+  return t(error.message, CARGO_ERROR_TRANSLATIONS[error.message] || error.message);
+};
 
 const field =
   'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-amber-500';
@@ -48,34 +110,18 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
   onAddPayment,
   onDeletePackage,
 }) => {
+  const { language, t } = useLanguage();
   const [tab, setTab] = useState<'dashboard' | 'list' | 'new'>('dashboard');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<CargoPackage | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const [form, setForm] = useState({
-    packingNumber: '',
-    customerName: '',
-    customerPhone: '',
-    supplierName: '',
-    description: '',
-    originCountry: 'Chine',
-    originCity: '',
-    destinationCountry: 'RDC',
-    destinationCity: 'Bunia',
-    transportMode: 'SEA' as 'AIR' | 'SEA',
-    carrierName: '',
-    piecesCount: '1',
-    weightKg: '0',
-    volumeCbm: '0',
-    unitPriceUSD: '',
-    expectedShippingDate: '',
-  });
+  const [form, setForm] = useState(() => createPackageForm(language));
 
   const [eventForm, setEventForm] = useState({
     status: 'CHINA_WAREHOUSE' as CargoStatus,
-    country: 'RDC',
+    country: language === 'en' ? 'DRC' : 'RDC',
     city: 'Bunia',
     location: '',
     comment: '',
@@ -95,13 +141,13 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
       const reader = new FileReader();
 
       reader.onerror = () =>
-        reject(new Error('Lecture de la photo impossible.'));
+        reject(new Error(t('Lecture de la photo impossible.', 'Unable to read the photo.')));
 
       reader.onload = () => {
         const img = new Image();
 
         img.onerror = () =>
-          reject(new Error('Format de photo non reconnu.'));
+          reject(new Error(t('Format de photo non reconnu.', 'Unrecognized photo format.')));
 
         img.onload = () => {
           const max = 1400;
@@ -117,7 +163,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
           const ctx = canvas.getContext('2d');
 
           if (!ctx) {
-            return reject(new Error('Compression photo indisponible.'));
+            return reject(new Error(t('Compression photo indisponible.', 'Photo compression is unavailable.')));
           }
 
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -141,13 +187,13 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
       );
 
       if (selectedFiles.length !== files.length) {
-        throw new Error('Sélectionnez uniquement des images.');
+        throw new Error(t('Sélectionnez uniquement des images.', 'Select image files only.'));
       }
 
       const converted = await Promise.all(selectedFiles.map(readPhoto));
 
       if (photoFiles.length + converted.length > 6) {
-        throw new Error('Maximum 6 photos par colis.');
+        throw new Error(t('Maximum 6 photos par colis.', 'You can add up to 6 photos per package.'));
       }
 
       setPhotoFiles((old) => [...old, ...converted]);
@@ -155,7 +201,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
       setPhotoError(
         err instanceof Error
           ? err.message
-          : 'Erreur lors du chargement des photos.'
+          : t('Erreur lors du chargement des photos.', 'Unable to load the photos.')
       );
     }
   };
@@ -250,9 +296,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
     try {
       if (!form.packingNumber.trim()) {
-        throw new Error(
-          'Le numéro PKG fourni par le fournisseur est obligatoire.'
-        );
+        throw new Error('Le numéro PKG fourni par le fournisseur est obligatoire.');
       }
 
       await onSavePackage({
@@ -271,33 +315,12 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
         expectedShippingDate: form.expectedShippingDate || undefined,
       });
 
-      setForm({
-        packingNumber: '',
-        customerName: '',
-        customerPhone: '',
-        supplierName: '',
-        description: '',
-        originCountry: 'Chine',
-        originCity: '',
-        destinationCountry: 'RDC',
-        destinationCity: 'Bunia',
-        transportMode: 'SEA',
-        carrierName: '',
-        piecesCount: '1',
-        weightKg: '0',
-        volumeCbm: '0',
-        unitPriceUSD: '',
-        expectedShippingDate: '',
-      });
+      setForm(createPackageForm(language));
 
       setPhotoFiles([]);
       setTab('list');
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Impossible d’enregistrer le colis.'
-      );
+      setError(cargoErrorMessage(err, t, 'Impossible d’enregistrer le colis.', 'Unable to save the package.'));
     } finally {
       setBusy(false);
     }
@@ -314,11 +337,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
       await onAddEvent(selected.id, eventForm);
       setSelected(null);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Impossible d’ajouter le suivi.'
-      );
+      setError(cargoErrorMessage(err, t, 'Impossible d’ajouter le suivi.', 'Unable to add the tracking update.'));
     } finally {
       setBusy(false);
     }
@@ -346,11 +365,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
       setSelected(null);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Impossible d’enregistrer le paiement.'
-      );
+      setError(cargoErrorMessage(err, t, 'Impossible d’enregistrer le paiement.', 'Unable to record the payment.'));
     } finally {
       setBusy(false);
     }
@@ -358,7 +373,10 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
   const deletePackage = async (pkg: CargoPackage) => {
     const confirmed = window.confirm(
-      `Voulez-vous vraiment supprimer définitivement le colis ${pkg.packingNumber} de ${pkg.customerName} ?`
+      t(
+        `Voulez-vous vraiment supprimer définitivement le colis ${pkg.packingNumber} de ${pkg.customerName} ?`,
+        `Are you sure you want to permanently delete package ${pkg.packingNumber} for ${pkg.customerName}?`,
+      )
     );
 
     if (!confirmed) return;
@@ -369,13 +387,9 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
     try {
       await onDeletePackage(pkg.id);
       setSelected(null);
-      window.alert('Colis supprimé avec succès.');
+      window.alert(t('Colis supprimé avec succès.', 'Package deleted successfully.'));
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Impossible de supprimer le colis.'
-      );
+      setError(cargoErrorMessage(err, t, 'Impossible de supprimer le colis.', 'Unable to delete the package.'));
     } finally {
       setBusy(false);
     }
@@ -390,10 +404,10 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
               CHIEF ALPHONS COMPANY LTD
             </p>
             <h2 className="mt-1 text-xl font-black">
-              Chief Cargo & Suivi Colis
+              {t('Chief Cargo & Suivi Colis', 'Chief Cargo & Parcel Tracking')}
             </h2>
             <p className="mt-1 text-xs text-amber-100">
-              Gestion des expéditions internationales
+              {t('Gestion des expéditions internationales', 'International shipment management')}
             </p>
           </div>
           <span className="rounded-2xl bg-white/15 p-3 text-2xl">
@@ -404,15 +418,15 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           <div className="rounded-xl bg-white/10 p-2">
             <div className="text-lg font-bold">{packages.length}</div>
-            <div className="text-[10px] text-amber-100">Colis</div>
+            <div className="text-[10px] text-amber-100">{t('Colis', 'Packages')}</div>
           </div>
           <div className="rounded-xl bg-white/10 p-2">
             <div className="text-sm font-bold">{money(paid)}</div>
-            <div className="text-[10px] text-amber-100">Encaissé</div>
+            <div className="text-[10px] text-amber-100">{t('Encaissé', 'Received')}</div>
           </div>
           <div className="rounded-xl bg-white/10 p-2">
             <div className="text-sm font-bold">{money(balance)}</div>
-            <div className="text-[10px] text-amber-100">À recevoir</div>
+            <div className="text-[10px] text-amber-100">{t('À recevoir', 'Due')}</div>
           </div>
         </div>
       </header>
@@ -433,10 +447,10 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
             }`}
           >
             {item === 'dashboard'
-              ? 'Vue générale'
+              ? t('Vue générale', 'Dashboard')
               : item === 'list'
-                ? 'Mes colis'
-                : '+ Nouveau colis'}
+                ? t('Mes colis', 'My packages')
+                : t('+ Nouveau colis', '+ New package')}
           </button>
         ))}
       </nav>
@@ -450,11 +464,11 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
       {tab === 'dashboard' && (
         <section className="grid gap-3 sm:grid-cols-2">
           {[
-            ['Valeur totale facturée', money(total)],
-            ['Montant encaissé', money(paid)],
-            ['Solde restant', money(balance)],
+            [t('Valeur totale facturée', 'Total value billed'), money(total)],
+            [t('Montant encaissé', 'Amount received'), money(paid)],
+            [t('Solde restant', 'Remaining balance'), money(balance)],
             [
-              'Colis en cours',
+              t('Colis en cours', 'In-transit packages'),
               String(
                 packages.filter((p) => p.currentStatus !== 'DELIVERED')
                   .length
@@ -474,12 +488,12 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2">
             <h3 className="font-bold text-slate-800">
-              Activité récente
+              {t('Activité récente', 'Recent activity')}
             </h3>
 
             {packages.slice(0, 5).length === 0 ? (
               <p className="mt-3 text-sm text-slate-400">
-                Aucun colis enregistré.
+                {t('Aucun colis enregistré.', 'No packages have been registered.')}
               </p>
             ) : (
               packages.slice(0, 5).map((pkg) => (
@@ -496,7 +510,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                       {pkg.packingNumber} · {pkg.customerName}
                     </b>
                     <small className="text-slate-500">
-                      {statusLabel(pkg.currentStatus)}
+                      {statusLabel(pkg.currentStatus, t)}
                     </small>
                   </span>
                   <b className="text-sm">
@@ -513,14 +527,14 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
         <section className="space-y-3">
           <input
             className={field}
-            placeholder="Rechercher référence, client, téléphone..."
+            placeholder={t('Rechercher référence, client, téléphone...', 'Search reference, customer, or phone...')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
 
           {filtered.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-              Aucun colis trouvé.
+              {t('Aucun colis trouvé.', 'No packages found.')}
             </div>
           ) : (
             filtered.map((pkg) => (
@@ -549,25 +563,25 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                       </p>
                     </div>
                     <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700">
-                      {statusLabel(pkg.currentStatus)}
+                      {statusLabel(pkg.currentStatus, t)}
                     </span>
                   </div>
 
                   <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                     <div>
-                      <span className="text-slate-400">Total</span>
+                      <span className="text-slate-400">{t('Total', 'Total')}</span>
                       <b className="block">
                         {money(pkg.totalAmountUSD)}
                       </b>
                     </div>
                     <div>
-                      <span className="text-slate-400">Payé</span>
+                      <span className="text-slate-400">{t('Payé', 'Paid')}</span>
                       <b className="block">
                         {money(getCargoAmounts(pkg).paid)}
                       </b>
                     </div>
                     <div>
-                      <span className="text-slate-400">Solde</span>
+                      <span className="text-slate-400">{t('Solde', 'Balance')}</span>
                       <b className="block text-amber-700">
                         {money(getCargoAmounts(pkg).balance)}
                       </b>
@@ -580,7 +594,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                     {!!pkg.photos?.length && (
                       <div>
                         <h4 className="mb-2 text-sm font-bold">
-                          Photos du colis
+                          {t('Photos du colis', 'Package photos')}
                         </h4>
                         <div className="grid grid-cols-3 gap-2">
                           {pkg.photos.map((photo, index) => (
@@ -592,7 +606,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                             >
                               <img
                                 src={photo}
-                                alt={`Photo du colis ${index + 1}`}
+                                alt={t(`Photo du colis ${index + 1}`, `Package photo ${index + 1}`)}
                                 className="h-24 w-full rounded-xl border border-slate-200 object-cover"
                               />
                             </a>
@@ -603,25 +617,25 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
                     <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
                       <p>
-                        Transport :{' '}
+                        {t('Transport :', 'Transport:')}{' '}
                         <b>
                           {pkg.transportMode === 'AIR'
-                            ? 'Aérien'
-                            : 'Maritime'}
+                            ? t('Aérien', 'Air')
+                            : t('Maritime', 'Sea')}
                         </b>
                       </p>
                       <p>
-                        Pièces : <b>{pkg.piecesCount}</b>
+                        {t('Pièces :', 'Pieces:')} <b>{pkg.piecesCount}</b>
                       </p>
                       <p>
-                        Poids : <b>{pkg.weightKg} kg</b>
+                        {t('Poids :', 'Weight:')} <b>{pkg.weightKg} kg</b>
                       </p>
                       <p>
-                        Volume : <b>{pkg.volumeCbm} CBM</b>
+                        {t('Volume :', 'Volume:')} <b>{pkg.volumeCbm} CBM</b>
                       </p>
                       {pkg.unitPriceUSD !== undefined && (
                         <p>
-                          Prix unitaire :{' '}
+                          {t('Prix unitaire :', 'Unit price:')}{' '}
                           <b>
                             {money(pkg.unitPriceUSD)} /{' '}
                             {pkg.transportMode === 'AIR' ? 'kg' : 'CBM'}
@@ -629,13 +643,13 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                         </p>
                       )}
                       <p>
-                        Origine :{' '}
+                        {t('Origine :', 'Origin:')}{' '}
                         <b>
                           {pkg.originCity}, {pkg.originCountry}
                         </b>
                       </p>
                       <p>
-                        Destination :{' '}
+                        {t('Destination :', 'Destination:')}{' '}
                         <b>
                           {pkg.destinationCity}, {pkg.destinationCountry}
                         </b>
@@ -647,7 +661,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                       className="space-y-2 rounded-xl bg-slate-50 p-3"
                     >
                       <h4 className="text-sm font-bold">
-                        Ajouter une étape de suivi
+                        {t('Ajouter une étape de suivi', 'Add a tracking update')}
                       </h4>
 
                       <select
@@ -662,7 +676,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                       >
                         {STATUS.map((s) => (
                           <option key={s.value} value={s.value}>
-                            {s.label}
+                            {t(s.label, s.englishLabel)}
                           </option>
                         ))}
                       </select>
@@ -670,7 +684,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                       <div className="grid grid-cols-2 gap-2">
                         <input
                           className={field}
-                          placeholder="Pays"
+                          placeholder={t('Pays', 'Country')}
                           value={eventForm.country}
                           onChange={(e) =>
                             setEventForm({
@@ -681,7 +695,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                         />
                         <input
                           className={field}
-                          placeholder="Ville"
+                          placeholder={t('Ville', 'City')}
                           value={eventForm.city}
                           onChange={(e) =>
                             setEventForm({
@@ -694,7 +708,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
                       <input
                         className={field}
-                        placeholder="Lieu précis (facultatif)"
+                        placeholder={t('Lieu précis (facultatif)', 'Specific location (optional)')}
                         value={eventForm.location}
                         onChange={(e) =>
                           setEventForm({
@@ -706,7 +720,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
                       <input
                         className={field}
-                        placeholder="Commentaire"
+                        placeholder={t('Commentaire', 'Comment')}
                         value={eventForm.comment}
                         onChange={(e) =>
                           setEventForm({
@@ -720,7 +734,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                         disabled={busy}
                         className="w-full rounded-xl bg-amber-600 py-2.5 text-sm font-bold text-white disabled:opacity-50"
                       >
-                        {busy ? 'Enregistrement...' : 'Enregistrer le suivi'}
+                        {busy ? t('Enregistrement...', 'Saving...') : t('Enregistrer le suivi', 'Save tracking update')}
                       </button>
                     </form>
 
@@ -729,7 +743,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                       className="space-y-2 rounded-xl bg-emerald-50 p-3"
                     >
                       <h4 className="text-sm font-bold">
-                        Enregistrer un paiement (USD)
+                        {t('Enregistrer un paiement (USD)', 'Record a payment (USD)')}
                       </h4>
 
                       <input
@@ -738,7 +752,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                         min="0.01"
                         step="0.01"
                         max={pkg.remainingBalanceUSD}
-                        placeholder={`Montant USD (solde ${pkg.remainingBalanceUSD})`}
+                        placeholder={t(`Montant USD (solde ${pkg.remainingBalanceUSD})`, `Amount in USD (balance ${pkg.remainingBalanceUSD})`)}
                         value={paymentForm.amountUSD}
                         onChange={(e) =>
                           setPaymentForm({
@@ -759,14 +773,14 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                           })
                         }
                       >
-                        <option value="CASH">Espèces</option>
+                        <option value="CASH">{t('Espèces', 'Cash')}</option>
                         <option value="MOBILE_MONEY">Mobile Money</option>
-                        <option value="BANK_TRANSFER">Virement bancaire</option>
+                        <option value="BANK_TRANSFER">{t('Virement bancaire', 'Bank transfer')}</option>
                       </select>
 
                       <input
                         className={field}
-                        placeholder="Note (facultatif)"
+                        placeholder={t('Note (facultatif)', 'Note (optional)')}
                         value={paymentForm.notes}
                         onChange={(e) =>
                           setPaymentForm({
@@ -783,19 +797,19 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                         className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white disabled:opacity-50"
                       >
                         {busy
-                          ? 'Enregistrement...'
-                          : 'Valider le paiement'}
+                          ? t('Enregistrement...', 'Saving...')
+                          : t('Valider le paiement', 'Submit payment')}
                       </button>
                     </form>
 
                     <div>
                       <h4 className="text-sm font-bold">
-                        Historique des étapes
+                        {t('Historique des étapes', 'Tracking history')}
                       </h4>
 
                       {(pkg.events || []).length === 0 ? (
                         <p className="mt-2 text-xs text-slate-400">
-                          Aucun événement enregistré.
+                          {t('Aucun événement enregistré.', 'No tracking events recorded.')}
                         </p>
                       ) : (
                         [...pkg.events].reverse().map((ev) => (
@@ -804,11 +818,11 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                             className="border-l-2 border-amber-200 py-2 pl-3"
                           >
                             <b className="text-xs">
-                              {statusLabel(ev.status)}
+                              {statusLabel(ev.status, t)}
                             </b>
                             <p className="text-xs text-slate-500">
                               {ev.city}, {ev.country} ·{' '}
-                              {new Date(ev.date).toLocaleString()}
+                              {new Date(ev.date).toLocaleString(language === 'en' ? 'en-US' : 'fr-FR')}
                             </p>
                             {ev.comment && (
                               <p className="text-xs">{ev.comment}</p>
@@ -819,14 +833,14 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                     </div>
 
                     <div>
-                      <h4 className="text-sm font-bold">Paiements</h4>
+                      <h4 className="text-sm font-bold">{t('Paiements', 'Payments')}</h4>
                       {(pkg.payments || []).map((payment) => (
                         <p
                           key={payment.id}
                           className="flex justify-between border-b border-slate-100 py-2 text-xs"
                         >
                           <span>
-                            {new Date(payment.date).toLocaleDateString()} ·{' '}
+                            {new Date(payment.date).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR')} ·{' '}
                             {payment.receiptNumber}
                           </span>
                           <b>{money(payment.amountUSD)}</b>
@@ -843,8 +857,8 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                   className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"
                 >
                   {busy
-                    ? 'Suppression en cours...'
-                    : 'Supprimer définitivement ce colis'}
+                    ? t('Suppression en cours...', 'Deleting...')
+                    : t('Supprimer définitivement ce colis', 'Permanently delete this package')}
                 </button>
               </article>
             ))
@@ -858,23 +872,23 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
           className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4"
         >
           <h3 className="font-bold text-slate-900">
-            Enregistrer un nouveau colis
+            {t('Enregistrer un nouveau colis', 'Register a new package')}
           </h3>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-xs font-semibold text-slate-600">
-              Numéro PKG du fournisseur
+              {t('Numéro PKG du fournisseur', 'Supplier PKG number')}
               <input
                 className={field}
                 value={form.packingNumber}
                 onChange={(e) => set('packingNumber', e.target.value)}
-                placeholder="Ex. PKG écrit sur le colis"
+                placeholder={t('Ex. PKG écrit sur le colis', 'e.g. PKG number printed on the package')}
                 required
               />
             </label>
 
             <label className="text-xs font-semibold text-slate-600">
-              Nom du client
+              {t('Nom du client', 'Customer name')}
               <input
                 className={field}
                 value={form.customerName}
@@ -884,7 +898,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
             </label>
 
             <label className="text-xs font-semibold text-slate-600">
-              Téléphone
+              {t('Téléphone', 'Phone')}
               <input
                 className={field}
                 value={form.customerPhone}
@@ -893,7 +907,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
             </label>
 
             <label className="text-xs font-semibold text-slate-600">
-              Fournisseur
+              {t('Fournisseur', 'Supplier')}
               <input
                 className={field}
                 value={form.supplierName}
@@ -902,20 +916,20 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
             </label>
 
             <label className="text-xs font-semibold text-slate-600">
-              Transport
+              {t('Transport', 'Transport')}
               <select
                 className={field}
                 value={form.transportMode}
                 onChange={(e) => set('transportMode', e.target.value)}
               >
-                <option value="SEA">Maritime</option>
-                <option value="AIR">Aérien</option>
+                <option value="SEA">{t('Maritime', 'Sea')}</option>
+                <option value="AIR">{t('Aérien', 'Air')}</option>
               </select>
             </label>
           </div>
 
           <label className="block text-xs font-semibold text-slate-600">
-            Description du colis
+            {t('Description du colis', 'Package description')}
             <input
               className={field}
               value={form.description}
@@ -926,7 +940,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <label className="text-xs font-semibold text-slate-600">
-              Pays d'origine
+              {t("Pays d'origine", 'Origin country')}
               <input
                 className={field}
                 value={form.originCountry}
@@ -935,7 +949,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
             </label>
 
             <label className="text-xs font-semibold text-slate-600">
-              Ville d'origine
+              {t("Ville d'origine", 'Origin city')}
               <input
                 className={field}
                 value={form.originCity}
@@ -944,7 +958,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
             </label>
 
             <label className="text-xs font-semibold text-slate-600">
-              Pays destination
+              {t('Pays destination', 'Destination country')}
               <input
                 className={field}
                 value={form.destinationCountry}
@@ -953,7 +967,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
             </label>
 
             <label className="text-xs font-semibold text-slate-600">
-              Ville destination
+              {t('Ville destination', 'Destination city')}
               <input
                 className={field}
                 value={form.destinationCity}
@@ -964,7 +978,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <label className="text-xs text-slate-600">
-              Nombre de pièces
+              {t('Nombre de pièces', 'Number of pieces')}
               <input
                 className={field}
                 type="number"
@@ -978,12 +992,12 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
             {form.transportMode === 'AIR' ? (
               <label className="text-xs text-slate-600">
-                Poids facturable (kg)
+                {t('Poids facturable (kg)', 'Chargeable weight (kg)')}
                 <input
                   className={field}
                   type="text"
                   inputMode="decimal"
-                  placeholder="Ex. 0.1224"
+                  placeholder={t('Ex. 0.1224', 'e.g. 0.1224')}
                   value={form.weightKg}
                   onChange={(e) =>
                     set(
@@ -996,12 +1010,12 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
               </label>
             ) : (
               <label className="text-xs text-slate-600">
-                Volume facturable (CBM/KG)
+                {t('Volume facturable (CBM/KG)', 'Chargeable volume (CBM/KG)')}
                 <input
                   className={field}
                   type="text"
                   inputMode="decimal"
-                  placeholder="Ex. 0.1224"
+                  placeholder={t('Ex. 0.1224', 'e.g. 0.1224')}
                   value={form.volumeCbm}
                   onChange={(e) =>
                     set(
@@ -1016,10 +1030,12 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
           </div>
 
           <section className="space-y-2 rounded-xl border border-slate-200 p-3">
-            <h4 className="text-sm font-bold">Photos du colis</h4>
+            <h4 className="text-sm font-bold">{t('Photos du colis', 'Package photos')}</h4>
             <p className="text-xs text-slate-500">
-              Prenez une photo avec le téléphone ou choisissez des images dans
-              la galerie (6 maximum).
+              {t(
+                'Prenez une photo avec le téléphone ou choisissez des images dans la galerie (6 maximum).',
+                'Take a photo with your phone or choose images from the gallery (up to 6).',
+              )}
             </p>
 
             <input
@@ -1044,7 +1060,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                   <div key={index} className="relative">
                     <img
                       src={photo}
-                      alt={`Aperçu ${index + 1}`}
+                      alt={t(`Aperçu ${index + 1}`, `Preview ${index + 1}`)}
                       className="h-24 w-full rounded-lg object-cover"
                     />
                     <button
@@ -1054,6 +1070,7 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                           old.filter((_, i) => i !== index)
                         )
                       }
+                      aria-label={t('Supprimer la photo', 'Remove photo')}
                       className="absolute right-1 top-1 rounded-full bg-red-600 px-2 py-1 text-xs text-white"
                     >
                       ×
@@ -1066,14 +1083,14 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
           <section className="space-y-2 rounded-xl border border-amber-100 bg-amber-50 p-3">
             <h4 className="text-sm font-bold text-amber-900">
-              Facturation automatique (USD)
+              {t('Facturation automatique (USD)', 'Automatic billing (USD)')}
             </h4>
 
             <label className="block text-xs font-semibold text-amber-900">
-              Prix unitaire (
+              {t('Prix unitaire (', 'Unit price (')}
               {form.transportMode === 'AIR'
-                ? 'USD par kg'
-                : 'USD par CBM'}
+                ? t('USD par kg', 'USD per kg')
+                : t('USD par CBM', 'USD per CBM')}
               )
               <input
                 className={field}
@@ -1084,15 +1101,15 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
                 onChange={(e) => set('unitPriceUSD', e.target.value)}
                 placeholder={
                   form.transportMode === 'AIR'
-                    ? 'Ex. 8.00 USD/kg'
-                    : 'Ex. 120.00 USD/CBM'
+                    ? t('Ex. 8.00 USD/kg', 'e.g. 8.00 USD/kg')
+                    : t('Ex. 120.00 USD/CBM', 'e.g. 120.00 USD/CBM')
                 }
                 required
               />
             </label>
 
             <p className="text-xs text-amber-800">
-              Calcul :{' '}
+              {t('Calcul :', 'Calculation:')}{' '}
               {form.transportMode === 'AIR'
                 ? `${form.weightKg || 0} kg ×`
                 : `${form.volumeCbm || 0} CBM ×`}{' '}
@@ -1100,12 +1117,12 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
             </p>
 
             <p className="rounded-lg bg-white p-3 text-base font-black text-amber-900">
-              Total à facturer : {money(calculatedTotalUSD)}
+              {t('Total à facturer :', 'Total to bill:')} {money(calculatedTotalUSD)}
             </p>
           </section>
 
           <label className="block text-xs text-slate-600">
-            Date d'expédition prévue
+            {t("Date d'expédition prévue", 'Expected shipping date')}
             <input
               className={field}
               type="date"
@@ -1120,14 +1137,14 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
             disabled={busy}
             className="w-full rounded-xl bg-amber-600 py-3 text-sm font-bold text-white disabled:opacity-50"
           >
-            {busy ? 'Enregistrement...' : 'Créer le colis'}
+            {busy ? t('Enregistrement...', 'Saving...') : t('Créer le colis', 'Create package')}
           </button>
         </form>
       )}
 
       <p className="text-center text-[10px] text-slate-400">
-        Connecté : {currentUser.name} · Données enregistrées localement sur
-        cet appareil.
+        {t('Connecté :', 'Signed in:')} {currentUser.name} ·{' '}
+        {t('Données enregistrées localement sur cet appareil.', 'Data is saved locally on this device.')}
       </p>
     </div>
   );

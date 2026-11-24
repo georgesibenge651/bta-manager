@@ -23,8 +23,10 @@ import {
   AlertTriangle,
   Gift,
   Ship,
+  Languages,
 } from 'lucide-react';
 import { User, CompanySettings, SyncStatusInfo } from '../types';
+import { useLanguage } from '../i18n';
 
 interface MenuHubProps {
   onSelectSubModule: (moduleKey: string) => void;
@@ -65,113 +67,114 @@ export const MenuHub: React.FC<MenuHubProps> = ({
   onDownloadZip,
   onOpenApkModal,
 }) => {
+  const { language, setLanguage, t } = useLanguage();
   const menuSections: MenuSection[] = [
     {
-      title: 'Approvisionnements & Achats',
+      title: t('Approvisionnements & Achats', 'Supply & Purchasing'),
       items: [
         {
           id: 'achats',
-          title: 'Achats & Approvisionnements',
-          subtitle: 'Bons de réception, entrées en stock et calcul des frais',
+          title: t('Achats & Approvisionnements', 'Purchases & Supply'),
+          subtitle: t('Bons de réception, entrées en stock et calcul des frais', 'Receiving notes, stock intake, and cost calculation'),
           icon: Truck,
           color: 'bg-amber-500/10 text-amber-600',
         },
         {
           id: 'cargo',
-          title: 'CHIEF ALPHONS Cargo & Suivi Colis',
-          subtitle: 'Expéditions internationales, suivi et paiements',
+          title: t('CHIEF ALPHONS Cargo & Suivi Colis', 'CHIEF ALPHONS Cargo & Parcel Tracking'),
+          subtitle: t('Expéditions internationales, suivi et paiements', 'International shipping, tracking, and payments'),
           icon: Truck,
           color: 'bg-amber-500/10 text-amber-600',
         },
         {
           id: 'fournisseurs',
-          title: 'Fournisseurs & Contacts',
-          subtitle: 'Répertoire des distributeurs et solde dû',
+          title: t('Fournisseurs & Contacts', 'Suppliers & Contacts'),
+          subtitle: t('Répertoire des distributeurs et solde dû', 'Supplier directory and outstanding balance'),
           icon: Building,
           color: 'bg-emerald-500/10 text-emerald-600',
         },
         {
         id: 'import-export',
-        title: 'Import-Export & Suivi des Colis',
-        subtitle: 'Gestion des colis clients, frais de transport et facturation',
+        title: t('Import-Export & Suivi des Colis', 'Import-Export & Parcel Tracking'),
+        subtitle: t('Gestion des colis clients, frais de transport et facturation', 'Customer parcels, shipping costs, and billing'),
         icon: Ship,
         color: 'bg-amber-500/10 text-amber-600',
       },
       ],
     },
     {
-      title: 'Finance & Trésorerie',
+      title: t('Finance & Trésorerie', 'Finance & Cash Management'),
       items: [
         {
           id: 'dettes',
-          title: 'Module Gestion des Dettes',
-          subtitle: 'Créances clients et dettes fournisseurs sans perte d’historique',
+          title: t('Module Gestion des Dettes', 'Debt Management'),
+          subtitle: t('Créances clients et dettes fournisseurs sans perte d’historique', 'Customer receivables and supplier debts with full history'),
           icon: CreditCard,
           color: 'bg-amber-500/10 text-amber-600',
         },
         {
           id: 'depenses',
-          title: 'Dépenses & Charges Caisse',
-          subtitle: 'Carburant groupe, salaires, loyer, transport, télécoms',
+          title: t('Dépenses & Charges Caisse', 'Expenses & Cash Charges'),
+          subtitle: t('Carburant groupe, salaires, loyer, transport, télécoms', 'Generator fuel, salaries, rent, transport, and telecoms'),
           icon: Receipt,
           color: 'bg-purple-500/10 text-purple-600',
         },
         {
           id: 'rapports',
-          title: 'Rapports & États Comptables',
-          subtitle: 'Compte de résultat, export Excel CSV et impression A4',
+          title: t('Rapports & États Comptables', 'Reports & Financial Statements'),
+          subtitle: t('Compte de résultat, export Excel CSV et impression A4', 'Income statement, Excel/CSV export, and A4 printing'),
           icon: BarChart3,
           color: 'bg-amber-500/10 text-amber-600',
         },
       ],
     },
     {
-      title: 'Réservations & Opérations de Stock',
+      title: t('Réservations & Opérations de Stock', 'Reservations & Stock Operations'),
       items: [
         {
           id: 'reservations',
-          title: 'Réservations & Livraisons clients',
-          subtitle: 'Réservations, avances, livraisons et annulations',
+          title: t('Réservations & Livraisons clients', 'Customer Reservations & Deliveries'),
+          subtitle: t('Réservations, avances, livraisons et annulations', 'Reservations, deposits, deliveries, and cancellations'),
           icon: ClipboardList,
           color: 'bg-amber-500/10 text-amber-700',
         },
         {
           id: 'dommages',
-          title: 'Dommages & Pertes de marchandises',
-          subtitle: 'Marchandises récupérables, invendables et retours fournisseur',
+          title: t('Dommages & Pertes de marchandises', 'Damaged & Lost Goods'),
+          subtitle: t('Marchandises récupérables, invendables et retours fournisseur', 'Recoverable, unsellable, and supplier-return goods'),
           icon: AlertTriangle,
           color: 'bg-amber-500/10 text-amber-700',
         },
         {
           id: 'sorties-gratuites',
-          title: 'Sorties gratuites de stock',
-          subtitle: 'Dons, échantillons et distributions sans vente',
+          title: t('Sorties gratuites de stock', 'Free Stock Issues'),
+          subtitle: t('Dons, échantillons et distributions sans vente', 'Donations, samples, and non-sale distributions'),
           icon: Gift,
           color: 'bg-emerald-500/10 text-emerald-700',
         },
       ],
     },
     {
-      title: 'Contrôle & Traçabilité des Stocks',
+      title: t('Contrôle & Traçabilité des Stocks', 'Stock Control & Traceability'),
       items: [
         {
           id: 'mouvements',
-          title: 'Mouvements de Stock & Inventaire',
-          subtitle: 'Traçabilité des flux et outil de réconciliation physique',
+          title: t('Mouvements de Stock & Inventaire', 'Stock Movements & Inventory'),
+          subtitle: t('Traçabilité des flux et outil de réconciliation physique', 'Stock flow tracking and physical inventory reconciliation'),
           icon: Layers,
           color: 'bg-amber-500/10 text-amber-600',
         },
       ],
     },
     {
-      title: 'Système & Architecture Native Android',
+      title: t('Système & Architecture Native Android', 'System & Native Android Architecture'),
       items: [
         ...(onOpenApkModal
           ? [
               {
                 id: 'apk-export',
-                title: 'Installer sur Téléphone & Exporter APK',
-                subtitle: 'Installation directe sur Android (PWA) ou génération fichier .apk autonome',
+                title: t('Installer sur Téléphone & Exporter APK', 'Install on Phone & Export APK'),
+                subtitle: t('Installation directe sur Android (PWA) ou génération fichier .apk autonome', 'Install directly on Android (PWA) or generate a standalone .apk'),
                 icon: Smartphone,
                 color: 'bg-amber-500/10 text-amber-700',
                 onClick: onOpenApkModal,
@@ -181,7 +184,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
 ...(currentUser.role === 'ADMIN'
   ? [{
       id: 'settings',
-      title: 'Paramètres & Taux de Change',
+      title: t('Paramètres & Taux de Change', 'Settings & Exchange Rate'),
       subtitle: `1$ = ${settings.exchangeRate} FC • ${settings.timezone}`,
       icon: Settings,
       color: 'bg-slate-500/10 text-slate-700',
@@ -192,8 +195,8 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           ? [
               {
                 id: 'kotlin',
-                title: 'Code Source Android Kotlin (Jetpack Compose & Room)',
-                subtitle: 'Consulter et exporter les fichiers Room DAOs, ViewModel et Compose M3',
+                title: t('Code Source Android Kotlin (Jetpack Compose & Room)', 'Android Kotlin Source (Jetpack Compose & Room)'),
+                subtitle: t('Consulter et exporter les fichiers Room DAOs, ViewModel et Compose M3', 'View and export Room DAOs, ViewModel, and Compose M3 files'),
                 icon: Code,
                 color: 'bg-teal-500/10 text-teal-700',
                 onClick: onOpenKotlinModal,
@@ -204,8 +207,8 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           ? [
               {
                 id: 'download-zip',
-                title: 'Télécharger Code Source Complet (.ZIP)',
-                subtitle: 'Archive complète prête pour Android Studio ou serveur Web local',
+                title: t('Télécharger Code Source Complet (.ZIP)', 'Download Complete Source Code (.ZIP)'),
+                subtitle: t('Archive complète prête pour Android Studio ou serveur Web local', 'Complete archive ready for Android Studio or a local web server'),
                 icon: Download,
                 color: 'bg-emerald-500/10 text-emerald-700',
                 onClick: onDownloadZip,
@@ -218,6 +221,31 @@ export const MenuHub: React.FC<MenuHubProps> = ({
 
   return (
     <div className="space-y-4 pb-20 max-w-4xl mx-auto px-3 sm:px-4 pt-3">
+      <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-sm flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <Languages className="w-4 h-4 text-amber-600" />
+          <span>{t('Langue de l’application', 'App language')}</span>
+        </div>
+        <div className="inline-flex rounded-xl bg-slate-100 p-1" role="group" aria-label={t('Langue de l’application', 'App language')}>
+          <button
+            type="button"
+            onClick={() => setLanguage('fr')}
+            aria-pressed={language === 'fr'}
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${language === 'fr' ? 'bg-[#0F2444] text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}
+          >
+            Français
+          </button>
+          <button
+            type="button"
+            onClick={() => setLanguage('en')}
+            aria-pressed={language === 'en'}
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${language === 'en' ? 'bg-[#0F2444] text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}
+          >
+            English
+          </button>
+        </div>
+      </div>
+
       {/* Profile & Business Header */}
       <div className="bg-linear-to-r from-[#0F2444] to-[#1E3E62] rounded-3xl p-4 sm:p-5 text-white shadow-lg flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -227,7 +255,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           <div>
             <h2 className="font-extrabold text-base text-white">{currentUser.name}</h2>
             <p className="text-xs text-amber-200">
-              Rôle : <span className="font-bold underline">{currentUser.role}</span> • {currentUser.email}
+              {t('Rôle :', 'Role:')} <span className="font-bold underline">{currentUser.role}</span> • {currentUser.email}
             </p>
             <p className="text-[11px] text-slate-300 mt-0.5">{settings.companyName}</p>
           </div>
@@ -237,7 +265,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
         <button
           onClick={onOpenSettings}
           className="p-2 bg-white/10 hover:bg-white/20 rounded-2xl transition"
-          title="Paramètres"
+          title={t('Paramètres', 'Settings')}
         >
           <Settings className="w-5 h-5 text-white" />
         </button>
@@ -266,17 +294,17 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           </div>
           <div>
             <h4 className="font-bold text-xs text-slate-900">
-              État synchronisation Gestion Entreprise :{' '}
+              {t('État synchronisation Gestion Entreprise :', 'Business sync status:')}{' '}
               <span className={syncInfo.status === 'OFFLINE' ? 'text-amber-700' : 'text-emerald-700'}>
-                {syncInfo.status === 'OFFLINE' ? 'Mode hors ligne (stockage local)' : 'En ligne'}
+                {syncInfo.status === 'OFFLINE' ? t('Mode hors ligne (stockage local)', 'Offline mode (local storage)') : t('En ligne', 'Online')}
               </span>
             </h4>
             <p className="text-[11px] text-slate-500">
               {syncInfo.syncProgress
-                ? `Téléchargement ${syncInfo.syncProgress.collection} · ${syncInfo.syncProgress.recovered} document(s) reçus`
+                ? t(`Téléchargement ${syncInfo.syncProgress.collection} · ${syncInfo.syncProgress.recovered} document(s) reçus`, `Downloading ${syncInfo.syncProgress.collection} · ${syncInfo.syncProgress.recovered} document(s) received`)
                 : syncInfo.pendingCount > 0
-                ? `${syncInfo.pendingCount} opération(s) en attente de confirmation serveur`
-                : syncInfo.errorMessage || (syncInfo.status === 'SYNCED' ? 'Synchronisation terminée' : 'Synchronisation non confirmée')}
+                ? t(`${syncInfo.pendingCount} opération(s) en attente de confirmation serveur`, `${syncInfo.pendingCount} operation(s) awaiting server confirmation`)
+                : syncInfo.errorMessage || (syncInfo.status === 'SYNCED' ? t('Synchronisation terminée', 'Synchronization complete') : t('Synchronisation non confirmée', 'Synchronization not confirmed'))}
             </p>
           </div>
         </div>
@@ -286,14 +314,14 @@ export const MenuHub: React.FC<MenuHubProps> = ({
             onClick={onToggleOffline}
             className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-300 hover:bg-slate-50 transition"
           >
-            {syncInfo.status === 'OFFLINE' ? 'Passer En Ligne' : 'Tester Mode Hors-Ligne'}
+            {syncInfo.status === 'OFFLINE' ? t('Passer En Ligne', 'Go Online') : t('Tester Mode Hors-Ligne', 'Test Offline Mode')}
           </button>
           {syncInfo.status !== 'OFFLINE' && (
             <button
               onClick={onManualSync}
               className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition"
             >
-              Synchroniser
+              {t('Synchroniser', 'Sync Now')}
             </button>
           )}
         </div>

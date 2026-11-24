@@ -53,10 +53,14 @@ export function formatDual(amountUSD: number, exchangeRate: number, primary: 'US
 /**
  * Format date for Africa/Lubumbashi timezone (GMT+2)
  */
-export function formatDateLubumbashi(dateInput: string | Date | number, includeTime = true): string {
+export function formatDateLubumbashi(
+  dateInput: string | Date | number,
+  includeTime = true,
+  locale: 'fr-FR' | 'en-US' = 'fr-FR',
+): string {
   try {
     const d = new Date(dateInput);
-    if (isNaN(d.getTime())) return 'Date invalide';
+    if (isNaN(d.getTime())) return locale === 'en-US' ? 'Invalid date' : 'Date invalide';
     
     const options: Intl.DateTimeFormatOptions = {
       timeZone: 'Africa/Lubumbashi',
@@ -65,9 +69,9 @@ export function formatDateLubumbashi(dateInput: string | Date | number, includeT
       year: 'numeric',
       ...(includeTime ? { hour: '2-digit', minute: '2-digit' } : {}),
     };
-    return new Intl.DateTimeFormat('fr-FR', options).format(d);
+    return new Intl.DateTimeFormat(locale, options).format(d);
   } catch {
-    return new Date(dateInput).toLocaleString('fr-FR');
+    return new Date(dateInput).toLocaleString(locale);
   }
 }
 

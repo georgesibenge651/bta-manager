@@ -1,5 +1,6 @@
 import React from 'react';
 import { LayoutDashboard, Package, ShoppingCart, Users, Menu as MenuIcon } from 'lucide-react';
+import { useLanguage } from '../i18n';
 
 export type MainTab = 'accueil' | 'produits' | 'ventes' | 'clients' | 'menu';
 
@@ -20,37 +21,38 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   debtAlertCount = 0,
   visibleTabs,
 }) => {
+  const { t } = useLanguage();
   const tabs = [
     {
       id: 'accueil' as MainTab,
-      label: 'Accueil',
+      label: t('Accueil', 'Home'),
       icon: LayoutDashboard,
       badge: 0,
     },
     {
       id: 'produits' as MainTab,
-      label: 'Produits',
+      label: t('Produits', 'Products'),
       icon: Package,
       badge: lowStockCount,
       badgeColor: 'bg-red-500',
     },
     {
       id: 'ventes' as MainTab,
-      label: 'Ventes',
+      label: t('Ventes', 'Sales'),
       icon: ShoppingCart,
       badge: cartItemCount,
       badgeColor: 'bg-amber-500',
     },
     {
       id: 'clients' as MainTab,
-      label: 'Clients',
+      label: t('Clients', 'Customers'),
       icon: Users,
       badge: debtAlertCount,
       badgeColor: 'bg-amber-500',
     },
     {
       id: 'menu' as MainTab,
-      label: 'Menu',
+      label: t('Menu', 'Menu'),
       icon: MenuIcon,
       badge: 0,
     },

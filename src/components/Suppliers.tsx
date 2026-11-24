@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Truck, Plus, Phone, Mail, MapPin, Edit2, X, DollarSign } from 'lucide-react';
 import { Supplier, Purchase, UserRole } from '../types';
 import { formatUSD, formatCDF } from '../utils/currency';
+import { useLanguage } from '../i18n';
 
 interface SuppliersProps {
   suppliers: Supplier[];
@@ -20,6 +21,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
   onSaveSupplier,
   onNavigateToPurchases,
 }) => {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
@@ -95,10 +97,10 @@ export const Suppliers: React.FC<SuppliersProps> = ({
         <div>
           <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
             <Truck className="w-5 h-5 text-amber-600" />
-            Répertoire des Fournisseurs
+            {t('Répertoire des Fournisseurs', 'Supplier Directory')}
           </h3>
           <p className="text-xs text-slate-500">
-            {suppliers.length} fournisseurs • Gestion des commandes et dettes fournisseurs
+            {suppliers.length} {t('fournisseurs', 'suppliers')} • {t('Gestion des commandes et dettes fournisseurs', 'Manage supplier orders and payables')}
           </p>
         </div>
 
@@ -107,7 +109,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
             onClick={onNavigateToPurchases}
             className="px-3 py-2 rounded-2xl bg-white border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
           >
-            Voir Approvisionnements
+            {t('Voir Approvisionnements', 'View Purchases')}
           </button>
           {canEdit && (
             <button
@@ -115,7 +117,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
               className="px-4 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md"
             >
               <Plus className="w-4 h-4" />
-              Nouveau Fournisseur
+              {t('Nouveau Fournisseur', 'New Supplier')}
             </button>
           )}
         </div>
@@ -135,7 +137,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                 <div className="flex items-start justify-between">
                   <div className="truncate">
                     <h4 className="font-bold text-sm text-slate-900 truncate">{supplier.companyName}</h4>
-                    <p className="text-[11px] text-slate-500">Contact: {supplier.contactName}</p>
+                    <p className="text-[11px] text-slate-500">{t('Contact', 'Contact')}: {supplier.contactName}</p>
                   </div>
                   {canEdit && (
                     <button
@@ -156,7 +158,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                     <MapPin className="w-3.5 h-3.5 text-slate-400" />
                     {supplier.address}
                   </p>
-                  <p className="text-[10px] text-slate-400 truncate">Produits: {supplier.suppliedProducts}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{t('Produits', 'Products')}: {supplier.suppliedProducts}</p>
                 </div>
 
                 <div
@@ -165,7 +167,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                   }`}
                 >
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-semibold text-slate-700">Solde Dû :</span>
+                    <span className="font-semibold text-slate-700">{t('Solde Dû :', 'Balance Due:')}</span>
                     <span className={`font-black ${hasDebt ? 'text-amber-800' : 'text-emerald-800'}`}>
                       {formatUSD(supplier.balanceDueUSD)}
                     </span>
@@ -179,8 +181,8 @@ export const Suppliers: React.FC<SuppliersProps> = ({
               </div>
 
               <div className="text-[11px] text-slate-400 border-t border-slate-100 pt-2 flex justify-between">
-                <span>{supplierPurchases.length} commandes livrées</span>
-                <span className="text-amber-600 font-medium">Actif</span>
+                <span>{supplierPurchases.length} {t('commandes livrées', 'deliveries')}</span>
+                <span className="text-amber-600 font-medium">{t('Actif', 'Active')}</span>
               </div>
             </div>
           );
@@ -193,7 +195,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
           <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-200 my-auto">
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <h3 className="font-bold text-base">
-                {editingSupplier ? 'Modifier Fournisseur' : 'Nouveau Fournisseur'}
+                {editingSupplier ? t('Modifier Fournisseur', 'Edit Supplier') : t('Nouveau Fournisseur', 'New Supplier')}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -205,11 +207,11 @@ export const Suppliers: React.FC<SuppliersProps> = ({
 
             <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Raison Sociale / Société *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Raison Sociale / Société *', 'Company Name *')}</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Congo Construction Supplies Ltd..."
+                  placeholder={t('Ex: Congo Construction Supplies Ltd...', 'e.g., Congo Construction Supplies Ltd...')}
                   value={formData.companyName}
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-semibold"
@@ -218,7 +220,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Nom du Contact</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Nom du Contact', 'Contact Name')}</label>
                   <input
                     type="text"
                     value={formData.contactName}
@@ -227,7 +229,7 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Téléphone *</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Téléphone *', 'Phone *')}</label>
                   <input
                     type="tel"
                     required
@@ -239,10 +241,10 @@ export const Suppliers: React.FC<SuppliersProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Adresse ou Dépôt</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Adresse ou Dépôt', 'Address or Warehouse')}</label>
                 <input
                   type="text"
-                  placeholder="Ex: Zone Industrielle, Route Likasi..."
+                  placeholder={t('Ex: Zone Industrielle, Route Likasi...', 'e.g., Industrial Zone, Likasi Road...')}
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
@@ -250,10 +252,10 @@ export const Suppliers: React.FC<SuppliersProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Produits Fournis</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Produits Fournis', 'Products Supplied')}</label>
                 <input
                   type="text"
-                  placeholder="Ex: Ciment Dangote, Fers à béton, Câbles électriques..."
+                  placeholder={t('Ex: Ciment Dangote, Fers à béton, Câbles électriques...', 'e.g., Dangote cement, reinforcing bars, electrical cables...')}
                   value={formData.suppliedProducts}
                   onChange={(e) => setFormData({ ...formData, suppliedProducts: e.target.value })}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
@@ -266,13 +268,13 @@ export const Suppliers: React.FC<SuppliersProps> = ({
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
                 >
-                  Annuler
+                  {t('Annuler', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md"
                 >
-                  Enregistrer
+                  {t('Enregistrer', 'Save')}
                 </button>
               </div>
             </form>

@@ -16,6 +16,7 @@ import {
 import { Product, Sale, Purchase, Expense, DebtRecord, CompanySettings } from '../types';
 import { formatUSD, formatCDF, usdToCdf, formatDateLubumbashi } from '../utils/currency';
 import { csvCell, saveTextFile } from '../utils/files';
+import { useLanguage } from '../i18n';
 
 interface ReportsProps {
   products: Product[];
@@ -34,6 +35,7 @@ export const Reports: React.FC<ReportsProps> = ({
   debts,
   settings,
 }) => {
+  const { language, t } = useLanguage();
   const [period, setPeriod] = useState<'MONTH' | 'YEAR' | 'ALL'>('MONTH');
   const [reportSearch, setReportSearch] = useState('');
   const normalizedSearch = reportSearch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -107,7 +109,9 @@ export const Reports: React.FC<ReportsProps> = ({
 
   // CSV Export Function
   const handleExportCSV = () => {
-    const headers = ['Date', 'N_Facture', 'Client', 'Total_USD', 'Total_CDF', 'Mode_Paiement', 'Statut'];
+    const headers = language === 'en'
+      ? ['Date', 'Invoice_Number', 'Customer', 'Total_USD', 'Total_CDF', 'Payment_Method', 'Status']
+      : ['Date', 'N_Facture', 'Client', 'Total_USD', 'Total_CDF', 'Mode_Paiement', 'Statut'];
     const rows = filteredSales.map((s) => [
       csvCell(s.date),
       csvCell(s.invoiceNumber),
@@ -119,7 +123,7 @@ export const Reports: React.FC<ReportsProps> = ({
     ]);
     const csv = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
     saveTextFile(`bta_rapport_ventes_${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv').catch(() =>
-      alert('Impossible d’enregistrer le fichier CSV.')
+      alert(t('Impossible d’enregistrer le fichier CSV.', 'Unable to save the CSV file.'))
     );
   };
 
@@ -134,18 +138,18 @@ export const Reports: React.FC<ReportsProps> = ({
         <div>
           <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-amber-600" />
-            Rapports & États Comptables
+            {t('Rapports & États Comptables', 'Reports & Financial Statements')}
           </h3>
           <p className="text-xs text-slate-500">
-            Compte d'exploitation synthétique, rentabilité et balance commerciale
+            {t("Compte d'exploitation synthétique, rentabilité et balance commerciale", 'Summary income statement, profitability, and trade balance')}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[180px] flex-1 sm:flex-none">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-            <input value={reportSearch} onChange={(event) => setReportSearch(event.target.value)} placeholder="Filtrer les rapports..." className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
-            {reportSearch && <button onClick={() => setReportSearch('')} className="absolute right-2.5 top-2.5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
+            <input value={reportSearch} onChange={(event) => setReportSearch(event.target.value)} placeholder={t('Filtrer les rapports...', 'Filter reports...')} className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
+            {reportSearch && <button onClick={() => setReportSearch('')} className="absolute right-2.5 top-2.5 text-slate-400" aria-label={t('Effacer la recherche', 'Clear search')}><X className="w-4 h-4" /></button>}
           </div>
           {/* Period filter */}
           <div className="flex bg-slate-100 p-1 rounded-2xl text-xs font-bold">
@@ -155,7 +159,7 @@ export const Reports: React.FC<ReportsProps> = ({
                 period === 'MONTH' ? 'bg-[#0F2444] text-white shadow-xs' : 'text-slate-600'
               }`}
             >
-              Ce Mois
+              {t('Ce Mois', 'This Month')}
             </button>
             <button
               onClick={() => setPeriod('YEAR')}
@@ -163,7 +167,7 @@ export const Reports: React.FC<ReportsProps> = ({
                 period === 'YEAR' ? 'bg-[#0F2444] text-white shadow-xs' : 'text-slate-600'
               }`}
             >
-              Cette Année
+              {t('Cette Année', 'This Year')}
             </button>
             <button
               onClick={() => setPeriod('ALL')}
@@ -171,17 +175,17 @@ export const Reports: React.FC<ReportsProps> = ({
                 period === 'ALL' ? 'bg-[#0F2444] text-white shadow-xs' : 'text-slate-600'
               }`}
             >
-              Tout
+              {t('Tout', 'All Time')}
             </button>
           </div>
 
           <button
             onClick={handleExportCSV}
             className="px-3 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
-            title="Exporter les ventes au format Excel CSV"
+            title={t('Exporter les ventes au format Excel CSV', 'Export sales as an Excel-compatible CSV')}
           >
             <FileSpreadsheet className="w-4 h-4" />
-            <span className="hidden sm:inline">Export</span> Excel
+            <span className="hidden sm:inline">{t('Export', 'Export')}</span> Excel
           </button>
 
           <button
@@ -189,7 +193,7 @@ export const Reports: React.FC<ReportsProps> = ({
             className="px-3 py-2 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
           >
             <Printer className="w-4 h-4" />
-            Imprimer
+            {t('Imprimer', 'Print')}
           </button>
         </div>
       </div>
@@ -205,10 +209,10 @@ export const Reports: React.FC<ReportsProps> = ({
           </div>
           <div className="text-right">
             <span className="text-xs font-bold uppercase bg-amber-100 text-amber-800 px-3 py-1 rounded-full">
-              Bilan d'Exploitation ({period})
+              {t("Bilan d'Exploitation", 'Operating Statement')} ({period === 'MONTH' ? t('Mois', 'Month') : period === 'YEAR' ? t('Année', 'Year') : t('Tout', 'All Time')})
             </span>
             <p className="text-xs text-slate-500 mt-1">
-              Généré le: {formatDateLubumbashi(new Date().toISOString())}
+              {t('Généré le', 'Generated on')}: {formatDateLubumbashi(new Date().toISOString(), true, language === 'en' ? 'en-US' : 'fr-FR')}
             </p>
           </div>
         </div>
@@ -216,17 +220,17 @@ export const Reports: React.FC<ReportsProps> = ({
         {/* Profit & Loss Table */}
         <div className="space-y-3">
           <h4 className="font-bold text-xs uppercase tracking-wider text-slate-600">
-            Compte de Résultat d'Exploitation (P&L)
+            {t("Compte de Résultat d'Exploitation (P&L)", 'Profit and Loss Statement (P&L)')}
           </h4>
 
           <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-200 text-xs">
             <div className="flex justify-between p-3 bg-slate-50 font-semibold text-slate-700">
-              <span>Chiffre d'Affaires Brut (Ventes Totales)</span>
+              <span>{t("Chiffre d'Affaires Brut (Ventes Totales)", 'Gross Revenue (Total Sales)')}</span>
               <span className="font-bold text-slate-900">{formatUSD(totalRevenueUSD)}</span>
             </div>
 
             <div className="flex justify-between p-3 text-slate-600 pl-6">
-              <span>- Coût d'Achat des Marchandises Vendues (COGS)</span>
+              <span>{t("- Coût d'Achat des Marchandises Vendues (COGS)", '- Cost of Goods Sold (COGS)')}</span>
               <span className="text-red-700">-{formatUSD(cogsUSD)}</span>
             </div>
 
@@ -238,10 +242,10 @@ export const Reports: React.FC<ReportsProps> = ({
               }`}
             >
               <span>
-                = Marge Brute Commerciale{' '}
+                {t('= Marge Brute Commerciale', '= Gross Profit')}{' '}
                 {grossProfitUSD < 0 && (
                   <span className="text-[10px] uppercase font-black bg-red-200 text-red-900 px-1.5 py-0.5 rounded ml-1">
-                    Vente à perte
+                    {t('Vente à perte', 'Sold at a Loss')}
                   </span>
                 )}
               </span>
@@ -251,7 +255,7 @@ export const Reports: React.FC<ReportsProps> = ({
             </div>
 
             <div className="flex justify-between p-3 text-slate-600 pl-6">
-              <span>- Charges et Dépenses d'Exploitation (Carburant, Salaires, etc.)</span>
+              <span>{t("- Charges et Dépenses d'Exploitation (Carburant, Salaires, etc.)", '- Operating Expenses (Fuel, Salaries, etc.)')}</span>
               <span className="text-purple-700">-{formatUSD(totalExpensesUSD)}</span>
             </div>
 
@@ -263,10 +267,10 @@ export const Reports: React.FC<ReportsProps> = ({
               }`}
             >
               <span>
-                = RÉSULTAT NET DE L'EXPLOITATION{' '}
+                {t("= RÉSULTAT NET DE L'EXPLOITATION", '= NET OPERATING PROFIT')}{' '}
                 {netProfitUSD < 0 && (
                   <span className="text-[10px] uppercase font-black bg-red-300 text-red-950 px-1.5 py-0.5 rounded ml-1">
-                    Déficit net
+                    {t('Déficit net', 'Net Loss')}
                   </span>
                 )}
               </span>
@@ -281,20 +285,20 @@ export const Reports: React.FC<ReportsProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
             <span className="text-xs text-slate-500 font-semibold">
-              Valeur Comptable du Stock (Coût PAMP)
+              {t('Valeur Comptable du Stock (Coût PAMP)', 'Inventory Book Value (Weighted Average Cost)')}
             </span>
             <p className="text-lg font-black text-[#0F2444]">{formatUSD(stockInventoryValueUSD)}</p>
             <p className="text-[10px] text-amber-700">{formatCDF(usdToCdf(stockInventoryValueUSD, settings.exchangeRate))}</p>
           </div>
 
           <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 space-y-1">
-            <span className="text-xs text-amber-800 font-semibold">Créances Clients Dehors</span>
+            <span className="text-xs text-amber-800 font-semibold">{t('Créances Clients Dehors', 'Customer Receivables')}</span>
             <p className="text-lg font-black text-amber-900">{formatUSD(customerDebtsUSD)}</p>
             <p className="text-[10px] text-amber-700">{formatCDF(usdToCdf(customerDebtsUSD, settings.exchangeRate))}</p>
           </div>
 
           <div className="p-4 bg-red-50 rounded-2xl border border-red-200 space-y-1">
-            <span className="text-xs text-red-800 font-semibold">Dettes Fournisseurs Dues</span>
+            <span className="text-xs text-red-800 font-semibold">{t('Dettes Fournisseurs Dues', 'Supplier Payables')}</span>
             <p className="text-lg font-black text-red-900">{formatUSD(supplierDebtsUSD)}</p>
             <p className="text-[10px] text-red-700">{formatCDF(usdToCdf(supplierDebtsUSD, settings.exchangeRate))}</p>
           </div>

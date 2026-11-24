@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Camera, Search, X, Check, Barcode } from 'lucide-react';
 import { Product } from '../types';
+import { useLanguage } from '../i18n';
 
 interface BarcodeScannerModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   onScan,
   products,
 }) => {
+  const { t } = useLanguage();
   const [manualCode, setManualCode] = useState('');
   const [isSimulatingCamera, setIsSimulatingCamera] = useState(true);
 
@@ -63,8 +65,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
           <div className="flex items-center gap-2">
             <Barcode className="w-6 h-6 text-amber-400" />
             <div>
-              <h3 className="font-bold text-base">Scanner Code-barres</h3>
-              <p className="text-xs text-slate-300">Caméra & Douchette laser</p>
+              <h3 className="font-bold text-base">{t('Scanner Code-barres', 'Barcode scanner')}</h3>
+              <p className="text-xs text-slate-300">{t('Caméra & Douchette laser', 'Camera & laser scanner')}</p>
             </div>
           </div>
           <button
@@ -97,10 +99,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
             <Camera className="w-10 h-10 text-amber-400/40 mb-2 animate-bounce" />
             <p className="text-xs text-amber-200 font-medium z-10 px-4 text-center">
-              Pointez la caméra vers le code-barres ou le SKU
+              {t('Pointez la caméra vers le code-barres ou le SKU', 'Point the camera at the barcode or SKU')}
             </p>
             <span className="mt-1 text-[10px] text-slate-400 bg-white/10 px-2 py-0.5 rounded-full">
-              Mode détection automatique activé
+              {t('Mode détection automatique activé', 'Automatic detection mode is enabled')}
             </span>
           </div>
 
@@ -110,7 +112,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
               <input
                 type="text"
-                placeholder="Ou saisir le code / SKU..."
+                placeholder={t('Ou saisir le code / SKU...', 'Or enter the code / SKU...')}
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"
@@ -122,7 +124,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1 shadow-sm transition"
             >
               <Check className="w-4 h-4" />
-              Valider
+              {t('Valider', 'Submit')}
             </button>
           </form>
 
@@ -130,7 +132,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                Codes du magasin (clic rapide) :
+                {t('Codes du magasin (clic rapide) :', 'Store codes (quick select):')}
               </span>
             </div>
             <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 text-xs">
@@ -149,7 +151,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     </p>
                   </div>
                   <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-md font-mono shrink-0">
-                    Scanner
+                    {t('Scanner', 'Scan')}
                   </span>
                 </button>
               ))}
@@ -163,7 +165,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             onClick={onClose}
             className="text-xs font-medium text-slate-600 hover:text-slate-900 px-4 py-1.5"
           >
-            Fermer
+            {t('Fermer', 'Close')}
           </button>
         </div>
       </div>

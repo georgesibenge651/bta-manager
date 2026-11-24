@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Zap,
 } from 'lucide-react';
+import { useLanguage } from '../i18n';
 
 interface ApkExportModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
   onDownloadZip,
   onOpenSettings,
 }) => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'PWA' | 'APK_ONLINE' | 'STUDIO' | 'DATA'>('PWA');
   const [copied, setCopied] = useState(false);
 
@@ -52,8 +54,8 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
               <Smartphone className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-base sm:text-lg">Installation Mobile & Export APK</h3>
-              <p className="text-xs text-amber-200">CHIEF ALPHONS COMPANY LTD pour Android</p>
+              <h3 className="font-extrabold text-base sm:text-lg">{t('Installation Mobile & Export APK', 'Mobile installation & APK export')}</h3>
+              <p className="text-xs text-amber-200">{t('CHIEF ALPHONS COMPANY LTD pour Android', 'CHIEF ALPHONS COMPANY LTD for Android')}</p>
             </div>
           </div>
           <button
@@ -73,7 +75,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
             }`}
           >
             <Zap className="w-3.5 h-3.5 text-amber-500" />
-            1. Installation Immédiate (Recommandé)
+            {t('1. Installation Immédiate (Recommandé)', '1. Instant installation (recommended)')}
           </button>
           <button
             onClick={() => setActiveTab('APK_ONLINE')}
@@ -82,7 +84,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
             }`}
           >
             <Smartphone className="w-3.5 h-3.5 text-amber-600" />
-            2. Générer Fichier .APK
+            {t('2. Générer Fichier .APK', '2. Generate an .APK file')}
           </button>
           <button
             onClick={() => setActiveTab('STUDIO')}
@@ -100,7 +102,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
             }`}
           >
             <Database className="w-3.5 h-3.5 text-emerald-600" />
-            4. Vos Propres Données
+            {t('4. Vos Propres Données', '4. Your own data')}
           </button>
         </div>
 
@@ -111,16 +113,16 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-900">
                 <h4 className="font-bold text-sm flex items-center gap-2 mb-1">
                   <Zap className="w-4 h-4 text-amber-500" />
-                  Solution la plus rapide (Aucune compilation nécessaire)
+                  {t('Solution la plus rapide (Aucune compilation nécessaire)', 'Fastest option (no build required)')}
                 </h4>
                 <p className="text-xs text-amber-800 leading-relaxed">
-                  CHIEF ALPHONS COMPANY LTD est conçue comme une Progressive Web App (PWA). Sur n’importe quel téléphone Android (Samsung, Tecno, Infinix, Xiaomi, etc.), Google Chrome installe directement l’application sur votre écran d’accueil avec son icône, son plein écran et son fonctionnement hors-ligne.
+                  {t('CHIEF ALPHONS COMPANY LTD est conçue comme une Progressive Web App (PWA). Sur n’importe quel téléphone Android (Samsung, Tecno, Infinix, Xiaomi, etc.), Google Chrome installe directement l’application sur votre écran d’accueil avec son icône, son plein écran et son fonctionnement hors-ligne.', 'CHIEF ALPHONS COMPANY LTD is a Progressive Web App (PWA). On any Android phone (Samsung, Tecno, Infinix, Xiaomi, etc.), Google Chrome installs it directly on your home screen with its own icon, full-screen display, and offline support.')}
                 </p>
               </div>
 
               <div className="space-y-3">
                 <h5 className="font-extrabold text-slate-900 text-xs uppercase tracking-wide">
-                  Étapes pour installer sur votre téléphone :
+                  {t('Étapes pour installer sur votre téléphone :', 'How to install on your phone:')}
                 </h5>
 
                 <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200">
@@ -128,7 +130,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                     1
                   </div>
                   <div className="space-y-2 flex-1">
-                    <p className="font-bold text-slate-800">Ouvrez le lien sur votre smartphone Android :</p>
+                    <p className="font-bold text-slate-800">{t('Ouvrez le lien sur votre smartphone Android :', 'Open the link on your Android phone:')}</p>
                     <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-300">
                       <input
                         type="text"
@@ -141,7 +143,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                         className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition"
                       >
                         {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                        {copied ? 'Copié !' : 'Copier'}
+                        {copied ? t('Copié !', 'Copied!') : t('Copier', 'Copy')}
                       </button>
                     </div>
                   </div>
@@ -152,9 +154,9 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                     2
                   </div>
                   <div>
-                    <p className="font-bold text-slate-800">Dans Google Chrome :</p>
+                    <p className="font-bold text-slate-800">{t('Dans Google Chrome :', 'In Google Chrome:')}</p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Appuyez sur le menu en haut à droite (les <strong>3 petits points verticaux ⋮</strong>).
+                      {t('Appuyez sur le menu en haut à droite (les ', 'Tap the menu in the top-right corner (the ')}<strong>{t('3 petits points verticaux','three vertical dots')} ⋮</strong>).
                     </p>
                   </div>
                 </div>
@@ -164,9 +166,9 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                     3
                   </div>
                   <div>
-                    <p className="font-bold text-slate-800">Sélectionnez « Installer l’application »</p>
+                    <p className="font-bold text-slate-800">{t('Sélectionnez « Installer l’application »', 'Select “Install app”')}</p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      (Ou <em>« Ajouter à l’écran d’accueil »</em>). Android génère automatiquement un <strong>WebAPK natif</strong> avec l’icône CHIEF ALPHONS COMPANY LTD sur votre bureau mobile !
+                      {t('(Ou ', '(Or ')}<em>{t('« Ajouter à l’écran d’accueil »', '“Add to Home screen”')}</em>{t('). Android génère automatiquement un ', '). Android automatically creates a ')}<strong>WebAPK</strong>{t(' natif avec l’icône CHIEF ALPHONS COMPANY LTD sur votre bureau mobile !', ' with the CHIEF ALPHONS COMPANY LTD icon on your home screen!')}
                     </p>
                   </div>
                 </div>
@@ -179,22 +181,22 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-900">
                 <h4 className="font-bold text-sm flex items-center gap-2 mb-1">
                   <Smartphone className="w-4 h-4 text-emerald-600" />
-                  Générer un fichier autonome .APK en ligne (100% Gratuit)
+                  {t('Générer un fichier autonome .APK en ligne (100% Gratuit)', 'Generate a standalone .APK online (100% free)')}
                 </h4>
                 <p className="text-xs text-emerald-800 leading-relaxed">
-                  Si vous souhaitez obtenir un vrai fichier d’installation physique se terminant par <code className="font-bold bg-white/60 px-1 py-0.5 rounded">.apk</code> pour le distribuer par WhatsApp ou clé USB à vos caissiers sans passer par le Play Store :
+                  {t('Si vous souhaitez obtenir un vrai fichier d’installation physique se terminant par ', 'To get an actual installation file ending in ')}<code className="font-bold bg-white/60 px-1 py-0.5 rounded">.apk</code>{t(' pour le distribuer par WhatsApp ou clé USB à vos caissiers sans passer par le Play Store :', ' to share with cashiers through WhatsApp or USB without using the Play Store:')}
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                  <h5 className="font-bold text-slate-900 text-xs">Méthode avec PWABuilder (Officiel Microsoft) :</h5>
+                  <h5 className="font-bold text-slate-900 text-xs">{t('Méthode avec PWABuilder (Officiel Microsoft) :', 'Using PWABuilder (official Microsoft tool):')}</h5>
                   <ol className="list-decimal list-inside space-y-1.5 text-xs text-slate-600">
-                    <li>Copiez l’URL de l’application : <code className="font-mono text-amber-700 bg-amber-50 px-1 rounded">{appUrl}</code></li>
-                    <li>Rendez-vous sur le site sécurisé : <a href="https://www.pwabuilder.com" target="_blank" rel="noopener noreferrer" className="text-amber-600 font-bold underline inline-flex items-center gap-0.5">www.pwabuilder.com <ExternalLink className="w-3 h-3" /></a></li>
-                    <li>Collez l’URL et cliquez sur <strong>« Start »</strong>.</li>
-                    <li>Cliquez sur <strong>« Package for Android »</strong> puis <strong>« Generate APK »</strong>.</li>
-                    <li>Téléchargez votre fichier <code className="font-bold text-emerald-700">bta-release.apk</code> prêt à installer !</li>
+                    <li>{t('Copiez l’URL de l’application :', 'Copy the app URL:')} <code className="font-mono text-amber-700 bg-amber-50 px-1 rounded">{appUrl}</code></li>
+                    <li>{t('Rendez-vous sur le site sécurisé :', 'Go to the secure website:')} <a href="https://www.pwabuilder.com" target="_blank" rel="noopener noreferrer" className="text-amber-600 font-bold underline inline-flex items-center gap-0.5">www.pwabuilder.com <ExternalLink className="w-3 h-3" /></a></li>
+                    <li>{t('Collez l’URL et cliquez sur ', 'Paste the URL and click ')}<strong>“Start”</strong>.</li>
+                    <li>{t('Cliquez sur ', 'Click ')}<strong>“Package for Android”</strong>{t(' puis ', ' then ')}<strong>“Generate APK”</strong>.</li>
+                    <li>{t('Téléchargez votre fichier ', 'Download your ')}<code className="font-bold text-emerald-700">bta-release.apk</code>{t(' prêt à installer !', ' file, ready to install!')}</li>
                   </ol>
                 </div>
               </div>
@@ -206,10 +208,10 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
               <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 text-teal-900">
                 <h4 className="font-bold text-sm flex items-center gap-2 mb-1">
                   <FileCode className="w-4 h-4 text-teal-600" />
-                  Projet Android Natif Prêt (Capacitor & Gradle)
+                  {t('Projet Android Natif Prêt (Capacitor & Gradle)', 'Native Android project ready (Capacitor & Gradle)')}
                 </h4>
                 <p className="text-xs text-teal-800 leading-relaxed">
-                  Le dossier <code className="font-bold bg-white/70 px-1 py-0.5 rounded text-teal-900">android/</code> est 100% configuré avec Gradle, l’<code className="font-bold bg-white/70 px-1 py-0.5 rounded text-teal-900">AndroidManifest.xml</code>, le nom <strong>CHIEF ALPHONS COMPANY LTD</strong> et l’ID <code className="font-mono text-teal-800 font-bold">com.businessafrica.bta.manager</code>.
+                  {t('Le dossier ', 'The ')}<code className="font-bold bg-white/70 px-1 py-0.5 rounded text-teal-900">android/</code>{t(' est entièrement configuré avec Gradle, l’', ' folder is fully configured with Gradle, the ')}<code className="font-bold bg-white/70 px-1 py-0.5 rounded text-teal-900">AndroidManifest.xml</code>{t(', le nom ', ', app name ')}<strong>CHIEF ALPHONS COMPANY LTD</strong>{t(' et l’ID ', ' and ID ')}<code className="font-mono text-teal-800 font-bold">com.businessafrica.bta.manager</code>.
                 </p>
               </div>
 
@@ -219,20 +221,20 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                   className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition text-xs sm:text-sm"
                 >
                   <Download className="w-4 h-4" />
-                  Télécharger le Projet Android Complet (.ZIP - 630 Ko)
+                  {t('Télécharger le Projet Android Complet (.ZIP - 630 Ko)', 'Download the complete Android project (.ZIP - 630 KB)')}
                 </button>
 
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-2">
                   <p className="font-extrabold text-slate-900 uppercase tracking-wide text-[11px]">
-                    Option A : Compilation en Ligne de Commande (Terminal)
+                    {t('Option A : Compilation en Ligne de Commande (Terminal)', 'Option A: Build from the command line (terminal)')}
                   </p>
                   <div className="bg-slate-900 text-emerald-400 font-mono p-2.5 rounded-xl text-[11px] space-y-1">
-                    <p className="text-slate-400"># 1. Générer l’APK de test (Debug) :</p>
+                    <p className="text-slate-400">{t('# 1. Générer l’APK de test (Debug) :', '# 1. Build a debug APK:')}</p>
                     <p>cd android</p>
                     <p>./gradlew assembleDebug</p>
-                    <p className="text-amber-300"># Emplacement du fichier généré :</p>
+                    <p className="text-amber-300">{t('# Emplacement du fichier généré :', '# Output file location:')}</p>
                     <p className="text-amber-300">android/app/build/outputs/apk/debug/app-debug.apk</p>
-                    <p className="text-slate-400 mt-2"># 2. Générer l’APK de production (Release) :</p>
+                    <p className="text-slate-400 mt-2">{t('# 2. Générer l’APK de production (Release) :', '# 2. Build a release APK:')}</p>
                     <p>./gradlew assembleRelease</p>
                     <p className="text-amber-300">android/app/build/outputs/apk/release/app-release-unsigned.apk</p>
                   </div>
@@ -240,12 +242,12 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
 
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-1.5">
                   <p className="font-extrabold text-slate-900 uppercase tracking-wide text-[11px]">
-                    Option B : Ouverture dans Android Studio (Interface Visuelle)
+                    {t('Option B : Ouverture dans Android Studio (Interface Visuelle)', 'Option B: Open in Android Studio (visual interface)')}
                   </p>
-                  <p>1. Décompressez l’archive ZIP sur votre machine.</p>
-                  <p>2. Lancez Android Studio et choisissez <strong>« Open »</strong> en sélectionnant le dossier <code className="font-mono bg-white px-1 border rounded">android</code>.</p>
-                  <p>3. Menu supérieur : <strong>Build &gt; Build Bundle(s) / APK(s) &gt; Build APK(s)</strong>.</p>
-                  <p>4. Android Studio affiche une notification avec un lien direct <strong>« locate »</strong> pour copier le fichier <code className="font-bold text-amber-800">app-debug.apk</code> vers votre téléphone.</p>
+                  <p>{t('1. Décompressez l’archive ZIP sur votre machine.', '1. Extract the ZIP archive on your computer.')}</p>
+                  <p>{t('2. Lancez Android Studio et choisissez ', '2. Open Android Studio and select ')}<strong>“Open”</strong>{t(' en sélectionnant le dossier ', ', then choose the ')}<code className="font-mono bg-white px-1 border rounded">android</code>{t('.', ' folder.')}</p>
+                  <p>{t('3. Menu supérieur : ', '3. From the top menu, select: ')}<strong>Build &gt; Build Bundle(s) / APK(s) &gt; Build APK(s)</strong>.</p>
+                  <p>{t('4. Android Studio affiche une notification avec un lien direct ', '4. Android Studio displays a notification with a ')}<strong>“locate”</strong>{t(' pour copier le fichier ', ' link to locate and copy ')}<code className="font-bold text-amber-800">app-debug.apk</code>{t(' vers votre téléphone.', ' to your phone.')}</p>
                 </div>
               </div>
             </div>
@@ -256,10 +258,10 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-900">
                 <h4 className="font-bold text-sm flex items-center gap-2 mb-1">
                   <Database className="w-4 h-4 text-emerald-600" />
-                  Comment intégrer et utiliser vos propres données
+                  {t('Comment intégrer et utiliser vos propres données', 'How to add and use your own data')}
                 </h4>
                 <p className="text-xs text-emerald-800 leading-relaxed">
-                  Vous n’avez pas besoin de toucher au code informatique pour utiliser CHIEF ALPHONS COMPANY LTD avec vos vrais produits (farine de maïs Candol, huile, riz), vos vrais clients et vos taux de change.
+                  {t('Vous n’avez pas besoin de toucher au code informatique pour utiliser CHIEF ALPHONS COMPANY LTD avec vos vrais produits (farine de maïs Candol, huile, riz), vos vrais clients et vos taux de change.', 'You do not need to modify any code to use CHIEF ALPHONS COMPANY LTD with your real products (Candol maize flour, oil, rice), customers, and exchange rates.')}
                 </p>
               </div>
 
@@ -267,40 +269,40 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
                   <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                     <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px]">1</span>
-                    Configurer votre Magasin & Taux de Change
+                    {t('Configurer votre Magasin & Taux de Change', 'Set up your store & exchange rate')}
                   </h5>
                   <p className="text-xs text-slate-600 mt-1">
-                    Allez dans <strong>Paramètres</strong> : saisissez le nom de votre quincaillerie/boutique, votre adresse à Lubumbashi, votre numéro de téléphone (pour les reçus WhatsApp) et réglez le taux officiel (ex: <strong>1 $ = 2 800 FC</strong>).
+                    {t('Allez dans ', 'Open ')}<strong>{t('Paramètres', 'Settings')}</strong>{t(' : saisissez le nom de votre quincaillerie/boutique, votre adresse à Lubumbashi, votre numéro de téléphone (pour les reçus WhatsApp) et réglez le taux officiel (ex: ', ': enter your store name, address in Lubumbashi, phone number (for WhatsApp receipts), and official exchange rate (e.g. ')}<strong>1 $ = 2 800 FC</strong>).
                   </p>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
                   <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                     <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px]">2</span>
-                    Enregistrer vos vrais Produits
+                    {t('Enregistrer vos vrais Produits', 'Add your real products')}
                   </h5>
                   <p className="text-xs text-slate-600 mt-1">
-                    Dans l’onglet <strong>Produits</strong>, cliquez sur <strong>« + Nouveau Produit »</strong> : entrez le nom (ex : <em>Farine de maïs sac 25 kg</em>), le prix d'achat fournisseur (21 $) et le barème de vente (18,50 $, 17,50 $, 17 $).
+                    {t('Dans l’onglet ', 'In the ')}<strong>{t('Produits', 'Products')}</strong>{t(', cliquez sur ', ', select ')}<strong>{t('« + Nouveau Produit »', '“+ New Product”')}</strong>{t(' : entrez le nom (ex : ', ': enter the name (e.g. ')}<em>Farine de maïs sac 25 kg</em>{t('), le prix d’achat fournisseur (21 $) et le barème de vente (18,50 $, 17,50 $, 17 $).', '), supplier purchase price ($21), and tiered sale prices ($18.50, $17.50, and $17).')}
                   </p>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
                   <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                     <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px]">3</span>
-                    Créer vos Fournisseurs & Réceptions (Candol)
+                    {t('Créer vos Fournisseurs & Réceptions (Candol)', 'Add suppliers and deliveries (Candol)')}
                   </h5>
                   <p className="text-xs text-slate-600 mt-1">
-                    Dans <strong>Menu &gt; Fournisseurs</strong>, créez « Candol ». Puis dans <strong>Achats</strong>, enregistrez la livraison de 1 000 unités avec l'échéance à 3 semaines. Le stock et la dette sont automatiquement mis à jour.
+                    {t('Dans ', 'In ')}<strong>Menu &gt; {t('Fournisseurs', 'Suppliers')}</strong>{t(', créez « Candol ». Puis dans ', ', add “Candol”. Then in ')}<strong>{t('Achats', 'Purchases')}</strong>{t(', enregistrez la livraison de 1 000 unités avec l’échéance à 3 semaines. Le stock et la dette sont automatiquement mis à jour.', ', record a delivery of 1,000 units with a three-week payment term. Inventory and debt are updated automatically.')}
                   </p>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
                   <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                     <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px]">4</span>
-                    Sauvegarder vos Données en 1 Clic
+                    {t('Sauvegarder vos Données en 1 Clic', 'Back up your data in one click')}
                   </h5>
                   <p className="text-xs text-slate-600 mt-1">
-                    Dans <strong>Paramètres &gt; Sauvegarde</strong>, cliquez sur <strong>« Exporter Sauvegarde JSON »</strong>. Vous avez une copie intégrale de toutes vos ventes, clients et stocks sur votre téléphone ou PC !
+                    {t('Dans ', 'In ')}<strong>{t('Paramètres &gt; Sauvegarde', 'Settings > Backup')}</strong>{t(', cliquez sur ', ', select ')}<strong>{t('« Exporter Sauvegarde JSON »', '“Export JSON backup”')}</strong>{t('. Vous avez une copie intégrale de toutes vos ventes, clients et stocks sur votre téléphone ou PC !', '. You will have a complete copy of your sales, customers, and inventory on your phone or computer!')}
                   </p>
                 </div>
 
@@ -311,7 +313,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                   }}
                   className="w-full py-2.5 px-4 bg-[#0F2444] hover:bg-[#1E3E62] text-white rounded-xl font-bold flex items-center justify-center gap-2 text-xs transition mt-2"
                 >
-                  Ouvrir les Paramètres Maintenant
+                  {t('Ouvrir les Paramètres Maintenant', 'Open settings now')}
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -323,13 +325,13 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
         <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Données privées sauvegardées localement</span>
+            <span>{t('Données privées sauvegardées localement', 'Private data stored locally')}</span>
           </div>
           <button
             onClick={onClose}
             className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold transition"
           >
-            Fermer
+            {t('Fermer', 'Close')}
           </button>
         </div>
       </div>

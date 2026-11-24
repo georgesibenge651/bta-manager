@@ -28,6 +28,7 @@ import {
   User,
 } from '../types';
 import { formatUSD, formatCDF, usdToCdf, formatDateLubumbashi } from '../utils/currency';
+import { useLanguage } from '../i18n';
 
 interface DashboardProps {
   products: Product[];
@@ -57,6 +58,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigate,
   onSelectSaleForReceipt,
 }) => {
+  const { language, t } = useLanguage();
   const [period, setPeriod] = useState<PeriodFilter>('MONTH');
 
   // Filter sales and expenses based on selected period
@@ -187,14 +189,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-      const dayStr = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+      const dayStr = d.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'short', day: 'numeric' });
       const dayTotal = sales
         .filter((s) => new Date(s.date).toDateString() === d.toDateString())
         .reduce((sum, s) => sum + s.totalUSD, 0);
       days.push({ label: dayStr, amountUSD: dayTotal });
     }
     return days;
-  }, [sales]);
+  }, [sales, language]);
 
   const maxChartVal = Math.max(...salesChartData.map((d) => d.amountUSD), 100);
 
@@ -215,17 +217,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs uppercase tracking-wider font-semibold text-amber-300">
-                Tableau de Bord Exécutif
+                {t('Tableau de Bord Exécutif', 'Executive Dashboard')}
               </span>
               <span className="bg-amber-400/20 text-amber-200 text-[10px] px-2 py-0.5 rounded-full font-bold">
                 1$ = {settings.exchangeRate} FC
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black mt-1 text-white tracking-tight">
-              Bonjour, {currentUser.name}
+              {t('Bonjour', 'Hello')}, {currentUser.name}
             </h1>
             <p className="text-xs text-slate-300 mt-0.5">
-              Gestion commerciale et financière • {settings.city}
+              {t('Gestion commerciale et financière', 'Business and financial management')} • {settings.city}
             </p>
           </div>
 
@@ -238,7 +240,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 period === 'TODAY' ? 'bg-amber-500 text-white shadow' : 'text-slate-300 hover:text-white'
               }`}
             >
-              Aujourd'hui
+              {t("Aujourd'hui", 'Today')}
             </button>
             <button
               onClick={() => setPeriod('WEEK')}
@@ -246,7 +248,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 period === 'WEEK' ? 'bg-amber-500 text-white shadow' : 'text-slate-300 hover:text-white'
               }`}
             >
-              Semaine
+              {t('Semaine', 'Week')}
             </button>
             <button
               onClick={() => setPeriod('MONTH')}
@@ -254,7 +256,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 period === 'MONTH' ? 'bg-amber-500 text-white shadow' : 'text-slate-300 hover:text-white'
               }`}
             >
-              Ce Mois
+              {t('Ce Mois', 'This Month')}
             </button>
             <button
               onClick={() => setPeriod('YEAR')}
@@ -262,7 +264,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 period === 'YEAR' ? 'bg-amber-500 text-white shadow' : 'text-slate-300 hover:text-white'
               }`}
             >
-              Année
+              {t('Année', 'Year')}
             </button>
             <button
               onClick={() => setPeriod('ALL')}
@@ -270,7 +272,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 period === 'ALL' ? 'bg-amber-500 text-white shadow' : 'text-slate-300 hover:text-white'
               }`}
             >
-              Tout
+              {t('Tout', 'All time')}
             </button>
           </div>
         </div>
@@ -289,8 +291,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <ShoppingCart className="w-5 h-5" />
           </div>
           <div className="text-left">
-            <p className="text-xs text-amber-100 font-medium">Point de Vente</p>
-            <p className="text-sm font-bold leading-tight">Nouvelle Vente</p>
+            <p className="text-xs text-amber-100 font-medium">{t('Point de Vente', 'Point of Sale')}</p>
+            <p className="text-sm font-bold leading-tight">{t('Nouvelle Vente', 'New Sale')}</p>
           </div>
         </button>
 
@@ -302,8 +304,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <PlusCircle className="w-5 h-5" />
           </div>
           <div className="text-left">
-            <p className="text-xs text-slate-500 font-medium">Catalogue</p>
-            <p className="text-sm font-bold text-slate-900 leading-tight">Ajouter Produit</p>
+            <p className="text-xs text-slate-500 font-medium">{t('Catalogue', 'Catalog')}</p>
+            <p className="text-sm font-bold text-slate-900 leading-tight">{t('Ajouter Produit', 'Add Product')}</p>
           </div>
         </button>
 
@@ -315,8 +317,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Truck className="w-5 h-5" />
           </div>
           <div className="text-left">
-            <p className="text-xs text-slate-500 font-medium">Fournisseurs</p>
-            <p className="text-sm font-bold text-slate-900 leading-tight">Approvisionner</p>
+            <p className="text-xs text-slate-500 font-medium">{t('Fournisseurs', 'Suppliers')}</p>
+            <p className="text-sm font-bold text-slate-900 leading-tight">{t('Approvisionner', 'Restock')}</p>
           </div>
         </button>
 
@@ -328,8 +330,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Receipt className="w-5 h-5" />
           </div>
           <div className="text-left">
-            <p className="text-xs text-slate-500 font-medium">Comptabilité</p>
-            <p className="text-sm font-bold text-slate-900 leading-tight">Dépense Caisse</p>
+            <p className="text-xs text-slate-500 font-medium">{t('Comptabilité', 'Accounting')}</p>
+            <p className="text-sm font-bold text-slate-900 leading-tight">{t('Dépense Caisse', 'Cash Expense')}</p>
           </div>
         </button>
       </div>
@@ -346,14 +348,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
                 <div>
                   <p className="text-xs font-bold text-red-900">
-                    {stats.outOfStockProducts.length} produit(s) en rupture totale !
+                    {stats.outOfStockProducts.length} {t('produit(s) en rupture totale !', 'product(s) completely out of stock!')}
                   </p>
                   <p className="text-[11px] text-red-700 truncate max-w-xs">
                     {stats.outOfStockProducts.map((p) => p.name).join(', ')}
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-bold text-red-700 underline shrink-0">Voir</span>
+              <span className="text-xs font-bold text-red-700 underline shrink-0">{t('Voir', 'View')}</span>
             </div>
           )}
 
@@ -366,14 +368,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
                 <div>
                   <p className="text-xs font-bold text-amber-900">
-                    {stats.lowStockProducts.length} produit(s) proche(s) du seuil minimal
+                    {stats.lowStockProducts.length} {t('produit(s) proche(s) du seuil minimal', 'product(s) near the minimum stock level')}
                   </p>
                   <p className="text-[11px] text-amber-700 truncate max-w-xs">
                     {stats.lowStockProducts.map((p) => p.name).join(', ')}
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-bold text-amber-700 underline shrink-0">Réapprovisionner</span>
+              <span className="text-xs font-bold text-amber-700 underline shrink-0">{t('Réapprovisionner', 'Restock')}</span>
             </div>
           )}
         </div>
@@ -385,7 +387,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm relative overflow-hidden group hover:border-amber-300 transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500">
-              Ventes ({period === 'TODAY' ? "Aujourd'hui" : period === 'MONTH' ? 'Ce Mois' : 'Période'})
+              {t('Ventes', 'Sales')} ({period === 'TODAY' ? t("Aujourd'hui", 'Today') : period === 'MONTH' ? t('Ce Mois', 'This Month') : t('Période', 'Period')})
             </span>
             <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <TrendingUp className="w-4 h-4" />
@@ -399,14 +401,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </p>
           <div className="mt-2 text-[10px] text-slate-400 flex items-center gap-1">
             <ArrowUpRight className="w-3 h-3 text-emerald-500" />
-            <span>Aujourd'hui: {formatUSD(stats.todaySalesUSD)}</span>
+            <span>{t("Aujourd'hui", 'Today')}: {formatUSD(stats.todaySalesUSD)}</span>
           </div>
         </div>
 
         {/* Estimated Profit Card */}
         <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm relative overflow-hidden group hover:border-emerald-300 transition">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Bénéfice Net Estimé</span>
+            <span className="text-xs font-semibold text-slate-500">{t('Bénéfice Net Estimé', 'Estimated Net Profit')}</span>
             <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <ArrowUpRight className="w-4 h-4" />
             </div>
@@ -418,7 +420,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {formatCDF(usdToCdf(stats.netProfitUSD, settings.exchangeRate))}
           </p>
           <div className="mt-2 text-[10px] text-slate-400">
-            Brut: {formatUSD(stats.grossProfitUSD)} - Dépenses
+            {t('Brut', 'Gross')}: {formatUSD(stats.grossProfitUSD)} - {t('Dépenses', 'Expenses')}
           </div>
         </div>
 
@@ -428,7 +430,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm relative overflow-hidden group hover:border-amber-300 transition cursor-pointer"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Valeur Marchande Stock</span>
+            <span className="text-xs font-semibold text-slate-500">{t('Valeur Marchande Stock', 'Stock Market Value')}</span>
             <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <Package className="w-4 h-4" />
             </div>
@@ -437,10 +439,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {formatUSD(stats.stockValueSellUSD)}
           </p>
           <p className="text-xs font-bold text-amber-700 mt-0.5">
-            Coût d'achat: {formatUSD(stats.stockValueBuyUSD)}
+            {t("Coût d'achat", 'Purchase cost')}: {formatUSD(stats.stockValueBuyUSD)}
           </p>
           <div className="mt-2 text-[10px] text-slate-400">
-            {stats.totalProducts} références en catalogue
+            {stats.totalProducts} {t('références en catalogue', 'products in catalog')}
           </div>
         </div>
 
@@ -450,7 +452,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm relative overflow-hidden group hover:border-amber-300 transition cursor-pointer"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Dettes & Créances</span>
+            <span className="text-xs font-semibold text-slate-500">{t('Dettes & Créances', 'Debts & Receivables')}</span>
             <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <CreditCard className="w-4 h-4" />
             </div>
@@ -458,9 +460,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <p className="text-xl sm:text-2xl font-black text-amber-700 mt-2">
             {formatUSD(stats.customerDebtsUSD)}
           </p>
-          <p className="text-xs text-slate-500 mt-0.5">Créances dues par clients</p>
+          <p className="text-xs text-slate-500 mt-0.5">{t('Créances dues par clients', 'Receivables owed by customers')}</p>
           <div className="mt-2 text-[10px] text-slate-400">
-            Dettes Fournisseurs: <span className="font-bold text-slate-700">{formatUSD(stats.supplierDebtsUSD)}</span>
+            {t('Dettes Fournisseurs', 'Supplier Debts')}: <span className="font-bold text-slate-700">{formatUSD(stats.supplierDebtsUSD)}</span>
           </div>
         </div>
       </div>
@@ -471,8 +473,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="lg:col-span-2 bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-bold text-sm text-slate-800">Évolution des Ventes (7 derniers jours)</h3>
-              <p className="text-xs text-slate-400">Activité journalière en magasin</p>
+              <h3 className="font-bold text-sm text-slate-800">{t('Évolution des Ventes (7 derniers jours)', 'Sales Trend (Last 7 Days)')}</h3>
+              <p className="text-xs text-slate-400">{t('Activité journalière en magasin', 'Daily in-store activity')}</p>
             </div>
             <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-xl">
               USD & CDF
@@ -505,9 +507,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div className="flex items-center justify-between text-xs text-slate-500 pt-3">
-            <span>Moyenne journalière estimée</span>
+            <span>{t('Moyenne journalière estimée', 'Estimated daily average')}</span>
             <span className="font-bold text-slate-800">
-              {formatUSD(stats.periodSalesUSD / (period === 'WEEK' ? 7 : 30))} / jour
+              {formatUSD(stats.periodSalesUSD / (period === 'WEEK' ? 7 : 30))} / {t('jour', 'day')}
             </span>
           </div>
         </div>
@@ -516,7 +518,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-sm text-slate-800">Produits les plus vendus</h3>
+              <h3 className="font-bold text-sm text-slate-800">{t('Produits les plus vendus', 'Top-Selling Products')}</h3>
               <Package className="w-4 h-4 text-slate-400" />
             </div>
 
@@ -531,7 +533,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <div className="truncate">
                         <p className="font-semibold text-slate-800 truncate">{p.name}</p>
                         <p className="text-[10px] text-slate-400">
-                          {p.quantity} {p.unit} vendus
+                          {p.quantity} {p.unit} {t('vendus', 'sold')}
                         </p>
                       </div>
                     </div>
@@ -540,7 +542,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 ))
               ) : (
                 <p className="text-xs text-slate-400 italic py-4 text-center">
-                  Aucune vente enregistrée sur cette période
+                  {t('Aucune vente enregistrée sur cette période', 'No sales recorded during this period')}
                 </p>
               )}
             </div>
@@ -550,7 +552,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             onClick={() => onNavigate('produits')}
             className="w-full mt-4 py-2 text-xs font-semibold text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-xl transition text-center"
           >
-            Consulter tout le stock ({products.length})
+            {t('Consulter tout le stock', 'View all stock')} ({products.length})
           </button>
         </div>
       </div>
@@ -561,14 +563,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="lg:col-span-2 bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h3 className="font-bold text-sm text-slate-800">Dernières Factures Émises</h3>
-              <p className="text-xs text-slate-400">Cliquez pour imprimer ou envoyer sur WhatsApp</p>
+              <h3 className="font-bold text-sm text-slate-800">{t('Dernières Factures Émises', 'Latest Invoices')}</h3>
+              <p className="text-xs text-slate-400">{t('Cliquez pour imprimer ou envoyer sur WhatsApp', 'Click to print or send via WhatsApp')}</p>
             </div>
             <button
               onClick={() => onNavigate('ventes')}
               className="text-xs font-bold text-amber-600 hover:text-amber-700"
             >
-              Historique complet
+              {t('Historique complet', 'Full history')}
             </button>
           </div>
 
@@ -583,11 +585,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-xs text-slate-800">{sale.invoiceNumber}</span>
                     <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-medium">
-                      {sale.items.length} art.
+                      {sale.items.length} {t('art.', 'items')}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                    {sale.customerName} • {formatDateLubumbashi(sale.date)}
+                    {sale.customerName} • {formatDateLubumbashi(sale.date, true, language === 'en' ? 'en-US' : 'fr-FR')}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
@@ -603,7 +605,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-sm text-slate-800">Dépenses par catégorie</h3>
+              <h3 className="font-bold text-sm text-slate-800">{t('Dépenses par catégorie', 'Expenses by Category')}</h3>
               <PieIcon className="w-4 h-4 text-slate-400" />
             </div>
 
@@ -630,7 +632,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-slate-500">Total dépenses ({period})</span>
+            <span className="text-slate-500">
+              {t('Total dépenses', 'Total expenses')} ({period === 'TODAY' ? t("Aujourd'hui", 'Today') : period === 'WEEK' ? t('Semaine', 'Week') : period === 'MONTH' ? t('Ce Mois', 'This Month') : period === 'YEAR' ? t('Année', 'Year') : t('Tout', 'All time')})
+            </span>
             <span className="font-bold text-purple-700">{formatUSD(stats.periodExpensesUSD)}</span>
           </div>
         </div>

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Product, Supplier, Purchase, PaymentMethod } from '../types';
 import { formatUSD, formatCDF, usdToCdf, formatDateLubumbashi } from '../utils/currency';
+import { useLanguage } from '../i18n';
 
 interface PurchasesProps {
   products: Product[];
@@ -42,6 +43,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
   canCreate = true,
   onExecutePurchase,
 }) => {
+  const { language, t } = useLanguage();
   const [isNewPurchaseModalOpen, setIsNewPurchaseModalOpen] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>(suppliers[0]?.id || '');
   const [additionalFeesUSD, setAdditionalFeesUSD] = useState<number>(0);
@@ -118,11 +120,11 @@ export const Purchases: React.FC<PurchasesProps> = ({
     setErrorMessage('');
 
     if (!selectedSupplierId) {
-      setErrorMessage('Veuillez sélectionner un fournisseur.');
+      setErrorMessage(t('Veuillez sélectionner un fournisseur.', 'Please select a supplier.'));
       return;
     }
     if (items.length === 0) {
-      setErrorMessage('Veuillez ajouter au moins un produit à la commande.');
+      setErrorMessage(t('Veuillez ajouter au moins un produit à la commande.', 'Please add at least one product to the order.'));
       return;
     }
 
@@ -136,7 +138,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
     });
 
     if (!res.success) {
-      setErrorMessage(res.error || 'Erreur lors de la validation');
+      setErrorMessage(res.error || t('Erreur lors de la validation', 'Error validating the purchase'));
       return;
     }
 
@@ -149,10 +151,10 @@ export const Purchases: React.FC<PurchasesProps> = ({
         <div>
           <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
             <Truck className="w-5 h-5 text-amber-600" />
-            Approvisionnements & Achats Fournisseurs
+            {t('Approvisionnements & Achats Fournisseurs', 'Supplier Purchases & Stock Receipts')}
           </h3>
           <p className="text-xs text-slate-500">
-            Augmente automatiquement les stocks et génère les dettes fournisseurs
+            {t('Augmente automatiquement les stocks et génère les dettes fournisseurs', 'Automatically increases stock and records supplier payables')}
           </p>
         </div>
 
@@ -161,20 +163,20 @@ export const Purchases: React.FC<PurchasesProps> = ({
           className="px-4 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
-          Nouvelle Réception Stock
+          {t('Nouvelle Réception Stock', 'New Stock Receipt')}
         </button>}
       </div>
 
       {/* List of Purchases */}
       <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm space-y-3">
         <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
-          Commandes et Bons de Réception ({purchases.length})
+          {t('Commandes et Bons de Réception', 'Orders and Delivery Notes')} ({purchases.length})
         </h4>
 
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-          <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher par numéro, fournisseur, produit ou statut..." className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
-          {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
+          <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder={t('Rechercher par numéro, fournisseur, produit ou statut...', 'Search by number, supplier, product, or status...')} className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" />
+          {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-slate-400" aria-label={t('Effacer la recherche', 'Clear search')}><X className="w-4 h-4" /></button>}
         </div>
         <div className="divide-y divide-slate-100 overflow-x-auto">
           {filteredPurchases.map((p) => (
@@ -187,24 +189,24 @@ export const Purchases: React.FC<PurchasesProps> = ({
                   </span>
                   {p.debtAmountUSD > 0 && (
                     <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
-                      Dette: {formatUSD(p.debtAmountUSD)}
+                      {t('Dette', 'Due')}: {formatUSD(p.debtAmountUSD)}
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-slate-700 font-semibold mt-1 truncate">{p.supplierName}</p>
                 <p className="text-[10px] text-slate-400">
-                  {formatDateLubumbashi(p.date)} • {p.items.length} articles réceptionnés
+                  {formatDateLubumbashi(p.date, true, language === 'en' ? 'en-US' : 'fr-FR')} • {p.items.length} {t('articles réceptionnés', 'items received')}
                 </p>
               </div>
 
               <div className="text-right shrink-0">
                 <p className="text-sm font-black text-slate-900">{formatUSD(p.totalUSD)}</p>
                 <p className="text-[10px] text-amber-700 font-bold">{formatCDF(p.totalCDF)}</p>
-                <p className="text-[10px] text-slate-400">Payé: {formatUSD(p.amountPaidUSD)}</p>
+                <p className="text-[10px] text-slate-400">{t('Payé', 'Paid')}: {formatUSD(p.amountPaidUSD)}</p>
               </div>
             </div>
           ))}
-          {filteredPurchases.length === 0 && <p className="py-8 text-center text-xs text-slate-400">Aucun achat correspondant.</p>}
+          {filteredPurchases.length === 0 && <p className="py-8 text-center text-xs text-slate-400">{t('Aucun achat correspondant.', 'No matching purchases.')}</p>}
         </div>
       </div>
 
@@ -214,8 +216,8 @@ export const Purchases: React.FC<PurchasesProps> = ({
           <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-200 my-auto">
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-base">Nouvel Approvisionnement Fournisseur</h3>
-                <p className="text-xs text-amber-300">Entrée automatique en stock</p>
+                <h3 className="font-bold text-base">{t('Nouvel Approvisionnement Fournisseur', 'New Supplier Purchase')}</h3>
+                <p className="text-xs text-amber-300">{t('Entrée automatique en stock', 'Automatic stock intake')}</p>
               </div>
               <button
                 onClick={() => setIsNewPurchaseModalOpen(false)}
@@ -235,7 +237,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
 
               {/* Supplier Selector */}
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Fournisseur Partenaire *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Fournisseur Partenaire *', 'Supplier *')}</label>
                 <select
                   value={selectedSupplierId}
                   onChange={(e) => setSelectedSupplierId(e.target.value)}
@@ -251,7 +253,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
 
               {/* Add Product from Catalog */}
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Ajouter des articles :</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Ajouter des articles :', 'Add items:')}</label>
                 <div className="flex gap-2">
                   <select
                     id="product-to-add"
@@ -259,7 +261,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
                   >
                     {products.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name} (Stock actuel: {p.currentStock} {p.unit})
+                        {p.name} ({t('Stock actuel', 'Current stock')}: {p.currentStock} {p.unit})
                       </option>
                     ))}
                   </select>
@@ -273,14 +275,14 @@ export const Purchases: React.FC<PurchasesProps> = ({
                     }}
                     className="px-4 py-2 bg-[#0F2444] text-white rounded-xl text-xs font-bold"
                   >
-                    Ajouter
+                    {t('Ajouter', 'Add')}
                   </button>
                 </div>
               </div>
 
               {/* Items Table */}
               <div className="space-y-2 border border-slate-200 rounded-2xl p-3 bg-slate-50">
-                <span className="text-xs font-bold text-slate-600 block">Articles de la commande :</span>
+                <span className="text-xs font-bold text-slate-600 block">{t('Articles de la commande :', 'Order items:')}</span>
                 {items.length > 0 ? (
                   items.map((item, index) => {
                     const prod = products.find((p) => p.id === item.productId);
@@ -298,7 +300,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
 
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-slate-400">Qté:</span>
+                            <span className="text-[10px] text-slate-400">{t('Qté:', 'Qty:')}</span>
                             <input
                               type="number"
                               min="1"
@@ -310,7 +312,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-slate-400">Prix Achat:</span>
+                            <span className="text-[10px] text-slate-400">{t('Prix Achat:', 'Purchase price:')}</span>
                             <input
                               type="number"
                               step="0.1"
@@ -338,7 +340,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
                     );
                   })
                 ) : (
-                  <p className="text-center text-xs text-slate-400 py-4">Aucun article ajouté.</p>
+                  <p className="text-center text-xs text-slate-400 py-4">{t('Aucun article ajouté.', 'No items added.')}</p>
                 )}
               </div>
 
@@ -346,7 +348,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Frais de Transport / Déchargement (USD)
+                    {t('Frais de Transport / Déchargement (USD)', 'Transport / Unloading Fees (USD)')}
                   </label>
                   <input
                     type="number"
@@ -359,16 +361,16 @@ export const Purchases: React.FC<PurchasesProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Mode de Règlement</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Mode de Règlement', 'Payment Method')}</label>
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
                     className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium"
                   >
-                    <option value="CASH">Comptant Espèces (100%)</option>
-                    <option value="BANK_TRANSFER">Virement Bancaire</option>
-                    <option value="CREDIT">100% Crédit Fournisseur</option>
-                    <option value="PARTIAL">Acompte + Dette Restante</option>
+                    <option value="CASH">{t('Comptant Espèces (100%)', 'Cash (100%)')}</option>
+                    <option value="BANK_TRANSFER">{t('Virement Bancaire', 'Bank Transfer')}</option>
+                    <option value="CREDIT">{t('100% Crédit Fournisseur', '100% Supplier Credit')}</option>
+                    <option value="PARTIAL">{t('Acompte + Dette Restante', 'Deposit + Remaining Balance')}</option>
                   </select>
                 </div>
               </div>
@@ -376,7 +378,7 @@ export const Purchases: React.FC<PurchasesProps> = ({
               {paymentMethod === 'PARTIAL' && (
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Acompte Payé Immédiatement (USD)
+                    {t('Acompte Payé Immédiatement (USD)', 'Deposit Paid Immediately (USD)')}
                   </label>
                   <input
                     type="number"
@@ -393,11 +395,11 @@ export const Purchases: React.FC<PurchasesProps> = ({
               {/* Total Banner */}
               <div className="bg-[#0F2444] text-white p-3.5 rounded-2xl flex justify-between items-center">
                 <div>
-                  <span className="text-xs text-slate-300">Total Approvisionnement :</span>
+                  <span className="text-xs text-slate-300">{t('Total Approvisionnement :', 'Purchase Total:')}</span>
                   <p className="text-xl font-black">{formatUSD(totalUSD)}</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-amber-300">Équivalent CDF :</span>
+                  <span className="text-xs text-amber-300">{t('Équivalent CDF :', 'Equivalent in CDF:')}</span>
                   <p className="text-sm font-bold text-amber-300">{formatCDF(totalCDF)}</p>
                 </div>
               </div>
@@ -408,14 +410,14 @@ export const Purchases: React.FC<PurchasesProps> = ({
                   onClick={() => setIsNewPurchaseModalOpen(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
                 >
-                  Annuler
+                  {t('Annuler', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={items.length === 0}
                   className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md disabled:opacity-50"
                 >
-                  Valider Réception & Entrée Stock
+                  {t('Valider Réception & Entrée Stock', 'Confirm Receipt & Stock Intake')}
                 </button>
               </div>
             </form>

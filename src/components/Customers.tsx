@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Customer, Sale, DebtRecord, PaymentMethod, UserRole } from '../types';
 import { formatUSD, formatCDF, formatDateLubumbashi } from '../utils/currency';
+import { useLanguage } from '../i18n';
 
 interface CustomersProps {
   customers: Customer[];
@@ -47,6 +48,7 @@ export const Customers: React.FC<CustomersProps> = ({
   onOpenReceiptForSale,
   onOpenDebtReceipt,
 }) => {
+  const { language, t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [debtFilter, setDebtFilter] = useState<'ALL' | 'WITH_DEBT' | 'CLEAR'>('ALL');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -166,7 +168,7 @@ export const Customers: React.FC<CustomersProps> = ({
     );
 
     if (!res.success) {
-      setRepaymentError(res.error || 'Erreur lors du versement');
+      setRepaymentError(res.error || t('Erreur lors du versement', 'Error recording payment'));
       return;
     }
 
@@ -183,10 +185,10 @@ export const Customers: React.FC<CustomersProps> = ({
         <div>
           <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
             <Users className="w-6 h-6 text-amber-600" />
-            Gestion des Clients & Créances
+            {t('Gestion des Clients & Créances', 'Customer & Receivables Management')}
           </h2>
           <p className="text-xs text-slate-500">
-            {customers.length} clients répertoriés • Suivi des dettes et limites de crédit
+            {customers.length} {t('clients répertoriés', 'customers listed')} • {t('Suivi des dettes et limites de crédit', 'Debt and credit limit tracking')}
           </p>
         </div>
 
@@ -196,7 +198,7 @@ export const Customers: React.FC<CustomersProps> = ({
             className="px-4 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md self-start sm:self-auto transition"
           >
             <Plus className="w-4 h-4" />
-            Nouveau Client
+            {t('Nouveau Client', 'New Customer')}
           </button>
         )}
       </div>
@@ -207,7 +209,7 @@ export const Customers: React.FC<CustomersProps> = ({
           <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
           <input
             type="text"
-            placeholder="Rechercher client par nom, téléphone, ville..."
+            placeholder={t('Rechercher client par nom, téléphone, ville...', 'Search customers by name, phone, or city...')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"
@@ -229,7 +231,7 @@ export const Customers: React.FC<CustomersProps> = ({
               debtFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
             }`}
           >
-            Tous ({customers.length})
+            {t('Tous', 'All')} ({customers.length})
           </button>
           <button
             onClick={() => setDebtFilter('WITH_DEBT')}
@@ -237,7 +239,7 @@ export const Customers: React.FC<CustomersProps> = ({
               debtFilter === 'WITH_DEBT' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600'
             }`}
           >
-            Endettés ({customers.filter((c) => c.debtBalanceUSD > 0).length})
+            {t('Endettés', 'With Debt')} ({customers.filter((c) => c.debtBalanceUSD > 0).length})
           </button>
           <button
             onClick={() => setDebtFilter('CLEAR')}
@@ -245,7 +247,7 @@ export const Customers: React.FC<CustomersProps> = ({
               debtFilter === 'CLEAR' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600'
             }`}
           >
-            À Jour
+            {t('À Jour', 'Up to Date')}
           </button>
         </div>
       </div>
@@ -284,7 +286,7 @@ export const Customers: React.FC<CustomersProps> = ({
                     <button
                       onClick={() => handleOpenEdit(customer)}
                       className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50"
-                      title="Modifier coordonnées"
+                      title={t('Modifier coordonnées', 'Edit customer details')}
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
@@ -295,7 +297,7 @@ export const Customers: React.FC<CustomersProps> = ({
                 <div className="space-y-1 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
                   <p className="flex items-center gap-1.5 font-medium">
                     <Phone className="w-3.5 h-3.5 text-slate-400" />
-                    {customer.phone || 'Non renseigné'}
+                    {customer.phone || t('Non renseigné', 'Not provided')}
                   </p>
                   {customer.email && (
                     <p className="flex items-center gap-1.5 truncate text-[11px] text-slate-500">
@@ -317,18 +319,18 @@ export const Customers: React.FC<CustomersProps> = ({
                   }`}
                 >
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-semibold">Solde Dette :</span>
+                    <span className="font-semibold">{t('Solde Dette :', 'Debt Balance:')}</span>
                     <span className="font-black text-sm">
-                      {hasDebt ? formatUSD(customer.debtBalanceUSD) : '0.00 $ (À jour)'}
+                      {hasDebt ? formatUSD(customer.debtBalanceUSD) : `0.00 $ (${t('À jour', 'Up to date')})`}
                     </span>
                   </div>
                   {hasDebt && (
                     <p className="text-[10px] text-amber-700 font-bold mt-0.5">
-                      Équiv. CDF: {formatCDF(customer.debtBalanceUSD * exchangeRate)}
+                      {t('Équiv. CDF:', 'Equivalent in CDF:')} {formatCDF(customer.debtBalanceUSD * exchangeRate)}
                     </p>
                   )}
                   <div className="flex justify-between items-center text-[10px] text-slate-500 pt-1.5 border-t border-slate-200/60 mt-1.5">
-                    <span>Limite Crédit Max :</span>
+                    <span>{t('Limite Crédit Max :', 'Maximum Credit Limit:')}</span>
                     <span className="font-bold text-slate-700">{formatUSD(customer.creditLimitUSD)}</span>
                   </div>
                 </div>
@@ -341,7 +343,7 @@ export const Customers: React.FC<CustomersProps> = ({
                   className="px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 rounded-xl transition flex items-center gap-1"
                 >
                   <History className="w-3.5 h-3.5" />
-                  Détails & Factures ({customerSales.length})
+                  {t('Détails & Factures', 'Details & Invoices')} ({customerSales.length})
                 </button>
 
                 {hasDebt && (
@@ -351,13 +353,13 @@ export const Customers: React.FC<CustomersProps> = ({
                       if (activeDebt) {
                         handleOpenRepayment(activeDebt);
                       } else {
-                        alert('Aucun dossier de dette détaillé actif.');
+                        alert(t('Aucun dossier de dette détaillé actif.', 'No active detailed debt record found.'));
                       }
                     }}
                     className="px-3 py-1.5 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-xs transition flex items-center gap-1"
                   >
                     <DollarSign className="w-3.5 h-3.5" />
-                    Encaisser dette
+                    {t('Encaisser dette', 'Collect Debt')}
                   </button>
                 )}
               </div>
@@ -389,7 +391,7 @@ export const Customers: React.FC<CustomersProps> = ({
               {/* Debt & Credit summary bar */}
               <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                 <div>
-                  <span className="text-xs text-slate-500 font-semibold">Dette Restante Due</span>
+                  <span className="text-xs text-slate-500 font-semibold">{t('Dette Restante Due', 'Outstanding Debt')}</span>
                   <p className="text-xl font-black text-amber-700">
                     {formatUSD(selectedCustomer.debtBalanceUSD)}
                   </p>
@@ -398,12 +400,12 @@ export const Customers: React.FC<CustomersProps> = ({
                   </p>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-500 font-semibold">Plafond Crédit Autorisé</span>
+                  <span className="text-xs text-slate-500 font-semibold">{t('Plafond Crédit Autorisé', 'Authorized Credit Limit')}</span>
                   <p className="text-xl font-black text-slate-800">
                     {formatUSD(selectedCustomer.creditLimitUSD)}
                   </p>
                   <p className="text-[11px] text-slate-400">
-                    Marge disponible: {formatUSD(Math.max(0, selectedCustomer.creditLimitUSD - selectedCustomer.debtBalanceUSD))}
+                    {t('Marge disponible:', 'Available Credit:')} {formatUSD(Math.max(0, selectedCustomer.creditLimitUSD - selectedCustomer.debtBalanceUSD))}
                   </p>
                 </div>
               </div>
@@ -412,7 +414,7 @@ export const Customers: React.FC<CustomersProps> = ({
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                   <CreditCard className="w-4 h-4 text-amber-600" />
-                  Dossiers de Crédit & Remboursements
+                  {t('Dossiers de Crédit & Remboursements', 'Credit Accounts & Repayments')}
                 </h4>
 
                 {debts.filter((d) => d.partyId === selectedCustomer.id && d.type === 'CUSTOMER').length > 0 ? (
@@ -425,7 +427,7 @@ export const Customers: React.FC<CustomersProps> = ({
                       >
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-slate-800">
-                            Facture Réf: {debt.referenceInvoice}
+                            {t('Facture Réf:', 'Invoice Ref:')} {debt.referenceInvoice}
                           </span>
                           <span
                             className={`font-black px-2 py-0.5 rounded-full text-[10px] ${
@@ -435,21 +437,21 @@ export const Customers: React.FC<CustomersProps> = ({
                             }`}
                           >
                             {debt.remainingBalanceUSD > 0
-                              ? `Reste: ${formatUSD(debt.remainingBalanceUSD)}`
-                              : 'Totalement Soldé'}
+                              ? `${t('Reste:', 'Remaining:')} ${formatUSD(debt.remainingBalanceUSD)}`
+                              : t('Totalement Soldé', 'Paid in Full')}
                           </span>
                         </div>
 
                         <div className="flex justify-between text-slate-500 text-[11px]">
-                          <span>Montant Initial: {formatUSD(debt.initialAmountUSD)}</span>
-                          <span>Déjà Remboursé: {formatUSD(debt.paidAmountUSD)}</span>
+                          <span>{t('Montant Initial:', 'Initial Amount:')} {formatUSD(debt.initialAmountUSD)}</span>
+                          <span>{t('Déjà Remboursé:', 'Already Repaid:')} {formatUSD(debt.paidAmountUSD)}</span>
                         </div>
 
                         {/* Payment History list */}
                         {debt.history.length > 0 && (
                           <div className="border-t border-slate-100 pt-2 space-y-1">
                             <span className="text-[10px] font-bold text-slate-400 uppercase">
-                              Versements effectués :
+                              {t('Versements effectués :', 'Payments Made:')}
                             </span>
                             {debt.history.map((h) => (
                               <div
@@ -457,7 +459,7 @@ export const Customers: React.FC<CustomersProps> = ({
                                 className="flex justify-between items-center text-[11px] bg-slate-50 p-1.5 rounded-lg"
                               >
                                 <span>
-                                  {formatDateLubumbashi(h.date)} ({h.receiptNumber}) - {h.paymentMethod}
+                                  {formatDateLubumbashi(h.date, true, language === 'en' ? 'en-US' : 'fr-FR')} ({h.receiptNumber}) - {h.paymentMethod}
                                 </span>
                                 <span className="font-bold text-emerald-700">
                                   +{formatUSD(h.amountUSD)}
@@ -473,14 +475,14 @@ export const Customers: React.FC<CustomersProps> = ({
                               onClick={() => handleOpenRepayment(debt)}
                               className="px-3 py-1 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700"
                             >
-                              Encaisser ce montant
+                              {t('Encaisser ce montant', 'Collect This Amount')}
                             </button>
                           </div>
                         )}
                       </div>
                     ))
                 ) : (
-                  <p className="text-xs text-slate-400 italic py-2">Aucun dossier de dette pour ce client.</p>
+                  <p className="text-xs text-slate-400 italic py-2">{t('Aucun dossier de dette pour ce client.', 'No debt records for this customer.')}</p>
                 )}
               </div>
 
@@ -488,7 +490,7 @@ export const Customers: React.FC<CustomersProps> = ({
               <div className="space-y-2 pt-2">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                   <FileText className="w-4 h-4 text-amber-600" />
-                  Factures d'Achats Passées
+                  {t("Historique des achats", 'Purchase History')}
                 </h4>
 
                 <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
@@ -507,17 +509,17 @@ export const Customers: React.FC<CustomersProps> = ({
                           <div>
                             <p className="font-bold text-slate-800">{sale.invoiceNumber}</p>
                             <p className="text-[11px] text-slate-400">
-                              {formatDateLubumbashi(sale.date)} • {sale.items.length} articles
+                              {formatDateLubumbashi(sale.date, true, language === 'en' ? 'en-US' : 'fr-FR')} • {sale.items.length} {t('articles', 'items')}
                             </p>
                           </div>
                           <div className="text-right">
                             <p className="font-black text-slate-900">{formatUSD(sale.totalUSD)}</p>
-                            <span className="text-[10px] text-amber-600 underline">Imprimer</span>
+                            <span className="text-[10px] text-amber-600 underline">{t('Imprimer', 'Print')}</span>
                           </div>
                         </div>
                       ))
                   ) : (
-                    <p className="text-xs text-slate-400 italic py-2">Aucun achat enregistré à ce nom.</p>
+                    <p className="text-xs text-slate-400 italic py-2">{t('Aucun achat enregistré à ce nom.', 'No purchases recorded under this name.')}</p>
                   )}
                 </div>
               </div>
@@ -528,7 +530,7 @@ export const Customers: React.FC<CustomersProps> = ({
                 onClick={() => setSelectedCustomer(null)}
                 className="px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-xl"
               >
-                Fermer
+                {t('Fermer', 'Close')}
               </button>
             </div>
           </div>
@@ -541,7 +543,7 @@ export const Customers: React.FC<CustomersProps> = ({
           <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-200 my-auto">
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <h3 className="font-bold text-base">
-                {editingCustomer ? 'Modifier Fiche Client' : 'Nouveau Client'}
+                {editingCustomer ? t('Modifier Fiche Client', 'Edit Customer Profile') : t('Nouveau Client', 'New Customer')}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -553,11 +555,11 @@ export const Customers: React.FC<CustomersProps> = ({
 
             <form onSubmit={handleFormSubmit} className="p-4 sm:p-6 space-y-3.5">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Nom Complet ou Raison Sociale *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Nom Complet ou Raison Sociale', 'Full Name or Business Name')} *</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Entreprise GEMA SARL, Patrick Tshilombo..."
+                  placeholder={t('Ex: Entreprise GEMA SARL, Patrick Tshilombo...', 'E.g., GEMA SARL, Patrick Tshilombo...')}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-semibold"
@@ -566,7 +568,7 @@ export const Customers: React.FC<CustomersProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Téléphone *</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Téléphone', 'Phone')} *</label>
                   <input
                     type="tel"
                     required
@@ -577,7 +579,7 @@ export const Customers: React.FC<CustomersProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Ville</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Ville', 'City')}</label>
                   <input
                     type="text"
                     value={formData.city}
@@ -589,17 +591,17 @@ export const Customers: React.FC<CustomersProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Adresse physique / Quartier</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Adresse physique / Quartier', 'Street Address / Neighborhood')}</label>
                   <input
                     type="text"
-                    placeholder="Ex: Av. Kasavubu N° 45, C/Lubumbashi"
+                    placeholder={t('Ex: Av. Kasavubu N° 45, C/Lubumbashi', 'E.g., 45 Kasavubu Ave., Lubumbashi')}
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Email</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Email', 'Email')}</label>
                   <input
                     type="email"
                     placeholder="contact@..."
@@ -612,7 +614,7 @@ export const Customers: React.FC<CustomersProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Limite de Crédit Autorisée (USD)</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Limite de Crédit Autorisée (USD)', 'Authorized Credit Limit (USD)')}</label>
                   <input
                     type="number"
                     min="0"
@@ -623,10 +625,10 @@ export const Customers: React.FC<CustomersProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Notes / Infos Chantiers</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Notes / Infos Chantiers', 'Notes / Project Details')}</label>
                   <input
                     type="text"
-                    placeholder="Ex: Architecte réputé, chantiers Golf..."
+                    placeholder={t('Ex: Architecte réputé, chantiers Golf...', 'E.g., Reputable architect, Golf projects...')}
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
@@ -640,13 +642,13 @@ export const Customers: React.FC<CustomersProps> = ({
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
                 >
-                  Annuler
+                  {t('Annuler', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md"
                 >
-                  Enregistrer Client
+                  {t('Enregistrer Client', 'Save Customer')}
                 </button>
               </div>
             </form>
@@ -660,7 +662,7 @@ export const Customers: React.FC<CustomersProps> = ({
           <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-200 my-auto">
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-base">Enregistrer un Remboursement</h3>
+                <h3 className="font-bold text-base">{t('Enregistrer un Remboursement', 'Record a Repayment')}</h3>
                 <p className="text-xs text-amber-300">{repaymentDebtRecord.partyName}</p>
               </div>
               <button
@@ -681,13 +683,13 @@ export const Customers: React.FC<CustomersProps> = ({
 
               <div className="bg-amber-50 p-3.5 rounded-2xl border border-amber-200 flex justify-between items-center text-xs">
                 <div>
-                  <span className="text-amber-800 font-semibold">Reste dû :</span>
+                  <span className="text-amber-800 font-semibold">{t('Reste dû :', 'Balance Due:')}</span>
                   <p className="text-lg font-black text-amber-900">
                     {formatUSD(repaymentDebtRecord.remainingBalanceUSD)}
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="text-amber-800 font-semibold">En Francs :</span>
+                  <span className="text-amber-800 font-semibold">{t('En Francs :', 'In Francs:')}</span>
                   <p className="text-sm font-bold text-amber-900">
                     {formatCDF(repaymentDebtRecord.remainingBalanceUSD * exchangeRate)}
                   </p>
@@ -696,7 +698,7 @@ export const Customers: React.FC<CustomersProps> = ({
 
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Montant Remboursé (USD) *
+                  {t('Montant Remboursé (USD)', 'Repayment Amount (USD)')} *
                 </label>
                 <input
                   type="number"
@@ -709,28 +711,28 @@ export const Customers: React.FC<CustomersProps> = ({
                   className="w-full text-base font-black p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                 />
                 <p className="text-[11px] text-amber-700 font-bold mt-1">
-                  Équiv: {formatCDF(repaymentAmountUSD * exchangeRate)}
+                  {t('Équiv:', 'Equivalent:')} {formatCDF(repaymentAmountUSD * exchangeRate)}
                 </p>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Mode de Paiement</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Mode de Paiement', 'Payment Method')}</label>
                 <select
                   value={repaymentMethod}
                   onChange={(e) => setRepaymentMethod(e.target.value as PaymentMethod)}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-medium"
                 >
-                  <option value="CASH">Espèces (Cash)</option>
-                  <option value="MOBILE_MONEY">Mobile Money (M-Pesa / Airtel / Orange)</option>
-                  <option value="BANK_TRANSFER">Virement Bancaire (Rawbank, EquityBCDC...)</option>
+                  <option value="CASH">{t('Espèces (Cash)', 'Cash')}</option>
+                  <option value="MOBILE_MONEY">{t('Mobile Money (M-Pesa / Airtel / Orange)', 'Mobile Money (M-Pesa / Airtel / Orange)')}</option>
+                  <option value="BANK_TRANSFER">{t('Virement Bancaire (Rawbank, EquityBCDC...)', 'Bank Transfer (Rawbank, EquityBCDC...)')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Notes / Référence du versement</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Notes / Référence du versement', 'Notes / Payment Reference')}</label>
                 <input
                   type="text"
-                  placeholder="Ex: Versement comptant bureau ou réf transaction"
+                  placeholder={t('Ex: Versement comptant bureau ou réf transaction', 'E.g., Cash payment at office or transaction reference')}
                   value={repaymentNotes}
                   onChange={(e) => setRepaymentNotes(e.target.value)}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
@@ -743,13 +745,13 @@ export const Customers: React.FC<CustomersProps> = ({
                   onClick={() => setIsRepaymentModalOpen(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
                 >
-                  Annuler
+                  {t('Annuler', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md"
                 >
-                  Valider & Générer Reçu
+                  {t('Valider & Générer Reçu', 'Confirm & Generate Receipt')}
                 </button>
               </div>
             </form>

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Product, Category, StockMovement, UnitOfMeasure, ProductVariant, UserRole } from '../types';
 import { formatUSD, formatCDF } from '../utils/currency';
+import { useLanguage } from '../i18n';
 
 interface ProductsProps {
   products: Product[];
@@ -47,6 +48,7 @@ export const Products: React.FC<ProductsProps> = ({
   onDeleteCategory,
   onOpenBarcodeScanner,
 }) => {
+  const { language, t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [stockFilter, setStockFilter] = useState<'ALL' | 'LOW' | 'OUT'>('ALL');
@@ -196,10 +198,10 @@ export const Products: React.FC<ProductsProps> = ({
         <div>
           <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
             <Package className="w-6 h-6 text-amber-600" />
-            Gestion des Produits & Stocks
+            {t('Gestion des Produits & Stocks', 'Product & Inventory Management')}
           </h2>
           <p className="text-xs text-slate-500">
-            {products.length} articles répertoriés • {categories.length} catégories
+            {products.length} {t('articles répertoriés', 'items listed')} • {categories.length} {t('catégories', 'categories')}
           </p>
         </div>
 
@@ -209,7 +211,7 @@ export const Products: React.FC<ProductsProps> = ({
             className="px-3.5 py-2 rounded-2xl bg-slate-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-slate-800 transition"
           >
             <Barcode className="w-4 h-4 text-amber-400" />
-            Scanner
+            {t('Scanner', 'Scan')}
           </button>
 
           {canEdit && (
@@ -219,14 +221,14 @@ export const Products: React.FC<ProductsProps> = ({
                 className="px-3 py-2 rounded-2xl bg-white border border-slate-300 text-slate-700 text-xs font-semibold flex items-center gap-1.5 hover:bg-slate-50 transition"
               >
                 <FolderPlus className="w-4 h-4 text-slate-500" />
-                Catégories
+                {t('Catégories', 'Categories')}
               </button>
               <button
                 onClick={handleOpenAddModal}
                 className="px-4 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition"
               >
                 <Plus className="w-4 h-4" />
-                Nouveau Produit
+                {t('Nouveau Produit', 'New Product')}
               </button>
             </>
           )}
@@ -241,7 +243,7 @@ export const Products: React.FC<ProductsProps> = ({
             <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
             <input
               type="text"
-              placeholder="Rechercher par nom, SKU, code-barres, marque..."
+              placeholder={t('Rechercher par nom, SKU, code-barres, marque...', 'Search by name, SKU, barcode, or brand...')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"
@@ -263,7 +265,7 @@ export const Products: React.FC<ProductsProps> = ({
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="text-xs py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none font-medium text-slate-700"
             >
-              <option value="ALL">Toutes catégories ({products.length})</option>
+              <option value="ALL">{t('Toutes catégories', 'All categories')} ({products.length})</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -279,7 +281,7 @@ export const Products: React.FC<ProductsProps> = ({
                   stockFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
                 }`}
               >
-                Tous
+                {t('Tous', 'All')}
               </button>
               <button
                 onClick={() => setStockFilter('LOW')}
@@ -287,7 +289,7 @@ export const Products: React.FC<ProductsProps> = ({
                   stockFilter === 'LOW' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600'
                 }`}
               >
-                Faible
+                {t('Faible', 'Low')}
               </button>
               <button
                 onClick={() => setStockFilter('OUT')}
@@ -295,7 +297,7 @@ export const Products: React.FC<ProductsProps> = ({
                   stockFilter === 'OUT' ? 'bg-red-500 text-white shadow-xs' : 'text-slate-600'
                 }`}
               >
-                Rupture
+                {t('Rupture', 'Out of stock')}
               </button>
             </div>
           </div>
@@ -329,21 +331,21 @@ export const Products: React.FC<ProductsProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
                       <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md truncate">
-                        {product.categoryName || 'Général'}
+                        {product.categoryName || t('Général', 'General')}
                       </span>
                       {isOut ? (
                         <span className="text-[10px] font-black text-red-700 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                           <AlertCircle className="w-3 h-3" />
-                          Rupture
+                          {t('Rupture', 'Out of stock')}
                         </span>
                       ) : isLow ? (
                         <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                           <AlertTriangle className="w-3 h-3" />
-                          Stock bas
+                          {t('Stock bas', 'Low stock')}
                         </span>
                       ) : (
                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
-                          En Stock
+                          {t('En Stock', 'In Stock')}
                         </span>
                       )}
                     </div>
@@ -360,7 +362,7 @@ export const Products: React.FC<ProductsProps> = ({
                 {/* Stock Quantity Progress Bar */}
                 <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 space-y-1">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500 font-medium">Disponible :</span>
+                    <span className="text-slate-500 font-medium">{t('Disponible :', 'Available:')}</span>
                     <span className={`font-black ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-slate-800'}`}>
                       {product.currentStock} {product.unit}
                     </span>
@@ -376,7 +378,7 @@ export const Products: React.FC<ProductsProps> = ({
                     ></div>
                   </div>
                   <div className="flex justify-between text-[10px] text-slate-400">
-                    <span>Alerte min: {product.minStock} {product.unit}</span>
+                    <span>{t('Alerte min:', 'Min. alert:')} {product.minStock} {product.unit}</span>
                     <span className="font-mono text-slate-500">{product.barcode}</span>
                   </div>
                 </div>
@@ -384,7 +386,7 @@ export const Products: React.FC<ProductsProps> = ({
                 {/* Pricing Box */}
                 <div className="flex items-center justify-between text-xs pt-1">
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Prix de Vente</span>
+                    <span className="text-[10px] text-slate-400 block">{t('Prix de Vente', 'Selling Price')}</span>
                     <span className="text-base font-black text-[#0F2444]">
                       {formatUSD(product.sellPriceUSD)}
                     </span>
@@ -394,9 +396,9 @@ export const Products: React.FC<ProductsProps> = ({
                   </div>
 
                   <div className="text-right">
-                    <span className="text-[10px] text-slate-400 block">Achat: {formatUSD(product.buyPriceUSD)}</span>
+                    <span className="text-[10px] text-slate-400 block">{t('Achat:', 'Purchase:')} {formatUSD(product.buyPriceUSD)}</span>
                     <span className="text-[11px] font-bold text-emerald-600">
-                      Marge: +{formatUSD(margin)} (+{marginPct}%)
+                      {t('Marge:', 'Margin:')} +{formatUSD(margin)} (+{marginPct}%)
                     </span>
                   </div>
                 </div>
@@ -418,10 +420,10 @@ export const Products: React.FC<ProductsProps> = ({
                 <button
                   onClick={() => setViewingHistoryProduct(product)}
                   className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-amber-700 flex items-center gap-1 rounded-lg hover:bg-slate-200/60 transition"
-                  title="Historique des mouvements de stock"
+                  title={t('Historique des mouvements de stock', 'Stock movement history')}
                 >
                   <History className="w-3.5 h-3.5" />
-                  Mouvements
+                  {t('Mouvements', 'Movements')}
                 </button>
 
                 {canEdit && (
@@ -429,19 +431,19 @@ export const Products: React.FC<ProductsProps> = ({
                     <button
                       onClick={() => handleOpenEditModal(product)}
                       className="p-1.5 text-slate-600 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition"
-                      title="Modifier"
+                      title={t('Modifier', 'Edit')}
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     {userRole === 'ADMIN' && (
                       <button
                         onClick={() => {
-                          if (confirm(`Confirmez-vous la suppression de "${product.name}" ?`)) {
+                          if (confirm(t(`Confirmez-vous la suppression de "${product.name}" ?`, `Are you sure you want to delete "${product.name}"?`))) {
                             onDeleteProduct(product.id);
                           }
                         }}
                         className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition"
-                        title="Supprimer"
+                        title={t('Supprimer', 'Delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -457,9 +459,9 @@ export const Products: React.FC<ProductsProps> = ({
       {filteredProducts.length === 0 && (
         <div className="bg-white rounded-3xl p-8 text-center border border-slate-200 space-y-2">
           <Package className="w-10 h-10 text-slate-300 mx-auto" />
-          <h4 className="font-bold text-slate-800">Aucun produit trouvé</h4>
+          <h4 className="font-bold text-slate-800">{t('Aucun produit trouvé', 'No products found')}</h4>
           <p className="text-xs text-slate-500">
-            Ajustez vos filtres ou ajoutez une nouvelle référence au stock.
+            {t('Ajustez vos filtres ou ajoutez une nouvelle référence au stock.', 'Adjust your filters or add a new item to the inventory.')}
           </p>
         </div>
       )}
@@ -470,7 +472,7 @@ export const Products: React.FC<ProductsProps> = ({
           <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-200 my-auto">
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <h3 className="font-bold text-base">
-                {editingProduct ? 'Modifier Produit' : 'Nouveau Produit au Catalogue'}
+                {editingProduct ? t('Modifier Produit', 'Edit Product') : t('Nouveau Produit au Catalogue', 'Add New Product to Catalog')}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -481,23 +483,23 @@ export const Products: React.FC<ProductsProps> = ({
             </div>
 
             <form onSubmit={handleSaveProductSubmit} className="p-4 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-              <label className="block text-sm">Photo facultative (galerie)
+              <label className="block text-sm">{t('Photo facultative (galerie)', 'Optional photo (gallery)')}
                 <input type="file" disabled={photoReading} accept="image/jpeg,image/png,image/webp" onChange={e => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) { alert('Choisissez une image JPG, PNG ou WebP de 2 Mo maximum.'); return; }
+                  if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) { alert(t('Choisissez une image JPG, PNG ou WebP de 2 Mo maximum.', 'Choose a JPG, PNG, or WebP image up to 2 MB.')); return; }
                   setPhotoReading(true);
                   const reader = new FileReader();
                   reader.onloadend = () => setPhotoReading(false);
                   reader.onload = () => setFormData(previous => ({...previous, photoUrl: String(reader.result)}));
-                  reader.onerror = () => alert('Lecture de la photo impossible.');
+                  reader.onerror = () => alert(t('Lecture de la photo impossible.', 'Unable to read the photo.'));
                   reader.readAsDataURL(file);
                 }}/>
               </label>
-              {formData.photoUrl && <div><img src={formData.photoUrl} alt="Photo sélectionnée" className="h-24 w-24 object-cover rounded"/><button type="button" disabled={photoReading} onClick={() => setFormData(previous => ({...previous,photoUrl:''}))}>Retirer la photo</button></div>}
+              {formData.photoUrl && <div><img src={formData.photoUrl} alt={t('Photo sélectionnée', 'Selected photo')} className="h-24 w-24 object-cover rounded"/><button type="button" disabled={photoReading} onClick={() => setFormData(previous => ({...previous,photoUrl:''}))}>{t('Retirer la photo', 'Remove photo')}</button></div>}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Code SKU *</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Code SKU', 'SKU')} *</label>
                   <input
                     type="text"
                     required
@@ -507,7 +509,7 @@ export const Products: React.FC<ProductsProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Code-barres EAN *</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Code-barres EAN', 'EAN Barcode')} *</label>
                   <input
                     type="text"
                     required
@@ -519,11 +521,11 @@ export const Products: React.FC<ProductsProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Désignation du produit *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Désignation du produit', 'Product Name')} *</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Ciment Dangote 42.5R, Fer 12mm..."
+                  placeholder={t('Ex: Ciment Dangote 42.5R, Fer 12mm...', 'E.g., Dangote cement 42.5R, 12 mm rebar...')}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
@@ -532,7 +534,7 @@ export const Products: React.FC<ProductsProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Catégorie</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Catégorie', 'Category')}</label>
                   <select
                     value={formData.categoryId}
                     onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
@@ -546,10 +548,10 @@ export const Products: React.FC<ProductsProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Marque / Fabricant</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Marque / Fabricant', 'Brand / Manufacturer')}</label>
                   <input
                     type="text"
-                    placeholder="Ex: Dangote, Bosch, Schneider..."
+                    placeholder={t('Ex: Dangote, Bosch, Schneider...', 'E.g., Dangote, Bosch, Schneider...')}
                     value={formData.brand}
                     onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                     className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
@@ -559,7 +561,7 @@ export const Products: React.FC<ProductsProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Prix d'Achat (USD)</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t("Prix d'Achat (USD)", 'Purchase Price (USD)')}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -570,7 +572,7 @@ export const Products: React.FC<ProductsProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Prix de Vente (USD) *</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Prix de Vente (USD)', 'Selling Price (USD)')} *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -581,14 +583,14 @@ export const Products: React.FC<ProductsProps> = ({
                     className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-bold text-amber-700"
                   />
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    Équiv. CDF: {formatCDF(formData.sellPriceUSD * exchangeRate)}
+                    {t('Équiv. CDF:', 'Equivalent in CDF:')} {formatCDF(formData.sellPriceUSD * exchangeRate)}
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Stock Actuel</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Stock Actuel', 'Current Stock')}</label>
                   <input
                     type="number"
                     min="0"
@@ -598,7 +600,7 @@ export const Products: React.FC<ProductsProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Seuil Min. Alerte</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Seuil Min. Alerte', 'Minimum Stock Alert')}</label>
                   <input
                     type="number"
                     min="1"
@@ -608,37 +610,37 @@ export const Products: React.FC<ProductsProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Unité</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">{t('Unité', 'Unit')}</label>
                   <select
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value as UnitOfMeasure })}
                     className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                   >
-                    <option value="pcs">Pièce (pcs)</option>
-                    <option value="sac">Sac (sac)</option>
-                    <option value="carton">Carton (carton)</option>
-                    <option value="kg">Kilogramme (kg)</option>
-                    <option value="m">Mètre (m)</option>
-                    <option value="litre">Litre (L)</option>
-                    <option value="paquet">Paquet</option>
+                    <option value="pcs">{t('Pièce (pcs)', 'Piece (pcs)')}</option>
+                    <option value="sac">{t('Sac (sac)', 'Bag (sac)')}</option>
+                    <option value="carton">{t('Carton (carton)', 'Carton')}</option>
+                    <option value="kg">{t('Kilogramme (kg)', 'Kilogram (kg)')}</option>
+                    <option value="m">{t('Mètre (m)', 'Meter (m)')}</option>
+                    <option value="litre">{t('Litre (L)', 'Liter (L)')}</option>
+                    <option value="paquet">{t('Paquet', 'Pack')}</option>
                   </select>
                 </div>
               </div>
 
               {/* Variants Section */}
               <div className="border border-slate-200 rounded-2xl p-3 bg-slate-50 space-y-2">
-                <label className="text-xs font-bold text-slate-700 block">Variantes (Taille, Couleur, Modèle)</label>
+                <label className="text-xs font-bold text-slate-700 block">{t('Variantes (Taille, Couleur, Modèle)', 'Variants (Size, Color, Model)')}</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Type (ex: Couleur)"
+                    placeholder={t('Type (ex: Couleur)', 'Type (e.g., Color)')}
                     value={newVariantName}
                     onChange={(e) => setNewVariantName(e.target.value)}
                     className="flex-1 text-xs p-2 bg-white border border-slate-200 rounded-xl"
                   />
                   <input
                     type="text"
-                    placeholder="Valeur (ex: Rouge)"
+                    placeholder={t('Valeur (ex: Rouge)', 'Value (e.g., Red)')}
                     value={newVariantValue}
                     onChange={(e) => setNewVariantValue(e.target.value)}
                     className="flex-1 text-xs p-2 bg-white border border-slate-200 rounded-xl"
@@ -648,7 +650,7 @@ export const Products: React.FC<ProductsProps> = ({
                     onClick={handleAddVariant}
                     className="px-3 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold"
                   >
-                    Ajouter
+                    {t('Ajouter', 'Add')}
                   </button>
                 </div>
 
@@ -679,13 +681,13 @@ export const Products: React.FC<ProductsProps> = ({
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
                 >
-                  Annuler
+                  {t('Annuler', 'Cancel')}
                 </button>
                 <button
                   type="submit" disabled={photoReading}
                   className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md"
                 >
-                  Enregistrer
+                  {t('Enregistrer', 'Save')}
                 </button>
               </div>
             </form>
@@ -699,7 +701,7 @@ export const Products: React.FC<ProductsProps> = ({
           <div className="bg-white rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl border border-slate-200 max-h-[85vh] flex flex-col">
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-sm sm:text-base">Historique des Mouvements de Stock</h3>
+                <h3 className="font-bold text-sm sm:text-base">{t('Historique des Mouvements de Stock', 'Stock Movement History')}</h3>
                 <p className="text-xs text-amber-300 truncate max-w-sm">{viewingHistoryProduct.name}</p>
               </div>
               <button
@@ -734,11 +736,11 @@ export const Products: React.FC<ProductsProps> = ({
                         </div>
                         <p className="text-[11px] text-slate-600 mt-1">{m.reason}</p>
                         <p className="text-[10px] text-slate-400 mt-0.5">
-                          Par: {m.userName} • Réf: {m.referenceNumber} • Stock après: {m.newStock}
+                          {t('Par:', 'By:')} {m.userName} • {t('Réf:', 'Ref:')} {m.referenceNumber} • {t('Stock après:', 'Stock after:')} {m.newStock}
                         </p>
                       </div>
                       <span className="text-[10px] text-slate-400 shrink-0 font-mono">
-                        {new Date(m.date).toLocaleDateString('fr-FR', {
+                        {new Date(m.date).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
                           day: '2-digit',
                           month: 'short',
                           hour: '2-digit',
@@ -749,7 +751,7 @@ export const Products: React.FC<ProductsProps> = ({
                   ))
               ) : (
                 <p className="text-center text-xs text-slate-400 py-6">
-                  Aucun mouvement enregistré pour ce produit.
+                  {t('Aucun mouvement enregistré pour ce produit.', 'No movements recorded for this product.')}
                 </p>
               )}
             </div>
@@ -759,7 +761,7 @@ export const Products: React.FC<ProductsProps> = ({
                 onClick={() => setViewingHistoryProduct(null)}
                 className="px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-xl"
               >
-                Fermer
+                {t('Fermer', 'Close')}
               </button>
             </div>
           </div>
@@ -771,7 +773,7 @@ export const Products: React.FC<ProductsProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-200">
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
-              <h3 className="font-bold text-base">Gestion des Catégories</h3>
+              <h3 className="font-bold text-base">{t('Gestion des Catégories', 'Category Management')}</h3>
               <button
                 onClick={() => setIsCategoryModalOpen(false)}
                 className="p-1.5 rounded-full hover:bg-white/10 text-slate-300 hover:text-white"
@@ -783,17 +785,17 @@ export const Products: React.FC<ProductsProps> = ({
             <div className="p-4 space-y-4">
               {/* Add category form */}
               <div className="space-y-2 border-b border-slate-200 pb-4">
-                <label className="text-xs font-bold text-slate-700">Nouvelle Catégorie</label>
+                <label className="text-xs font-bold text-slate-700">{t('Nouvelle Catégorie', 'New Category')}</label>
                 <input
                   type="text"
-                  placeholder="Nom de la catégorie..."
+                  placeholder={t('Nom de la catégorie...', 'Category name...')}
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
                 />
                 <input
                   type="text"
-                  placeholder="Description..."
+                  placeholder={t('Description...', 'Description...')}
                   value={newCatDesc}
                   onChange={(e) => setNewCatDesc(e.target.value)}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
@@ -809,13 +811,13 @@ export const Products: React.FC<ProductsProps> = ({
                   }}
                   className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-xs"
                 >
-                  Ajouter la catégorie
+                  {t('Ajouter la catégorie', 'Add Category')}
                 </button>
               </div>
 
               {/* Existing categories list */}
               <div className="space-y-2 max-h-56 overflow-y-auto">
-                <label className="text-xs font-bold text-slate-500">Catégories Existantes</label>
+                <label className="text-xs font-bold text-slate-500">{t('Catégories Existantes', 'Existing Categories')}</label>
                 {categories.map((c) => {
                   const count = products.filter((p) => p.categoryId === c.id).length;
                   return (
@@ -825,14 +827,14 @@ export const Products: React.FC<ProductsProps> = ({
                     >
                       <div>
                         <p className="font-bold text-slate-800">{c.name}</p>
-                        <p className="text-[10px] text-slate-400">{count} produit(s) associé(s)</p>
+                        <p className="text-[10px] text-slate-400">{count} {t('produit(s) associé(s)', 'associated product(s)')}</p>
                       </div>
                       {userRole === 'ADMIN' && (
                         <button
                           onClick={() => {
                             const success = onDeleteCategory(c.id);
                             if (!success) {
-                              alert('Impossible de supprimer cette catégorie car elle contient des produits.');
+                              alert(t('Impossible de supprimer cette catégorie car elle contient des produits.', 'This category cannot be deleted because it contains products.'));
                             }
                           }}
                           className="text-red-500 hover:text-red-700 p-1"

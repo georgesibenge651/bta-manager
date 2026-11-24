@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Receipt, Plus, Filter, Calendar, X, DollarSign, Search } from 'lucide-react';
 import { Expense, ExpenseCategory, UserRole } from '../types';
 import { formatUSD, formatCDF, usdToCdf, formatDateLubumbashi } from '../utils/currency';
+import { useLanguage } from '../i18n';
 
 interface ExpensesProps {
   expenses: Expense[];
@@ -23,6 +24,7 @@ export const Expenses: React.FC<ExpensesProps> = ({
   userRole,
   onAddExpense,
 }) => {
+  const { language, t } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -79,6 +81,15 @@ export const Expenses: React.FC<ExpensesProps> = ({
         return 'bg-slate-100 text-slate-800';
     }
   };
+  const getCategoryLabel = (cat: ExpenseCategory) => ({
+    TRANSPORT: t('Transport', 'Transport'),
+    RENT: t('Loyer', 'Rent'),
+    SALARY: t('Salaires', 'Salaries'),
+    ELECTRICITY: t('Électricité / Carburant', 'Electricity / Fuel'),
+    INTERNET: t('Internet', 'Internet'),
+    MAINTENANCE: t('Entretien', 'Maintenance'),
+    OTHER: t('Autres', 'Other'),
+  }[cat]);
 
   return (
     <div className="space-y-4">
@@ -86,10 +97,10 @@ export const Expenses: React.FC<ExpensesProps> = ({
         <div>
           <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
             <Receipt className="w-5 h-5 text-purple-600" />
-            Gestion des Dépenses & Frais Généraux
+            {t('Gestion des Dépenses & Frais Généraux', 'Expenses & Overhead Management')}
           </h3>
           <p className="text-xs text-slate-500">
-            Enregistrement des sorties de caisse quotidiennes et charges d'exploitation
+            {t("Enregistrement des sorties de caisse quotidiennes et charges d'exploitation", 'Record daily cash outflows and operating expenses')}
           </p>
         </div>
 
@@ -99,7 +110,7 @@ export const Expenses: React.FC<ExpensesProps> = ({
             className="px-4 py-2 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md self-start sm:self-auto"
           >
             <Plus className="w-4 h-4" />
-            Nouvelle Dépense
+            {t('Nouvelle Dépense', 'New Expense')}
           </button>
         )}
       </div>
@@ -107,14 +118,14 @@ export const Expenses: React.FC<ExpensesProps> = ({
       {/* Summary KPI Banner */}
       <div className="bg-gradient-to-r from-purple-900 to-[#0F2444] rounded-3xl p-4 sm:p-5 text-white flex justify-between items-center shadow-md">
         <div>
-          <span className="text-xs text-purple-200 font-semibold uppercase">Total Dépenses Enregistrées</span>
+          <span className="text-xs text-purple-200 font-semibold uppercase">{t('Total Dépenses Enregistrées', 'Total Recorded Expenses')}</span>
           <p className="text-2xl font-black text-white mt-1">{formatUSD(totalExpensesUSD)}</p>
           <p className="text-xs text-purple-200 font-bold">
             {formatCDF(usdToCdf(totalExpensesUSD, exchangeRate))}
           </p>
         </div>
         <div className="text-right text-xs text-slate-300">
-          <p className="font-bold text-white">{filteredExpenses.length} pièces justificatives</p>
+          <p className="font-bold text-white">{filteredExpenses.length} {t('pièces justificatives', 'receipts')}</p>
           <p className="text-[10px] text-slate-400">1$ = {exchangeRate} FC</p>
         </div>
       </div>
@@ -133,14 +144,8 @@ export const Expenses: React.FC<ExpensesProps> = ({
               }`}
             >
               {cat === 'ALL'
-                ? 'Toutes'
-                : cat === 'ELECTRICITY'
-                ? 'Électricité / Carburant'
-                : cat === 'RENT'
-                ? 'Loyer'
-                : cat === 'SALARY'
-                ? 'Salaires'
-                : cat}
+                ? t('Toutes', 'All')
+                : getCategoryLabel(cat as ExpenseCategory)}
             </button>
           )
         )}
@@ -149,8 +154,8 @@ export const Expenses: React.FC<ExpensesProps> = ({
       {/* Search */}
       <div className="relative bg-white rounded-2xl border border-slate-200 p-3">
         <Search className="w-4 h-4 absolute left-6 top-5 text-slate-400" />
-        <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher par libellé, reçu, catégorie, agent ou montant..." className="w-full pl-8 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-500" />
-        {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-6 top-5 text-slate-400" aria-label="Effacer la recherche"><X className="w-4 h-4" /></button>}
+        <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder={t('Rechercher par libellé, reçu, catégorie, agent ou montant...', 'Search by description, receipt, category, user, or amount...')} className="w-full pl-8 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-500" />
+        {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-6 top-5 text-slate-400" aria-label={t('Effacer la recherche', 'Clear search')}><X className="w-4 h-4" /></button>}
       </div>
 
       {/* Expenses List */}
@@ -164,7 +169,7 @@ export const Expenses: React.FC<ExpensesProps> = ({
               <div className="truncate flex-1">
                 <div className="flex items-center gap-2">
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getCategoryBadge(expense.category)}`}>
-                    {expense.category}
+                    {getCategoryLabel(expense.category)}
                   </span>
                   <span className="font-bold text-slate-800 text-xs truncate">{expense.title}</span>
                 </div>
@@ -172,7 +177,7 @@ export const Expenses: React.FC<ExpensesProps> = ({
                   <p className="text-[11px] text-slate-500 mt-1 truncate">{expense.description}</p>
                 )}
                 <p className="text-[10px] text-slate-400 mt-0.5">
-                  Reçu: {expense.receiptNumber} • Par {expense.createdBy} • {formatDateLubumbashi(expense.date)}
+                  {t('Reçu', 'Receipt')}: {expense.receiptNumber} • {t('Par', 'By')} {expense.createdBy} • {formatDateLubumbashi(expense.date, true, language === 'en' ? 'en-US' : 'fr-FR')}
                 </p>
               </div>
 
@@ -182,7 +187,7 @@ export const Expenses: React.FC<ExpensesProps> = ({
               </div>
             </div>
           ))}
-          {filteredExpenses.length === 0 && <p className="py-8 text-center text-xs text-slate-400">Aucune dépense correspondante.</p>}
+          {filteredExpenses.length === 0 && <p className="py-8 text-center text-xs text-slate-400">{t('Aucune dépense correspondante.', 'No matching expenses.')}</p>}
         </div>
       </div>
 
@@ -191,7 +196,7 @@ export const Expenses: React.FC<ExpensesProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-200">
             <div className="bg-[#0F2444] text-white p-4 flex items-center justify-between">
-              <h3 className="font-bold text-base">Enregistrer une Dépense Caisse</h3>
+              <h3 className="font-bold text-base">{t('Enregistrer une Dépense Caisse', 'Record a Cash Expense')}</h3>
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="p-1.5 rounded-full hover:bg-white/10 text-slate-300 hover:text-white"
@@ -202,28 +207,28 @@ export const Expenses: React.FC<ExpensesProps> = ({
 
             <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Catégorie de Charge *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Catégorie de Charge *', 'Expense Category *')}</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium"
                 >
-                  <option value="ELECTRICITY">Électricité & Carburant Groupe Électrogène</option>
-                  <option value="TRANSPORT">Transport & Logistique Livraisons</option>
-                  <option value="RENT">Loyer Magasin ou Dépôt</option>
-                  <option value="SALARY">Salaires & Primes Personnel</option>
-                  <option value="INTERNET">Internet, Téléphonie & Communication</option>
-                  <option value="MAINTENANCE">Entretien, Réparations & Fournitures Bureau</option>
-                  <option value="OTHER">Autres Dépenses Diverses</option>
+                  <option value="ELECTRICITY">{t('Électricité & Carburant Groupe Électrogène', 'Electricity & Generator Fuel')}</option>
+                  <option value="TRANSPORT">{t('Transport & Logistique Livraisons', 'Transport & Delivery Logistics')}</option>
+                  <option value="RENT">{t('Loyer Magasin ou Dépôt', 'Shop or Warehouse Rent')}</option>
+                  <option value="SALARY">{t('Salaires & Primes Personnel', 'Staff Salaries & Bonuses')}</option>
+                  <option value="INTERNET">{t('Internet, Téléphonie & Communication', 'Internet, Phone & Communications')}</option>
+                  <option value="MAINTENANCE">{t('Entretien, Réparations & Fournitures Bureau', 'Maintenance, Repairs & Office Supplies')}</option>
+                  <option value="OTHER">{t('Autres Dépenses Diverses', 'Other Expenses')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Intitulé de la dépense *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Intitulé de la dépense *', 'Expense Title *')}</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Gasoil groupe électrogène (50L)..."
+                  placeholder={t('Ex: Gasoil groupe électrogène (50L)...', 'e.g., Generator diesel (50 L)...')}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-semibold"
@@ -231,7 +236,7 @@ export const Expenses: React.FC<ExpensesProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Montant Décaissé (USD) *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Montant Décaissé (USD) *', 'Amount Spent (USD) *')}</label>
                 <input
                   type="number"
                   step="0.5"
@@ -242,15 +247,15 @@ export const Expenses: React.FC<ExpensesProps> = ({
                   className="w-full text-base font-black p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 font-mono"
                 />
                 <p className="text-[11px] text-purple-700 font-bold mt-1">
-                  Équiv: {formatCDF(usdToCdf(amountUSD, exchangeRate))} (Taux: {exchangeRate})
+                  {t('Équiv', 'Equivalent')}: {formatCDF(usdToCdf(amountUSD, exchangeRate))} ({t('Taux', 'Rate')}: {exchangeRate})
                 </p>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Détails / Justificatif</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('Détails / Justificatif', 'Details / Receipt')}</label>
                 <textarea
                   rows={2}
-                  placeholder="Ex: Facture station-service n° 48102, délestage SNEL de 8h à 18h..."
+                  placeholder={t('Ex: Facture station-service n° 48102, délestage SNEL de 8h à 18h...', 'e.g., Gas station receipt #48102, SNEL outage from 8 a.m. to 6 p.m....')}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
@@ -263,13 +268,13 @@ export const Expenses: React.FC<ExpensesProps> = ({
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
                 >
-                  Annuler
+                  {t('Annuler', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl shadow-md"
                 >
-                  Valider la Dépense
+                  {t('Valider la Dépense', 'Save Expense')}
                 </button>
               </div>
             </form>

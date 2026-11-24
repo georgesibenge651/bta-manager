@@ -48,6 +48,7 @@ import { IS_DEV } from './utils/config';
 import { saveTextFile } from './utils/files';
 import { CoreSessionGate, useCoreSession } from './core/session';
 import ImportExportModule from './components/import-export/ImportExportModule';
+import { LanguageProvider, useLanguage } from './i18n';
 
 /** Runs a repository action; permission/validation errors are shown to the user instead of crashing. */
 function guard<T>(fn: () => T): T | undefined {
@@ -60,6 +61,7 @@ function guard<T>(fn: () => T): T | undefined {
 }
 
 function BtaApp() {
+  const { language, t } = useLanguage();
   // Database reactive state
   const [dbState, setDbState] = useState(() => {const state=appRepository.getState();return {...state,settings:{...state.settings,companyName:displayCompanyName(state.settings.companyName)}};});
   const isAuthenticated = appRepository.isAuthenticated();
@@ -304,11 +306,11 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
 
   // Render current content view
   const renderContent = () => {
-    if (cloudContext && (!remoteAccess || remoteAccess.loading)) return <div className="p-8 text-center text-sm text-slate-600">Vérification des autorisations Core…</div>;
-    if (cloudContext && !coreSession) return <div role="alert" className="m-4 p-4">Session Core indisponible.</div>;
-    if (currentTab === 'produits' && !hasRemotePermission('stock.read')) return <div className="p-8 text-center text-sm text-slate-600">Accès de lecture du stock non accordé pour cet établissement.</div>;
-    if (currentTab === 'ventes' && !hasRemotePermission('sales.read', 'sales.create')) return <div className="p-8 text-center text-sm text-slate-600">Accès aux ventes non accordé pour cet établissement.</div>;
-    if (currentTab === 'clients' && !hasRemotePermission('customers.read', 'customers.manage', 'debts.read', 'debts.pay')) return <div className="p-8 text-center text-sm text-slate-600">Accès aux clients et dettes non accordé pour cet établissement.</div>;
+    if (cloudContext && (!remoteAccess || remoteAccess.loading)) return <div className="p-8 text-center text-sm text-slate-600">{t('Vérification des autorisations Core…', 'Checking Core permissions…')}</div>;
+    if (cloudContext && !coreSession) return <div role="alert" className="m-4 p-4">{t('Session Core indisponible.', 'Core session unavailable.')}</div>;
+    if (currentTab === 'produits' && !hasRemotePermission('stock.read')) return <div className="p-8 text-center text-sm text-slate-600">{t('Accès de lecture du stock non accordé pour cet établissement.', 'Stock read access has not been granted for this location.')}</div>;
+    if (currentTab === 'ventes' && !hasRemotePermission('sales.read', 'sales.create')) return <div className="p-8 text-center text-sm text-slate-600">{t('Accès aux ventes non accordé pour cet établissement.', 'Sales access has not been granted for this location.')}</div>;
+    if (currentTab === 'clients' && !hasRemotePermission('customers.read', 'customers.manage', 'debts.read', 'debts.pay')) return <div className="p-8 text-center text-sm text-slate-600">{t('Accès aux clients et dettes non accordé pour cet établissement.', 'Customer and debt access has not been granted for this location.')}</div>;
     if (currentTab === 'menu' && activeSubModule) {
       const permissions: Record<string, string[]> = {
         fournisseurs: ['suppliers.read', 'suppliers.manage'], achats: ['purchases.read', 'purchases.create'],
@@ -318,7 +320,7 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
         'sorties-gratuites': ['stock.read', 'stock.manage'],
       };
       const required = permissions[activeSubModule];
-      if (required && !hasRemotePermission(...required)) return <div className="p-8 text-center text-sm text-slate-600">Permission requise absente pour ce module.</div>;
+      if (required && !hasRemotePermission(...required)) return <div className="p-8 text-center text-sm text-slate-600">{t('Permission requise absente pour ce module.', 'Required permission is missing for this module.')}</div>;
     }
     if (currentTab === 'accueil') {
       return (
@@ -402,7 +404,7 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
               className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-50 transition shadow-xs"
             >
               <ArrowLeft className="w-4 h-4" />
-              Retour au Menu
+              {t('Retour au Menu', 'Back to Menu')}
             </button>
 
             {activeSubModule === 'cargo' && (
@@ -496,9 +498,9 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
                 freeIssues={dbState.freeIssues}
                 products={dbState.products}
                 customers={dbState.customers}
-                onCreateReservation={(input) => guard(() => appRepository.createReservation(input)) || { success: false, error: 'Création interrompue.' }}
-                onRecordReservationPayment={(reservationId, amount, method, notes) => guard(() => appRepository.recordReservationPayment(reservationId, amount, method, notes)) || { success: false, error: 'Paiement interrompu.' }}
-                onDeliverReservation={(input) => guard(() => appRepository.deliverReservation(input)) || { success: false, error: 'Livraison interrompue.' }}
+                onCreateReservation={(input) => guard(() => appRepository.createReservation(input)) || { success: false, error: t('Création interrompue.', 'Creation cancelled.') }}
+                onRecordReservationPayment={(reservationId, amount, method, notes) => guard(() => appRepository.recordReservationPayment(reservationId, amount, method, notes)) || { success: false, error: t('Paiement interrompu.', 'Payment cancelled.') }}
+                onDeliverReservation={(input) => guard(() => appRepository.deliverReservation(input)) || { success: false, error: t('Livraison interrompue.', 'Delivery cancelled.') }}
               />
             )}
           </div>
@@ -525,7 +527,7 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
     return null;
   };
 
-  if (!isAuthenticated) return <div className="p-8">Initialisation de la session Core…</div>;
+  if (!isAuthenticated) return <div className="p-8">{t('Initialisation de la session Core…', 'Initializing Core session…')}</div>;
 
   return (
     <div className={`min-h-screen bg-slate-100 font-sans text-slate-900 ${isMobileFrame ? 'p-2 sm:p-6 flex justify-center items-center bg-slate-900/95' : ''}`}>
@@ -541,7 +543,7 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
         {isMobileFrame && (
           <div className="bg-[#0B1A30] text-slate-300 text-[10px] px-6 pt-2 pb-1 flex justify-between items-center select-none shrink-0 font-medium z-40">
             <span>
-              {new Date().toLocaleTimeString('fr-FR', {
+              {new Date().toLocaleTimeString(language === 'en' ? 'en-US' : 'fr-FR', {
                 timeZone: 'Africa/Lubumbashi',
                 hour: '2-digit',
                 minute: '2-digit',
@@ -574,7 +576,7 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
           tenantName={coreSession ? displayCompanyName(coreSession.membership.name) : undefined}
           activeBranch={coreSession?.branch}
           branches={coreSession?.branches}
-          onSelectBranch={(branchId) => { void coreSession?.selectBranch(branchId).catch((error) => alert(error instanceof Error ? error.message : 'Changement d’établissement impossible.')); }}
+          onSelectBranch={(branchId) => { void coreSession?.selectBranch(branchId).catch((error) => alert(error instanceof Error ? error.message : t('Changement d’établissement impossible.', 'Unable to switch location.'))); }}
         />
 
         <CoreSyncCenter
@@ -659,7 +661,7 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
           guard(() => {
             const json = appRepository.exportDatabaseJson();
             saveTextFile(`bta_database_backup_${new Date().toISOString().slice(0, 10)}.json`, json, 'application/json').catch(
-              () => alert('Impossible d’enregistrer la sauvegarde.')
+              () => alert(t('Impossible d’enregistrer la sauvegarde.', 'Unable to save the backup.'))
             );
           });
         }}
@@ -693,4 +695,12 @@ const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
   );
 }
 
-export default function App() { return <CoreSessionGate><BtaApp /></CoreSessionGate>; }
+export default function App() {
+  return (
+    <LanguageProvider>
+      <CoreSessionGate>
+        <BtaApp />
+      </CoreSessionGate>
+    </LanguageProvider>
+  );
+}

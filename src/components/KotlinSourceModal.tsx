@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Smartphone, Code, Copy, Check, X, Download, ShieldCheck, Database } from 'lucide-react';
+import { useLanguage } from '../i18n';
 
 interface KotlinSourceModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ export const KotlinSourceModal: React.FC<KotlinSourceModalProps> = ({
   onClose,
   onDownloadZip,
 }) => {
+  const { t } = useLanguage();
   const [activeFile, setActiveFile] = useState<string>('ProductEntity');
   const [copied, setCopied] = useState(false);
 
@@ -106,13 +108,13 @@ fun SalesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Caisse Enregistreuse POS", color = Color.White) },
+                title = { Text("${t('Caisse Enregistreuse POS', 'Point of Sale')}", color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF0F2444)
                 ),
                 actions = {
                     Badge(containerColor = if (state.isOnline) Color(0xFF10B981) else Color(0xFFF59E0B)) {
-                        Text(if (state.isOnline) "En Ligne" else "Hors-Ligne")
+                        Text(if (state.isOnline) "${t('En Ligne', 'Online')}" else "${t('Hors-Ligne', 'Offline')}")
                     }
                 }
             )
@@ -199,7 +201,7 @@ class SyncWorker(
 `,
     },
     FirestoreRules: {
-      title: 'firestore.rules (Sécurité & Isolation)',
+      title: `firestore.rules (${t('Sécurité & Isolation', 'Security & isolation')})`,
       category: 'Firebase Firestore Rules',
       code: `rules_version = '2';
 service cloud.firestore {
@@ -281,10 +283,10 @@ service cloud.firestore {
             <Smartphone className="w-5 h-5 text-amber-400" />
             <div>
               <h3 className="font-bold text-sm sm:text-base text-white">
-                Architecture Android Kotlin & Jetpack Compose
+                {t('Architecture Android Kotlin & Jetpack Compose', 'Kotlin & Jetpack Compose Android architecture')}
               </h3>
               <p className="text-xs text-amber-300">
-                Code source natif conforme MVVM, Room DB, WorkManager & Firestore
+                {t('Code source natif conforme MVVM, Room DB, WorkManager & Firestore', 'Native source code using MVVM, Room DB, WorkManager & Firestore')}
               </p>
             </div>
           </div>
@@ -295,7 +297,7 @@ service cloud.firestore {
                 className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-sans font-bold flex items-center gap-1.5 shadow-sm transition"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Télécharger</span> Tout en ZIP
+                <span className="hidden sm:inline">{t('Télécharger', 'Download')}</span> {t('Tout en ZIP', 'all as ZIP')}
               </button>
             )}
             <button
@@ -334,14 +336,14 @@ service cloud.firestore {
                 className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl flex items-center gap-1.5 text-xs font-sans transition"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? 'Copié !' : 'Copier'}
+                {copied ? t('Copié !', 'Copied!') : t('Copier', 'Copy')}
               </button>
               <button
                 onClick={handleDownload}
                 className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-xl flex items-center gap-1.5 text-xs font-sans transition"
               >
                 <Download className="w-3.5 h-3.5" />
-                Télécharger .kt
+                {t('Télécharger .kt', 'Download .kt')}
               </button>
             </div>
           </div>
@@ -353,12 +355,12 @@ service cloud.firestore {
 
         {/* Footer */}
         <div className="p-3 bg-slate-900 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400 shrink-0">
-          <span>Prêt pour importation directe dans Android Studio Iguana / Ladybug</span>
+          <span>{t('Prêt pour importation directe dans Android Studio Iguana / Ladybug', 'Ready to import directly into Android Studio Iguana / Ladybug')}</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-sans"
           >
-            Fermer
+            {t('Fermer', 'Close')}
           </button>
         </div>
       </div>
