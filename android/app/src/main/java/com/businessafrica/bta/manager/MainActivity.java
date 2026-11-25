@@ -1,4 +1,4 @@
-package com.chiefalphons.tracking;
+package com.businessafrica.bta.manager;
 
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.Plugin;

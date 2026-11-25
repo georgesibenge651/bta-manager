@@ -1,4 +1,4 @@
-package com.chiefalphons.tracking;
+package com.businessafrica.bta.manager;
 
 import android.content.Context;
 import android.content.SharedPreferences;
