@@ -1,8 +1,8 @@
-# Build Android — CHIEF ALPHONS TRACKING
+# Build Android — CHIEF ALPHONS COMPANY LTD
 
 ## Option 1 – GitHub (le plus simple, rien à installer)
 1. Envoyez les changements sur la branche `feature/bta-anonymous-manager`.
-2. L'action **CHIEF ALPHONS TRACKING - Android Release** lance les tests et construit un APK et un Android App Bundle signé.
+2. L'action **CHIEF ALPHONS COMPANY LTD - Android Release** lance les tests et construit un APK et un Android App Bundle signé.
 3. Pour Google Play, téléchargez l'artefact **chief-alphons-tracking-playstore-aab** (fichier `.aab`). L'APK **chief-alphons-tracking-release-apk** sert aux essais directs.
 
 Pour pouvoir **mettre à jour** l'app plus tard sans la désinstaller, gardez toujours la même clé de signature :

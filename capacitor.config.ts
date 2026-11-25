@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.businessafrica.bta.manager',
-  appName: 'CHIEF ALPHONS TRACKING',
+  appName: 'CHIEF ALPHONS COMPANY LTD',
   webDir: 'dist',
   server: {
     androidScheme: 'https',
