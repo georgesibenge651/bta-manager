@@ -139,7 +139,7 @@ export function CoreSessionGate({ children }: { children: React.ReactNode }) {
       : error.startsWith('Session expirée — requête: ')
         ? `${t('Session expirée — requête:','Session expired — request:')}${error.slice('Session expirée — requête:'.length).replace('inconnue', t('inconnue','unknown'))}`
         : error;
-  if (busy) return <div className="min-h-screen grid place-items-center">{t('Connexion à Gestion Entreprise…','Connecting to Business Management…')}</div>;
+  if (busy) return <div className="min-h-screen grid place-items-center">{t('Connexion à CHIEF ALPHONS COMPANY LTD…','Connecting to CHIEF ALPHONS COMPANY LTD…')}</div>;
   if (!me) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} onOwnerSignUp={ownerSignUp} error={visibleError} />;
   if (!membership) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} onOwnerSignUp={ownerSignUp} error={t('Ce compte n’appartient à aucune entreprise active.','This account does not belong to an active company.')} />;
   if (!branches.length || !branch) return <CoreSignIn onSignIn={signIn} onInvitation={invitationSignIn} onOwnerSignUp={ownerSignUp} error={t('Aucun établissement actif n’est disponible pour cette entreprise.','No active branch is available for this company.')} />;

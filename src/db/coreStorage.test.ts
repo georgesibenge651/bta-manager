@@ -323,3 +323,32 @@ test('Multi-user: local-only creation refused under Core and actor change puts p
   assert.equal(repo.state.currentUser.id,'core:10');
   if(repo.persistTimer)clearTimeout(repo.persistTimer);
 });
+
+test('Cargo: arrival event uses the package destination country', () => {
+  repo.coreContext=null;
+  repo.state.syncInfo.status='OFFLINE';
+  repo.isBootstrapping=false;
+  repo.sessionUserId='cargo-admin';
+  repo.state.currentUser={id:'cargo-admin',name:'Cargo Admin',role:'ADMIN'};
+  repo.state.cargoPackages=[];
+
+  const pkg=repo.saveCargoPackage({
+    packingNumber:'PKG-TZ-TEST',
+    customerName:'Cargo Test',
+    description:'Destination country test',
+    destinationCountry:'Tanzanie',
+    destinationCity:'Dar es Salaam',
+    piecesCount:1,
+    transportMode:'SEA',
+    volumeCbm:1,
+    unitPriceUSD:1,
+  });
+  const updated=repo.addCargoEvent(pkg.id,{
+    status:'ARRIVED_DRC',
+    country:'RDC',
+  });
+
+  assert.equal(pkg.destinationCountry,'Tanzanie');
+  assert.equal(updated.events[0].country,'Tanzanie');
+  if(repo.persistTimer)clearTimeout(repo.persistTimer);
+});

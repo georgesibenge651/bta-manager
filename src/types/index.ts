@@ -411,7 +411,7 @@ export type CargoStatus =
   | 'INTERNATIONAL_TRANSIT' // 5. En transit international
   | 'TRANSIT_COUNTRY'     // 6. Arrivé dans un pays de transit
   | 'CUSTOMS'             // 7. En douane
-  | 'ARRIVED_DRC'         // 8. Arrivé en RDC
+  | 'ARRIVED_DRC'         // 8. Arrivé dans le pays de destination
   | 'ON_WAY_BUNIA'        // 9. En route vers Bunia
   | 'ARRIVED_BUNIA'       // 10. Arrivé à Bunia
   | 'AVAILABLE_PICKUP'    // 11. Disponible pour retrait

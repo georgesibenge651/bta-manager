@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.businessafrica.bta.manager"
+    namespace = "com.chiefalphons.tracking"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.businessafrica.bta.manager"
+        applicationId "com.chiefalphons.tracking"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 100 + (System.getenv("GITHUB_RUN_NUMBER") ?: "0").toInteger()

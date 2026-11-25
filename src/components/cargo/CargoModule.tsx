@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { CargoPackage, CargoStatus, User, CompanySettings, PaymentMethod } from '../../types';
 import { useLanguage } from '../../i18n';
 
@@ -21,7 +21,7 @@ const STATUS: Array<{ value: CargoStatus; label: string; englishLabel: string }>
   { value: 'INTERNATIONAL_TRANSIT', label: 'Transit international', englishLabel: 'In international transit' },
   { value: 'TRANSIT_COUNTRY', label: 'Pays de transit', englishLabel: 'Transit country' },
   { value: 'CUSTOMS', label: 'En douane', englishLabel: 'At customs' },
-  { value: 'ARRIVED_DRC', label: 'Arrivé en RDC', englishLabel: 'Arrived in the DRC' },
+  { value: 'ARRIVED_DRC', label: 'Arrivé au pays de destination', englishLabel: 'Arrived in the destination country' },
   { value: 'ON_WAY_BUNIA', label: 'En route vers Bunia', englishLabel: 'On the way to Bunia' },
   { value: 'ARRIVED_BUNIA', label: 'Arrivé à Bunia', englishLabel: 'Arrived in Bunia' },
   { value: 'AVAILABLE_PICKUP', label: 'Disponible au retrait', englishLabel: 'Ready for pickup' },
@@ -42,7 +42,7 @@ const createPackageForm = (language: 'fr' | 'en') => ({
   description: '',
   originCountry: language === 'en' ? 'China' : 'Chine',
   originCity: '',
-  destinationCountry: language === 'en' ? 'DRC' : 'RDC',
+  destinationCountry: 'RDC',
   destinationCity: 'Bunia',
   transportMode: 'SEA' as 'AIR' | 'SEA',
   carrierName: '',
@@ -121,11 +121,20 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
 
   const [eventForm, setEventForm] = useState({
     status: 'CHINA_WAREHOUSE' as CargoStatus,
-    country: language === 'en' ? 'DRC' : 'RDC',
+    country: 'RDC',
     city: 'Bunia',
     location: '',
     comment: '',
   });
+
+  useEffect(() => {
+    if (!selected) return;
+    setEventForm((previous) => ({
+      ...previous,
+      country: selected.destinationCountry || 'RDC',
+      city: selected.destinationCity || '',
+    }));
+  }, [selected]);
 
   const [paymentForm, setPaymentForm] = useState({
     amountUSD: '',
@@ -334,7 +343,16 @@ export const CargoModule: React.FC<CargoModuleProps> = ({
     setBusy(true);
 
     try {
-      await onAddEvent(selected.id, eventForm);
+      await onAddEvent(
+        selected.id,
+        eventForm.status === 'ARRIVED_DRC'
+          ? {
+              ...eventForm,
+              country: selected.destinationCountry,
+              city: selected.destinationCity,
+            }
+          : eventForm
+      );
       setSelected(null);
     } catch (err) {
       setError(cargoErrorMessage(err, t, 'Impossible d’ajouter le suivi.', 'Unable to add the tracking update.'));

@@ -1,5 +1,5 @@
 
-name: BTA Manager - CI & APK Release
+name: CHIEF ALPHONS TRACKING - Android Release
 
 on:
   workflow_dispatch:
@@ -13,12 +13,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: bta-manager-${{ github.ref }}
+  group: chief-alphons-tracking-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   verify-and-build:
-    name: Tests, Web build and signed Android APK
+    name: Tests, Web build and signed Android artifacts
     runs-on: ubuntu-24.04
     timeout-minutes: 60
 
@@ -123,17 +123,25 @@ jobs:
 
           echo "Android release signing key verified."
 
-      - name: Build signed release APK
+      - name: Build signed release APK and Android App Bundle
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease bundleRelease --no-daemon
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: bta-manager-release-apk
+          name: chief-alphons-tracking-release-apk
           path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload signed Play Store App Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: chief-alphons-tracking-playstore-aab
+          path: android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
           retention-days: 30
 

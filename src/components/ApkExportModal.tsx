@@ -211,7 +211,7 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({
                   {t('Projet Android Natif Prêt (Capacitor & Gradle)', 'Native Android project ready (Capacitor & Gradle)')}
                 </h4>
                 <p className="text-xs text-teal-800 leading-relaxed">
-                  {t('Le dossier ', 'The ')}<code className="font-bold bg-white/70 px-1 py-0.5 rounded text-teal-900">android/</code>{t(' est entièrement configuré avec Gradle, l’', ' folder is fully configured with Gradle, the ')}<code className="font-bold bg-white/70 px-1 py-0.5 rounded text-teal-900">AndroidManifest.xml</code>{t(', le nom ', ', app name ')}<strong>CHIEF ALPHONS COMPANY LTD</strong>{t(' et l’ID ', ' and ID ')}<code className="font-mono text-teal-800 font-bold">com.businessafrica.bta.manager</code>.
+                  {t('Le dossier ', 'The ')}<code className="font-bold bg-white/70 px-1 py-0.5 rounded text-teal-900">android/</code>{t(' est entièrement configuré avec Gradle, l’', ' folder is fully configured with Gradle, the ')}<code className="font-bold bg-white/70 px-1 py-0.5 rounded text-teal-900">AndroidManifest.xml</code>{t(', le nom ', ', app name ')}<strong>CHIEF ALPHONS TRACKING</strong>{t(' et l’ID ', ' and ID ')}<code className="font-mono text-teal-800 font-bold">com.chiefalphons.tracking</code>.
                 </p>
               </div>
 

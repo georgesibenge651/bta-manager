@@ -2728,7 +2728,7 @@ this.state.cargoPackages = [
       description,
       originCountry: String(input.originCountry ?? existing?.originCountry ?? 'Chine'),
       originCity: String(input.originCity ?? existing?.originCity ?? ''),
-      destinationCountry: String(input.destinationCountry ?? existing?.destinationCountry ?? 'RDC'),
+      destinationCountry: String(input.destinationCountry ?? existing?.destinationCountry ?? 'RDC').trim(),
       destinationCity: String(input.destinationCity ?? existing?.destinationCity ?? 'Bunia'),
       transportMode,
       carrierName: String(input.carrierName ?? existing?.carrierName ?? ''),
@@ -2773,7 +2773,9 @@ this.state.cargoPackages = [
       id: generateUUID(),
       packageId,
       status: input.status,
-      country: String(input.country || pkg.destinationCountry),
+      country: input.status === 'ARRIVED_DRC'
+        ? pkg.destinationCountry
+        : String(input.country || pkg.destinationCountry),
       city: String(input.city || pkg.destinationCity),
       location: input.location,
       date: input.date || new Date().toISOString(),

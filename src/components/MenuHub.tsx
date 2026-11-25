@@ -294,7 +294,7 @@ export const MenuHub: React.FC<MenuHubProps> = ({
           </div>
           <div>
             <h4 className="font-bold text-xs text-slate-900">
-              {t('État synchronisation Gestion Entreprise :', 'Business sync status:')}{' '}
+              {t('État de synchronisation CHIEF ALPHONS COMPANY LTD :', 'CHIEF ALPHONS COMPANY LTD sync status:')}{' '}
               <span className={syncInfo.status === 'OFFLINE' ? 'text-amber-700' : 'text-emerald-700'}>
                 {syncInfo.status === 'OFFLINE' ? t('Mode hors ligne (stockage local)', 'Offline mode (local storage)') : t('En ligne', 'Online')}
               </span>

@@ -55,5 +55,5 @@ test('Polling: foreground timer, no overlap, resume event and stop; visible comp
  t.mock.timers.tick(60000);assert.equal(calls,1);host.dispatchEvent(new Event('focus'));host.dispatchEvent(new Event('bta-core-sync-finished'));assert.equal(calls,1);
  release();await Promise.resolve();await Promise.resolve();doc.hidden=true;t.mock.timers.tick(60000);assert.equal(calls,1);
  doc.hidden=false;host.dispatchEvent(new Event('online'));assert.equal(calls,2);stop();release();await Promise.resolve();t.mock.timers.tick(300000);assert.equal(calls,2);
- assert.equal(displayCompanyName('Fondation Kenda Corp'),'Gestion Entreprise');assert.equal(displayCompanyName('Autre entreprise'),'Autre entreprise');
+ assert.equal(displayCompanyName('Fondation Kenda Corp'),'CHIEF ALPHONS COMPANY LTD');assert.equal(displayCompanyName('Autre entreprise'),'Autre entreprise');
 });
